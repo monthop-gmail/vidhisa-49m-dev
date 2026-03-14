@@ -39,6 +39,7 @@
 | งาน | รายละเอียด | สถานะ |
 |-----|-----------|-------|
 | **เชื่อม UI ↔ API จริง** | Dashboard เรียก API จริงจาก DB | ✅ เสร็จ |
+| **Integration Test** | 27 test cases ครอบคลุมทุก endpoint + anti-fraud + edge cases | ✅ เสร็จ |
 | **Load Test** | จำลอง concurrent users ระดับหมื่น-แสน | ⬜ รอดำเนินการ |
 | **Infra** | Docker Compose modular + CF Tunnel | ✅ modular เสร็จ / CF Tunnel placeholder |
 
@@ -66,6 +67,7 @@
 | **Map** | Leaflet + Thailand GeoJSON | Open source, ไม่มีค่าใช้จ่าย |
 | **DB Management** | Adminer | Web UI ดู/แก้ข้อมูลได้ทันที |
 | **Infra** | Docker Compose modular (include pattern) | ตาม checklist 74 ข้อ |
+| **Testing** | pytest + httpx (integration test กับ DB จริง) | ไม่ใช้ mock, ทดสอบ end-to-end |
 
 ---
 

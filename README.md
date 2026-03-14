@@ -39,6 +39,27 @@ docker compose up -d
 - API Docs: http://localhost:8000/docs
 - Adminer: http://localhost:8081 (server: `vithisa-db`, user: `vithisa`, pass: `changeme`, db: `vithisa49m`)
 
+## Testing
+
+Integration test ทดสอบกับ API + DB จริง (ไม่ใช่ mock) — 27 cases ครอบคลุมทุก endpoint
+
+```bash
+# ต้อง docker compose up -d ก่อน
+cd services/api
+pip install -r requirements-test.txt
+python3 -m pytest tests/ -v
+```
+
+| Test File | Cases | ครอบคลุม |
+|-----------|-------|---------|
+| `test_health.py` | 3 | health, Swagger UI, OpenAPI |
+| `test_stats.py` | 5 | total, by-province, by-group, by-branch, daily |
+| `test_projection.py` | 2 | ค่าคาดการณ์ + สูตรคำนวณ |
+| `test_leaderboard.py` | 2 | branch ranking, org ranking |
+| `test_feed.py` | 2 | feed + default limit |
+| `test_records.py` | 11 | CRUD, anti-fraud 5 กรณี, approve/reject, 404 |
+| `test_branch.py` | 2 | pending list, empty branch |
+
 ## โครงสร้าง
 
 ```
@@ -51,6 +72,7 @@ vithisa-49m-dev/
 │   └── prototype-spec.md
 └── services/              # Modular Docker Compose
     ├── api/               # FastAPI + anti-fraud
+    │   └── tests/         # Integration test (27 cases)
     ├── db/                # PostgreSQL 16 + schema + seed data
     ├── dashboard/         # nginx + static HTML/JS (Leaflet map)
     ├── adminer/           # Adminer — Web DB management

@@ -247,10 +247,12 @@
 }
 ```
 
-| Error Code | สาเหตุ |
-|-----------|--------|
-| `DAILY_LIMIT_EXCEEDED` | เกินเพดานนาทีต่อวัน |
-| `SESSION_LIMIT_EXCEEDED` | เกินเพดานนาทีต่อครั้ง |
-| `COOLDOWN_ACTIVE` | บันทึกถี่เกินไป รอ cooldown |
-| `BULK_LIMIT_EXCEEDED` | ยอดองค์กรเกิน participant × เพดาน |
-| `INVALID_BRANCH` | ไม่พบสาขา |
+| Error Code | HTTP | สาเหตุ |
+|-----------|------|--------|
+| `INVALID_MINUTES` | 422 | จำนวนนาทีต้องมากกว่า 0 |
+| `DAILY_LIMIT_EXCEEDED` | 422 | เกินเพดานนาทีต่อวัน |
+| `SESSION_LIMIT_EXCEEDED` | 422 | เกินเพดานนาทีต่อครั้ง |
+| `COOLDOWN_ACTIVE` | 422 | บันทึกถี่เกินไป รอ cooldown |
+| `BULK_LIMIT_EXCEEDED` | 422 | ยอดองค์กรเกิน participant × เพดาน |
+| `NOT_FOUND` | 404 | ไม่พบรายการ (approve/reject) |
+| `INVALID_BRANCH` | 422 | ไม่พบสาขา |
