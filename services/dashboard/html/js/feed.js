@@ -19,4 +19,5 @@ async function loadFeed() {
 }
 
 loadFeed();
-setInterval(loadFeed, 15000);
+// Fallback polling every 60s (SSE handles real-time)
+setInterval(loadFeed, 60000);

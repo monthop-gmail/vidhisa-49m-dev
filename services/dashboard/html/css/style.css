@@ -15,6 +15,7 @@ section { background: #fff; border-radius: 8px; padding: 1rem; margin-bottom: 1r
 .counter-label { font-size: 0.9rem; color: #666; }
 #grand-counter { font-size: 3rem; font-weight: bold; color: #b8860b; font-family: monospace; }
 .counter-unit { font-size: 1rem; color: #666; }
+.last-updated { font-size: 0.75rem; color: #999; margin-top: 0.3rem; }
 
 /* Progress Bar */
 .progress-bar { background: #e0e0e0; border-radius: 20px; height: 30px; overflow: hidden; position: relative; }

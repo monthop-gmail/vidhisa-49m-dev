@@ -11,12 +11,21 @@ function formatThaiDate(str) {
     return `${day} ${month} พ.ศ. ${year}`;
 }
 
+function updateLastUpdated() {
+    const el = document.getElementById('last-updated');
+    if (el) {
+        const now = new Date();
+        el.textContent = 'อัพเดทล่าสุด: ' + now.toLocaleTimeString('th-TH');
+    }
+}
+
 async function loadStats() {
     try {
         const res = await fetch('/api/stats/total');
         const data = await res.json();
         animateCounter(data.total_minutes);
         updateProgress(data.total_minutes);
+        updateLastUpdated();
     } catch (e) {
         console.error('stats error:', e);
     }
@@ -90,8 +99,12 @@ async function loadProjection() {
     }
 }
 
+// Track current leaderboard view
+let currentLeaderboardType = 'branch';
+
 async function loadLeaderboard(type, btn) {
-    // Toggle active button
+    currentLeaderboardType = type;
+
     if (btn) {
         btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
@@ -113,7 +126,12 @@ async function loadLeaderboard(type, btn) {
     }
 }
 
+// Track current table view
+let currentTableView = 'province';
+
 async function loadProvinceTable(view, btn) {
+    currentTableView = view;
+
     if (btn) {
         btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
@@ -159,14 +177,53 @@ async function loadProvinceTable(view, btn) {
     }
 }
 
+// Refresh all dashboard sections
+function refreshAll() {
+    loadStats();
+    loadProjection();
+    loadLeaderboard(currentLeaderboardType);
+    loadProvinceTable(currentTableView);
+    // Map refresh — reload province data + markers if active
+    if (typeof loadProvinceData === 'function') loadProvinceData();
+    if (typeof currentView !== 'undefined' && currentView === 'markers' && typeof loadMarkers === 'function') {
+        loadMarkers();
+    }
+}
+
+// --- SSE: Real-time updates ---
+function connectSSE() {
+    const evtSource = new EventSource('/api/sse');
+
+    evtSource.addEventListener('approved', () => {
+        // Record approved — refresh stats, leaderboard, table, map
+        refreshAll();
+    });
+
+    evtSource.addEventListener('record', () => {
+        // New record submitted — refresh feed
+        if (typeof loadFeed === 'function') loadFeed();
+    });
+
+    evtSource.addEventListener('rejected', () => {
+        if (typeof loadFeed === 'function') loadFeed();
+    });
+
+    evtSource.onerror = () => {
+        // Connection lost — will auto-reconnect (EventSource default behavior)
+        console.warn('SSE connection lost, will reconnect...');
+    };
+
+    return evtSource;
+}
+
 // Init
 loadStats();
 loadProjection();
 loadLeaderboard('branch');
 loadProvinceTable('province');
 
-// Auto-refresh every 30s
-setInterval(() => {
-    loadStats();
-    loadProjection();
-}, 30000);
+// Connect SSE for real-time updates
+connectSSE();
+
+// Fallback polling every 60s (in case SSE disconnects)
+setInterval(refreshAll, 60000);

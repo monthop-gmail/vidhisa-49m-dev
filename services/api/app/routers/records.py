@@ -4,6 +4,7 @@ from app.database import get_db
 from app.models import Record
 from app.schemas import RecordCreate, RecordResponse, ApproveRequest, RejectRequest
 from app.anti_fraud import validate_record
+from app.events import publish
 from sqlalchemy import select
 
 router = APIRouter()
@@ -33,6 +34,7 @@ async def create_record(data: RecordCreate, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await db.refresh(record)
 
+    await publish("record")
     return RecordResponse(
         id=record.id,
         status="pending",
@@ -50,6 +52,7 @@ async def approve_record(record_id: int, data: ApproveRequest, db: AsyncSession 
     record.status = "approved"
     record.approved_by = data.approved_by
     await db.commit()
+    await publish("approved")
     return {"id": record_id, "status": "approved"}
 
 
@@ -63,4 +66,5 @@ async def reject_record(record_id: int, data: RejectRequest, db: AsyncSession = 
     record.status = "rejected"
     record.flags = (record.flags or []) + [f"rejected: {data.reason}"]
     await db.commit()
+    await publish("rejected")
     return {"id": record_id, "status": "rejected"}
