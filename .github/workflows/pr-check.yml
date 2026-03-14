@@ -1,0 +1,40 @@
+name: PR Check
+
+on:
+  pull_request:
+    types: [opened, edited, reopened]
+
+jobs:
+  require-issue-link:
+    name: Require Issue Link
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check PR links to an issue
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          echo "Checking PR #$PR_NUMBER for issue link..."
+
+          # Match patterns: Closes #N, Fixes #N, Resolves #N, Refs #N, #N
+          if echo "$PR_BODY" | grep -qPi '(close[sd]?|fix(e[sd])?|resolve[sd]?|refs?)\s*#[0-9]+'; then
+            echo "✅ PR links to an issue (keyword + number)"
+            exit 0
+          fi
+
+          # Also match direct issue URLs
+          if echo "$PR_BODY" | grep -qP 'github\.com/.+/issues/[0-9]+'; then
+            echo "✅ PR links to an issue (URL)"
+            exit 0
+          fi
+
+          echo "❌ PR ต้อง link กับ Issue"
+          echo ""
+          echo "กรุณาเพิ่มในส่วน 'Issue ที่เกี่ยวข้อง' เช่น:"
+          echo "  Closes #1"
+          echo "  Fixes #2"
+          echo "  Refs #3"
+          echo ""
+          echo "ถ้ายังไม่มี Issue ให้สร้าง Issue ก่อนแล้วแก้ PR description"
+          exit 1
