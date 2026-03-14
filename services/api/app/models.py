@@ -30,12 +30,26 @@ class Branch(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class Organization(Base):
+    __tablename__ = "organizations"
+    id = Column(String(10), primary_key=True)
+    name = Column(String(200), nullable=False)
+    org_type = Column(String(50))
+    branch_id = Column(String(10), ForeignKey("branches.id"))
+    province = Column(String(100))
+    latitude = Column(Float)
+    longitude = Column(Float)
+    contact = Column(String(200))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class Record(Base):
     __tablename__ = "records"
     id = Column(Integer, primary_key=True, autoincrement=True)
     type = Column(String(20), nullable=False)
     branch_id = Column(String(10), ForeignKey("branches.id"))
     name = Column(String(200), nullable=False)
+    org_id = Column(String(10), ForeignKey("organizations.id"))
     minutes = Column(Integer, nullable=False)
     participant_count = Column(Integer)
     minutes_per_person = Column(Integer)

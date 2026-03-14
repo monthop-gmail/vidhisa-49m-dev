@@ -84,7 +84,7 @@
         <div class="map-controls">
             <button id="btn-province" class="active" onclick="switchMapView('province')">จังหวัด</button>
             <button id="btn-group" onclick="switchMapView('group')">กลุ่มสาขา</button>
-            <button id="btn-markers" onclick="switchMapView('markers')">หมุดสาขา</button>
+            <button id="btn-markers" onclick="switchMapView('markers')">องค์กร</button>
         </div>
         <div id="map"></div>
     </section>
@@ -95,7 +95,8 @@
         <div class="table-controls">
             <button id="btn-tbl-province" class="active" onclick="loadProvinceTable('province', this)">รายจังหวัด</button>
             <button id="btn-tbl-group" onclick="loadProvinceTable('group', this)">รายกลุ่มสาขา</button>
-            <button id="btn-tbl-markers" onclick="loadProvinceTable('markers', this)">หมุดสาขา</button>
+            <button id="btn-tbl-branch" onclick="loadProvinceTable('branch', this)">รายสาขา</button>
+            <button id="btn-tbl-org" onclick="loadProvinceTable('org', this)">รายองค์กร</button>
         </div>
         <table id="province-table">
             <thead id="province-table-head">
@@ -108,10 +109,10 @@
     <!-- Two columns: Leaderboard + Feed -->
     <div class="columns">
         <section id="leaderboard-section">
-            <h2>อันดับสาขา</h2>
+            <h2>อันดับพลังจิต</h2>
             <div class="tab-controls">
-                <button class="active" onclick="loadLeaderboard('branch', this)">สาขา</button>
-                <button onclick="loadLeaderboard('org', this)">องค์กร</button>
+                <button class="active" onclick="loadLeaderboard('branch', this)">รายสาขา</button>
+                <button onclick="loadLeaderboard('org', this)">รายองค์กร</button>
             </div>
             <table id="leaderboard-table">
                 <thead><tr><th>#</th><th>ชื่อ</th><th>นาที</th></tr></thead>

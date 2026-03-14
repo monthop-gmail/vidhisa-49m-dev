@@ -7,6 +7,7 @@ class RecordCreate(BaseModel):
     type: str  # "individual" or "bulk"
     branch_id: str
     name: str
+    org_id: Optional[str] = None
     minutes: int
     participant_count: Optional[int] = None
     minutes_per_person: Optional[int] = None
@@ -102,6 +103,28 @@ class PendingRecord(BaseModel):
     date: date
     status: str
     flags: list[str]
+
+
+class OrganizationCreate(BaseModel):
+    id: str
+    name: str
+    org_type: Optional[str] = None
+    branch_id: str
+    province: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    contact: Optional[str] = None
+
+
+class OrganizationResponse(BaseModel):
+    id: str
+    name: str
+    org_type: Optional[str] = None
+    branch_id: str
+    province: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    contact: Optional[str] = None
 
 
 class ErrorResponse(BaseModel):

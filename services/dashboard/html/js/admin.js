@@ -1,13 +1,19 @@
+const FMT = new Intl.NumberFormat('th-TH');
+
 async function loadBranches() {
     try {
         const res = await fetch('/api/stats/by-branch');
         const data = await res.json();
         const sel = document.getElementById('branch-select');
+        const orgSel = document.getElementById('org-branch');
         data.forEach(b => {
             const opt = document.createElement('option');
             opt.value = b.branch_id;
             opt.textContent = `${b.branch_name} (${b.province})`;
             sel.appendChild(opt);
+
+            const opt2 = opt.cloneNode(true);
+            orgSel.appendChild(opt2);
         });
     } catch (e) {
         console.error('branches error:', e);
@@ -72,4 +78,67 @@ async function reject(id) {
     loadPending();
 }
 
+async function loadOrganizations() {
+    try {
+        const res = await fetch('/api/organizations');
+        const data = await res.json();
+        const tbody = document.querySelector('#org-table tbody');
+        tbody.innerHTML = '';
+        data.forEach(o => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${o.id}</td>
+                    <td>${o.name}</td>
+                    <td>${o.org_type || '-'}</td>
+                    <td>${o.province || '-'}</td>
+                    <td>${o.branch_id}</td>
+                    <td>${FMT.format(o.total_minutes)}</td>
+                    <td>${FMT.format(o.total_records)}</td>
+                </tr>`;
+        });
+    } catch (e) {
+        console.error('org error:', e);
+    }
+}
+
+async function createOrg() {
+    const body = {
+        id: document.getElementById('org-id').value,
+        name: document.getElementById('org-name').value,
+        org_type: document.getElementById('org-type').value || null,
+        branch_id: document.getElementById('org-branch').value,
+        province: document.getElementById('org-province').value || null,
+        latitude: parseFloat(document.getElementById('org-lat').value) || null,
+        longitude: parseFloat(document.getElementById('org-lng').value) || null,
+        contact: document.getElementById('org-contact').value || null,
+    };
+
+    if (!body.id || !body.name || !body.branch_id) {
+        alert('กรุณากรอก รหัส, ชื่อ และเลือกสาขา');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/organizations', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body),
+        });
+        if (res.ok) {
+            alert('เพิ่มองค์กรสำเร็จ');
+            ['org-id','org-name','org-province','org-lat','org-lng','org-contact'].forEach(
+                id => document.getElementById(id).value = ''
+            );
+            loadOrganizations();
+        } else {
+            const err = await res.json();
+            alert(err.detail?.message || 'เกิดข้อผิดพลาด');
+        }
+    } catch (e) {
+        console.error('create org error:', e);
+        alert('เกิดข้อผิดพลาด');
+    }
+}
+
 loadBranches();
+loadOrganizations();

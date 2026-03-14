@@ -21,11 +21,24 @@ CREATE TABLE branches (
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE organizations (
+    id          VARCHAR(10) PRIMARY KEY,
+    name        VARCHAR(200) NOT NULL,
+    org_type    VARCHAR(50),
+    branch_id   VARCHAR(10) REFERENCES branches(id),
+    province    VARCHAR(100),
+    latitude    DOUBLE PRECISION,
+    longitude   DOUBLE PRECISION,
+    contact     VARCHAR(200),
+    created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE records (
     id                  SERIAL PRIMARY KEY,
     type                VARCHAR(20) NOT NULL CHECK (type IN ('individual', 'bulk')),
     branch_id           VARCHAR(10) REFERENCES branches(id),
     name                VARCHAR(200) NOT NULL,
+    org_id              VARCHAR(10) REFERENCES organizations(id),
     minutes             INTEGER NOT NULL CHECK (minutes > 0),
     participant_count   INTEGER,
     minutes_per_person  INTEGER,

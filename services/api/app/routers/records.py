@@ -17,6 +17,7 @@ async def create_record(data: RecordCreate, db: AsyncSession = Depends(get_db)):
         type=data.type,
         branch_id=data.branch_id,
         name=data.name,
+        org_id=data.org_id,
         minutes=data.minutes,
         participant_count=data.participant_count,
         minutes_per_person=data.minutes_per_person,

@@ -33,6 +33,39 @@
         </table>
         <p id="pending-empty" style="display:none">ไม่มีรายการรออนุมัติ</p>
     </section>
+
+    <section>
+        <h2>องค์กร</h2>
+        <table id="org-table">
+            <thead>
+                <tr>
+                    <th>รหัส</th><th>ชื่อ</th><th>ประเภท</th><th>จังหวัด</th><th>สาขา</th><th>นาที</th><th>รายการ</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <h3 style="margin-top:1rem">เพิ่มองค์กร</h3>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:0.5rem; margin-top:0.5rem;">
+            <div><label>รหัส</label><input id="org-id" placeholder="ORG016" style="width:100%"></div>
+            <div><label>ชื่อ</label><input id="org-name" placeholder="ชื่อองค์กร" style="width:100%"></div>
+            <div><label>ประเภท</label><select id="org-type" style="width:100%">
+                <option value="">-- เลือก --</option>
+                <option value="สถาบันพลังจิตตานุภาพ">สถาบันพลังจิตตานุภาพ</option>
+                <option value="โรงเรียน">โรงเรียน</option>
+                <option value="มหาวิทยาลัย">มหาวิทยาลัย</option>
+                <option value="วัด">วัด</option>
+                <option value="หน่วยงาน">หน่วยงาน</option>
+                <option value="ชุมชน">ชุมชน</option>
+            </select></div>
+            <div><label>สาขา</label><select id="org-branch" style="width:100%"></select></div>
+            <div><label>จังหวัด</label><input id="org-province" placeholder="จังหวัด" style="width:100%"></div>
+            <div><label>ละติจูด</label><input id="org-lat" type="number" step="any" style="width:100%"></div>
+            <div><label>ลองจิจูด</label><input id="org-lng" type="number" step="any" style="width:100%"></div>
+            <div><label>ติดต่อ</label><input id="org-contact" placeholder="เบอร์โทร/LINE" style="width:100%"></div>
+        </div>
+        <button class="btn-approve" style="margin-top:0.5rem" onclick="createOrg()">เพิ่มองค์กร</button>
+    </section>
 </main>
 
 <script src="/js/admin.js"></script>

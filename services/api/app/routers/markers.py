@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.database import get_db
-from app.models import Branch, Record
+from app.models import Branch, Record, Organization
 
 router = APIRouter()
 
@@ -36,25 +36,35 @@ async def get_markers(db: AsyncSession = Depends(get_db)):
             "records": r.records,
         })
 
-    # 2) Bulk org markers (records that have GPS)
+    # 2) Organization markers (from organizations table with stats)
     stmt = select(
-        Record.name, Record.minutes, Record.latitude, Record.longitude,
-        Branch.name.label("branch_name"),
-    ).join(Branch, Record.branch_id == Branch.id).where(
-        Record.type == "bulk",
-        Record.status == "approved",
-        Record.latitude.isnot(None),
-        Record.longitude.isnot(None),
+        Organization.id, Organization.name, Organization.org_type,
+        Organization.province, Organization.latitude, Organization.longitude,
+        Organization.branch_id,
+        func.coalesce(func.sum(Record.minutes), 0).label("minutes"),
+        func.count(Record.id).label("records"),
+    ).outerjoin(
+        Record, (Record.org_id == Organization.id) & (Record.status == "approved")
+    ).where(
+        Organization.latitude.isnot(None), Organization.longitude.isnot(None)
+    ).group_by(
+        Organization.id, Organization.name, Organization.org_type,
+        Organization.province, Organization.latitude, Organization.longitude,
+        Organization.branch_id,
     )
     result = await db.execute(stmt)
     for r in result.all():
         markers.append({
             "type": "org",
+            "id": r.id,
             "name": r.name,
-            "branch": r.branch_name,
+            "org_type": r.org_type,
+            "province": r.province,
+            "branch_id": r.branch_id,
             "lat": r.latitude,
             "lng": r.longitude,
             "minutes": r.minutes,
+            "records": r.records,
         })
 
     return markers

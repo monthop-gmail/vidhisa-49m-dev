@@ -105,7 +105,8 @@ async function loadLeaderboard(type, btn) {
 
         data.forEach(item => {
             const name = type === 'branch' ? item.branch_name : item.name;
-            tbody.innerHTML += `<tr><td>${item.rank}</td><td>${name}</td><td>${FMT.format(item.minutes)}</td></tr>`;
+            const extra = type === 'org' && item.org_type ? ` <small>(${item.org_type})</small>` : '';
+            tbody.innerHTML += `<tr><td>${item.rank}</td><td>${name}${extra}</td><td>${FMT.format(item.minutes)}</td></tr>`;
         });
     } catch (e) {
         console.error('leaderboard error:', e);
@@ -137,15 +138,20 @@ async function loadProvinceTable(view, btn) {
             data.forEach((d, i) => {
                 tbody.innerHTML += `<tr><td>${i + 1}</td><td>${d.group_name}</td><td>${d.provinces.join(', ')}</td><td>${d.branches_count}</td><td>${FMT.format(d.minutes)}</td></tr>`;
             });
-        } else if (view === 'markers') {
-            thead.innerHTML = '<tr><th>#</th><th>สาขา</th><th>จังหวัด</th><th>พิกัด</th><th>นาที</th><th>รายการ</th></tr>';
-            const res = await fetch('/api/markers');
+        } else if (view === 'branch') {
+            thead.innerHTML = '<tr><th>#</th><th>สาขา</th><th>จังหวัด</th><th>นาที</th></tr>';
+            const res = await fetch('/api/stats/by-branch');
             const data = await res.json();
-            const branches = data.filter(m => m.type === 'branch');
-            branches.sort((a, b) => b.minutes - a.minutes);
-            branches.forEach((d, i) => {
-                const gps = `${d.lat.toFixed(4)}, ${d.lng.toFixed(4)}`;
-                tbody.innerHTML += `<tr><td>${i + 1}</td><td>${d.name}</td><td>${d.province}</td><td><code>${gps}</code></td><td>${FMT.format(d.minutes)}</td><td>${FMT.format(d.records)}</td></tr>`;
+            data.forEach((d, i) => {
+                tbody.innerHTML += `<tr><td>${i + 1}</td><td>${d.branch_name}</td><td>${d.province}</td><td>${FMT.format(d.minutes)}</td></tr>`;
+            });
+        } else if (view === 'org') {
+            thead.innerHTML = '<tr><th>#</th><th>องค์กร</th><th>ประเภท</th><th>จังหวัด</th><th>นาที</th><th>รายการ</th></tr>';
+            const res = await fetch('/api/organizations');
+            const data = await res.json();
+            data.sort((a, b) => b.total_minutes - a.total_minutes);
+            data.forEach((d, i) => {
+                tbody.innerHTML += `<tr><td>${i + 1}</td><td>${d.name}</td><td>${d.org_type || '-'}</td><td>${d.province || '-'}</td><td>${FMT.format(d.total_minutes)}</td><td>${FMT.format(d.total_records)}</td></tr>`;
             });
         }
     } catch (e) {

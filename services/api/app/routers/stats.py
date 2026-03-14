@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from datetime import date
 from app.database import get_db
-from app.models import Record, Branch, BranchGroup, DailyStat
+from app.models import Record, Branch, BranchGroup, DailyStat, Organization
 
 router = APIRouter()
 
@@ -18,9 +18,7 @@ async def get_total(db: AsyncSession = Depends(get_db)):
     result = await db.execute(stmt)
     row = result.one()
 
-    stmt_orgs = select(func.count(func.distinct(Record.name))).where(
-        Record.status == "approved", Record.type == "bulk"
-    )
+    stmt_orgs = select(func.count(Organization.id))
     orgs = (await db.execute(stmt_orgs)).scalar()
 
     return {
@@ -59,11 +57,14 @@ async def get_by_group(db: AsyncSession = Depends(get_db)):
 
     out = []
     for g in groups:
+        # เฉพาะสาขา (org_id = ORG-PLJ) ไม่รวมองค์กรภายนอก
         stmt = select(
             func.coalesce(func.sum(Record.minutes), 0),
             func.count(func.distinct(Record.branch_id)),
         ).join(Branch, Record.branch_id == Branch.id).where(
-            Branch.group_id == g.id, Record.status == "approved"
+            Branch.group_id == g.id,
+            Record.status == "approved",
+            Record.org_id == "ORG-PLJ",
         )
         result = await db.execute(stmt)
         row = result.one()
@@ -91,11 +92,13 @@ async def get_by_group(db: AsyncSession = Depends(get_db)):
 
 @router.get("/stats/by-branch")
 async def get_by_branch(db: AsyncSession = Depends(get_db)):
+    # รายสาขา = เฉพาะนาทีของสถาบันฯ (ORG-PLJ)
     stmt = select(
         Branch.id, Branch.name, Branch.province,
         func.coalesce(func.sum(Record.minutes), 0).label("total")
     ).join(Record, Record.branch_id == Branch.id).where(
-        Record.status == "approved"
+        Record.status == "approved",
+        Record.org_id == "ORG-PLJ",
     ).group_by(Branch.id, Branch.name, Branch.province).order_by(func.sum(Record.minutes).desc())
 
     result = await db.execute(stmt)
