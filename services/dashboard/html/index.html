@@ -88,6 +88,21 @@
         <div id="map"></div>
     </section>
 
+    <!-- Province Table -->
+    <section id="province-table-section">
+        <h2>พลังจิตทั่วไทย — มุมมองตาราง</h2>
+        <div class="table-controls">
+            <button id="btn-tbl-province" class="active" onclick="loadProvinceTable('province', this)">รายจังหวัด</button>
+            <button id="btn-tbl-group" onclick="loadProvinceTable('group', this)">รายกลุ่มสาขา</button>
+        </div>
+        <table id="province-table">
+            <thead id="province-table-head">
+                <tr><th>#</th><th>จังหวัด</th><th>นาที</th><th>รายการ</th></tr>
+            </thead>
+            <tbody id="province-table-body"></tbody>
+        </table>
+    </section>
+
     <!-- Two columns: Leaderboard + Feed -->
     <div class="columns">
         <section id="leaderboard-section">

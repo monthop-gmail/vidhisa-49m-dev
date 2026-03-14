@@ -90,10 +90,42 @@ async function loadLeaderboard(type, btn) {
     }
 }
 
+async function loadProvinceTable(view, btn) {
+    if (btn) {
+        btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+
+    const thead = document.getElementById('province-table-head');
+    const tbody = document.getElementById('province-table-body');
+    tbody.innerHTML = '';
+
+    try {
+        if (view === 'province') {
+            thead.innerHTML = '<tr><th>#</th><th>จังหวัด</th><th>นาที</th><th>รายการ</th></tr>';
+            const res = await fetch('/api/stats/by-province');
+            const data = await res.json();
+            data.forEach((d, i) => {
+                tbody.innerHTML += `<tr><td>${i + 1}</td><td>${d.province}</td><td>${FMT.format(d.minutes)}</td><td>${FMT.format(d.records)}</td></tr>`;
+            });
+        } else {
+            thead.innerHTML = '<tr><th>#</th><th>กลุ่ม</th><th>จังหวัด</th><th>สาขา</th><th>นาที</th></tr>';
+            const res = await fetch('/api/stats/by-group');
+            const data = await res.json();
+            data.forEach((d, i) => {
+                tbody.innerHTML += `<tr><td>${i + 1}</td><td>${d.group_name}</td><td>${d.provinces.join(', ')}</td><td>${d.branches_count}</td><td>${FMT.format(d.minutes)}</td></tr>`;
+            });
+        }
+    } catch (e) {
+        console.error('province table error:', e);
+    }
+}
+
 // Init
 loadStats();
 loadProjection();
 loadLeaderboard('branch');
+loadProvinceTable('province');
 
 // Auto-refresh every 30s
 setInterval(() => {

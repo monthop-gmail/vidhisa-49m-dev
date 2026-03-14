@@ -42,8 +42,9 @@ section { background: #fff; border-radius: 8px; padding: 1rem; margin-bottom: 1r
 /* Map */
 #map { height: 500px; border-radius: 8px; }
 .map-controls { margin-bottom: 0.5rem; }
-.map-controls button, .tab-controls button { padding: 0.3rem 1rem; margin-right: 0.5rem; border: 1px solid #ccc; background: #fff; cursor: pointer; border-radius: 4px; }
-.map-controls button.active, .tab-controls button.active { background: #1a237e; color: #fff; border-color: #1a237e; }
+.map-controls button, .tab-controls button, .table-controls button { padding: 0.3rem 1rem; margin-right: 0.5rem; border: 1px solid #ccc; background: #fff; cursor: pointer; border-radius: 4px; }
+.map-controls button.active, .tab-controls button.active, .table-controls button.active { background: #1a237e; color: #fff; border-color: #1a237e; }
+.table-controls { margin-bottom: 0.5rem; }
 
 /* Columns */
 .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
