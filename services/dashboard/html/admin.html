@@ -36,6 +36,14 @@
 
     <section>
         <h2>องค์กร</h2>
+        <div style="margin-bottom:0.5rem; display:flex; gap:0.5rem; align-items:center;">
+            <a href="/api/organizations/export" class="btn-approve" style="text-decoration:none; display:inline-block;">Export CSV</a>
+            <label class="btn-approve" style="cursor:pointer; display:inline-block;">
+                Import CSV
+                <input type="file" id="import-file" accept=".csv" style="display:none" onchange="importOrgs(this)">
+            </label>
+            <span id="import-status" style="font-size:0.85rem; color:#666;"></span>
+        </div>
         <table id="org-table">
             <thead>
                 <tr>

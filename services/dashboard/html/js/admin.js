@@ -140,5 +140,41 @@ async function createOrg() {
     }
 }
 
+async function importOrgs(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const status = document.getElementById('import-status');
+    status.textContent = 'กำลังนำเข้า...';
+    status.style.color = '#666';
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch('/api/organizations/import', {
+            method: 'POST',
+            body: formData,
+        });
+        const data = await res.json();
+        if (res.ok) {
+            status.textContent = data.message;
+            status.style.color = '#43a047';
+            if (data.errors.length > 0) {
+                status.textContent += ' | ' + data.errors.join(', ');
+                status.style.color = '#e65100';
+            }
+            loadOrganizations();
+        } else {
+            status.textContent = data.detail?.message || 'เกิดข้อผิดพลาด';
+            status.style.color = '#e53935';
+        }
+    } catch (e) {
+        console.error('import error:', e);
+        status.textContent = 'เกิดข้อผิดพลาด';
+        status.style.color = '#e53935';
+    }
+    input.value = '';
+}
+
 loadBranches();
 loadOrganizations();

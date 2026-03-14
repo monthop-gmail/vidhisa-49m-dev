@@ -1,4 +1,6 @@
-"""Test: Organizations CRUD"""
+"""Test: Organizations CRUD + Import/Export"""
+import csv
+import io
 import uuid
 
 
@@ -92,6 +94,58 @@ def test_org_leaderboard(client):
         assert "org_id" in data[0]
         assert "name" in data[0]
         assert "minutes" in data[0]
+
+
+def test_export_csv(client):
+    r = client.get("/api/organizations/export")
+    assert r.status_code == 200
+    assert "text/csv" in r.headers["content-type"]
+    text = r.text.lstrip("\ufeff")
+    reader = csv.DictReader(io.StringIO(text))
+    rows = list(reader)
+    assert len(rows) > 0
+    assert "id" in reader.fieldnames
+    assert "name" in reader.fieldnames
+    assert "branch_id" in reader.fieldnames
+
+
+def test_import_csv_create(client):
+    uid = uuid.uuid4().hex[:6]
+    csv_content = f"id,name,org_type,branch_id,province,latitude,longitude,contact\nIMP{uid},องค์กรนำเข้า,โรงเรียน,B001,กรุงเทพมหานคร,13.75,100.5,\n"
+    r = client.post("/api/organizations/import", files={"file": ("orgs.csv", csv_content, "text/csv")})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["created"] == 1
+    assert data["updated"] == 0
+    assert len(data["errors"]) == 0
+
+
+def test_import_csv_update(client):
+    csv_content = "id,name,org_type,branch_id,province,latitude,longitude,contact\nORG-PLJ,สถาบันพลังจิตตานุภาพ (ทดสอบ),สถาบันพลังจิตตานุภาพ,B001,,,,\n"
+    r = client.post("/api/organizations/import", files={"file": ("orgs.csv", csv_content, "text/csv")})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["updated"] == 1
+
+
+def test_import_csv_invalid_branch(client):
+    csv_content = "id,name,org_type,branch_id,province,latitude,longitude,contact\nBAD001,องค์กรผิด,โรงเรียน,INVALID,,,,\n"
+    r = client.post("/api/organizations/import", files={"file": ("orgs.csv", csv_content, "text/csv")})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["created"] == 0
+    assert len(data["errors"]) == 1
+
+
+def test_import_csv_invalid_file(client):
+    r = client.post("/api/organizations/import", files={"file": ("orgs.txt", "hello", "text/plain")})
+    assert r.status_code == 400
+
+
+def test_import_csv_missing_header(client):
+    csv_content = "id,name\nX001,ทดสอบ\n"
+    r = client.post("/api/organizations/import", files={"file": ("orgs.csv", csv_content, "text/csv")})
+    assert r.status_code == 400
 
 
 def test_org_markers(client):
