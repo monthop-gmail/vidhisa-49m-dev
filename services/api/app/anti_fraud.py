@@ -9,6 +9,14 @@ from app.config import MAX_SESSION_MINUTES, MAX_DAILY_MINUTES, COOLDOWN_SECONDS,
 async def validate_record(data, db: AsyncSession) -> list[str]:
     flags = []
 
+    # Basic validation
+    if data.minutes <= 0:
+        raise HTTPException(status_code=422, detail={
+            "error": "INVALID_MINUTES",
+            "message": "จำนวนนาทีต้องมากกว่า 0",
+            "detail": {"attempted": data.minutes}
+        })
+
     if data.type == "individual":
         # Hard limit: session
         if data.minutes > MAX_SESSION_MINUTES:

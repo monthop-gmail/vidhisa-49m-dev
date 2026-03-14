@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import Record
@@ -42,7 +42,7 @@ async def approve_record(record_id: int, data: ApproveRequest, db: AsyncSession 
     result = await db.execute(select(Record).where(Record.id == record_id))
     record = result.scalar_one_or_none()
     if not record:
-        return {"error": "NOT_FOUND"}
+        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบรายการ"})
 
     record.status = "approved"
     record.approved_by = data.approved_by
@@ -55,7 +55,7 @@ async def reject_record(record_id: int, data: RejectRequest, db: AsyncSession = 
     result = await db.execute(select(Record).where(Record.id == record_id))
     record = result.scalar_one_or_none()
     if not record:
-        return {"error": "NOT_FOUND"}
+        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบรายการ"})
 
     record.status = "rejected"
     record.flags = (record.flags or []) + [f"rejected: {data.reason}"]
