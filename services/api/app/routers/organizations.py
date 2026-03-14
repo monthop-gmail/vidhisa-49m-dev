@@ -71,7 +71,7 @@ async def import_organizations(file: UploadFile = File(...), db: AsyncSession = 
     text = content.decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(text))
 
-    required = {"id", "name", "branch_id"}
+    required = {"id", "name"}
     if not required.issubset(set(reader.fieldnames or [])):
         raise HTTPException(status_code=400, detail={
             "error": "INVALID_HEADER",

@@ -143,7 +143,7 @@ def test_import_csv_invalid_file(client):
 
 
 def test_import_csv_missing_header(client):
-    csv_content = "id,name\nX001,ทดสอบ\n"
+    csv_content = "id\nX001\n"
     r = client.post("/api/organizations/import", files={"file": ("orgs.csv", csv_content, "text/csv")})
     assert r.status_code == 400
 

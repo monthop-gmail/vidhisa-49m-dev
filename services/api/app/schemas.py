@@ -109,7 +109,7 @@ class OrganizationCreate(BaseModel):
     id: str
     name: str
     org_type: Optional[str] = None
-    branch_id: str
+    branch_id: Optional[str] = None
     province: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None

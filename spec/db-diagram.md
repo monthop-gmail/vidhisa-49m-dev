@@ -54,7 +54,7 @@
 | ความสัมพันธ์ | ประเภท | คำอธิบาย |
 |-------------|--------|---------|
 | branch_groups → branches | 1:∞ | กลุ่มสาขา (เช่น ภาคกลาง) มีหลายสาขา |
-| branches → organizations | 1:∞ | สาขาหนึ่งมีหลายองค์กรที่สังกัด |
+| branches → organizations | 1:∞ (optional) | เฉพาะ ORG-PLJ เชื่อมสาขา, องค์กรภายนอกไม่สังกัดสาขา (branch_id = NULL) |
 | branches → records | 1:∞ | record ส่งผ่านสาขา |
 | organizations → records | 1:∞ | record เป็นขององค์กร |
 

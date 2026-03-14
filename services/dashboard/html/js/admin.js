@@ -106,15 +106,15 @@ async function createOrg() {
         id: document.getElementById('org-id').value,
         name: document.getElementById('org-name').value,
         org_type: document.getElementById('org-type').value || null,
-        branch_id: document.getElementById('org-branch').value,
+        branch_id: document.getElementById('org-branch').value || null,
         province: document.getElementById('org-province').value || null,
         latitude: parseFloat(document.getElementById('org-lat').value) || null,
         longitude: parseFloat(document.getElementById('org-lng').value) || null,
         contact: document.getElementById('org-contact').value || null,
     };
 
-    if (!body.id || !body.name || !body.branch_id) {
-        alert('กรุณากรอก รหัส, ชื่อ และเลือกสาขา');
+    if (!body.id || !body.name) {
+        alert('กรุณากรอก รหัส และ ชื่อ');
         return;
     }
 
