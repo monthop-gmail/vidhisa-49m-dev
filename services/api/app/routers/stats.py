@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from datetime import date
 from app.database import get_db
-from app.models import Record, Branch, BranchGroup, ProvinceStat, DailyStat
+from app.models import Record, Branch, BranchGroup, DailyStat
 
 router = APIRouter()
 
@@ -34,9 +34,18 @@ async def get_total(db: AsyncSession = Depends(get_db)):
 
 @router.get("/stats/by-province")
 async def get_by_province(db: AsyncSession = Depends(get_db)):
-    stmt = select(ProvinceStat).order_by(ProvinceStat.total_minutes.desc())
+    stmt = select(
+        Branch.province,
+        Branch.province_code,
+        func.coalesce(func.sum(Record.minutes), 0).label("total_minutes"),
+        func.count(Record.id).label("total_records"),
+    ).join(Record, Record.branch_id == Branch.id).where(
+        Record.status == "approved"
+    ).group_by(Branch.province, Branch.province_code).order_by(
+        func.sum(Record.minutes).desc()
+    )
     result = await db.execute(stmt)
-    rows = result.scalars().all()
+    rows = result.all()
     return [
         {"province": r.province, "code": r.province_code, "minutes": r.total_minutes, "records": r.total_records}
         for r in rows
@@ -61,8 +70,10 @@ async def get_by_group(db: AsyncSession = Depends(get_db)):
 
         province_names = []
         for code in (g.provinces or []):
-            ps = await db.execute(select(ProvinceStat.province).where(ProvinceStat.province_code == code))
-            name = ps.scalar()
+            bs = await db.execute(
+                select(func.distinct(Branch.province)).where(Branch.province_code == code)
+            )
+            name = bs.scalar()
             if name:
                 province_names.append(name)
 
