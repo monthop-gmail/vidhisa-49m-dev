@@ -1,5 +1,10 @@
 """Test: Records CRUD + Anti-fraud"""
-import pytest
+import uuid
+
+
+def _uid():
+    """Generate unique name to avoid cooldown/daily limit conflicts."""
+    return f"pytest-{uuid.uuid4().hex[:8]}"
 
 
 class TestCreateRecord:
@@ -7,7 +12,7 @@ class TestCreateRecord:
         r = client.post("/api/records", json={
             "type": "individual",
             "branch_id": "B005",
-            "name": "pytest individual",
+            "name": _uid(),
             "minutes": 15,
             "date": "2026-03-14",
         })
@@ -20,7 +25,7 @@ class TestCreateRecord:
         r = client.post("/api/records", json={
             "type": "bulk",
             "branch_id": "B005",
-            "name": "วัด pytest",
+            "name": _uid(),
             "minutes": 300,
             "participant_count": 20,
             "minutes_per_person": 15,
@@ -36,7 +41,7 @@ class TestAntifraud:
         r = client.post("/api/records", json={
             "type": "individual",
             "branch_id": "B005",
-            "name": "fraud negative",
+            "name": _uid(),
             "minutes": -5,
             "date": "2026-03-14",
         })
@@ -47,7 +52,7 @@ class TestAntifraud:
         r = client.post("/api/records", json={
             "type": "individual",
             "branch_id": "B005",
-            "name": "fraud zero",
+            "name": _uid(),
             "minutes": 0,
             "date": "2026-03-14",
         })
@@ -58,7 +63,7 @@ class TestAntifraud:
         r = client.post("/api/records", json={
             "type": "individual",
             "branch_id": "B005",
-            "name": "fraud session",
+            "name": _uid(),
             "minutes": 60,
             "date": "2026-03-14",
         })
@@ -69,7 +74,7 @@ class TestAntifraud:
         r = client.post("/api/records", json={
             "type": "bulk",
             "branch_id": "B005",
-            "name": "fraud bulk",
+            "name": _uid(),
             "minutes": 1000,
             "participant_count": 10,
             "minutes_per_person": 100,
@@ -88,18 +93,17 @@ class TestAntifraud:
 
 class TestApproveReject:
     def test_approve(self, client):
-        # Create a record first
+        name = _uid()
         r = client.post("/api/records", json={
             "type": "individual",
             "branch_id": "B003",
-            "name": "pytest approve test",
+            "name": name,
             "minutes": 10,
             "date": "2026-03-13",
         })
         assert r.status_code == 201
         record_id = r.json()["id"]
 
-        # Approve it
         r = client.patch(f"/api/records/{record_id}/approve", json={
             "approved_by": "pytest_admin",
         })
@@ -107,10 +111,11 @@ class TestApproveReject:
         assert r.json()["status"] == "approved"
 
     def test_reject(self, client):
+        name = _uid()
         r = client.post("/api/records", json={
             "type": "individual",
             "branch_id": "B003",
-            "name": "pytest reject test",
+            "name": name,
             "minutes": 10,
             "date": "2026-03-13",
         })
