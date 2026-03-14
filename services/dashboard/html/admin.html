@@ -35,6 +35,26 @@
     </section>
 
     <section>
+        <h2>สาขา</h2>
+        <div style="margin-bottom:0.5rem; display:flex; gap:0.5rem; align-items:center;">
+            <a href="/api/branches/export" class="btn-approve" style="text-decoration:none; display:inline-block;">Export CSV</a>
+            <label class="btn-approve" style="cursor:pointer; display:inline-block;">
+                Import CSV
+                <input type="file" id="import-branch-file" accept=".csv" style="display:none" onchange="importBranches(this)">
+            </label>
+            <span id="import-branch-status" style="font-size:0.85rem; color:#666;"></span>
+        </div>
+        <table id="branch-table">
+            <thead>
+                <tr>
+                    <th>รหัส</th><th>ชื่อ</th><th>กลุ่ม</th><th>จังหวัด</th><th>ผู้ดูแล</th><th>นาที</th><th>รายการ</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </section>
+
+    <section>
         <h2>องค์กร</h2>
         <div style="margin-bottom:0.5rem; display:flex; gap:0.5rem; align-items:center;">
             <a href="/api/organizations/export" class="btn-approve" style="text-decoration:none; display:inline-block;">Export CSV</a>

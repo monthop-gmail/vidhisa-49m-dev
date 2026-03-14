@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from app.routers import records, stats, projection, leaderboard, feed, branch, markers, organizations, sse
+from app.routers import records, stats, projection, leaderboard, feed, branch, branches, markers, organizations, sse
 
 
 class NoCacheMiddleware(BaseHTTPMiddleware):
@@ -30,6 +30,7 @@ app.include_router(projection.router, prefix="/api")
 app.include_router(leaderboard.router, prefix="/api")
 app.include_router(feed.router, prefix="/api")
 app.include_router(branch.router, prefix="/api")
+app.include_router(branches.router, prefix="/api")
 app.include_router(markers.router, prefix="/api")
 app.include_router(organizations.router, prefix="/api")
 app.include_router(sse.router, prefix="/api")

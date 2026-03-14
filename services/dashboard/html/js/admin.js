@@ -140,6 +140,65 @@ async function createOrg() {
     }
 }
 
+async function loadBranchTable() {
+    try {
+        const res = await fetch('/api/branches');
+        const data = await res.json();
+        const tbody = document.querySelector('#branch-table tbody');
+        tbody.innerHTML = '';
+        data.forEach(b => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${b.id}</td>
+                    <td>${b.name}</td>
+                    <td>${b.group_id || '-'}</td>
+                    <td>${b.province}</td>
+                    <td>${b.admin_name || '-'}</td>
+                    <td>${FMT.format(b.total_minutes)}</td>
+                    <td>${FMT.format(b.total_records)}</td>
+                </tr>`;
+        });
+    } catch (e) {
+        console.error('branch table error:', e);
+    }
+}
+
+async function importBranches(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const status = document.getElementById('import-branch-status');
+    status.textContent = 'กำลังนำเข้า...';
+    status.style.color = '#666';
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch('/api/branches/import', {
+            method: 'POST',
+            body: formData,
+        });
+        const data = await res.json();
+        if (res.ok) {
+            status.textContent = data.message;
+            status.style.color = '#43a047';
+            if (data.errors.length > 0) {
+                status.textContent += ' | ' + data.errors.join(', ');
+                status.style.color = '#e65100';
+            }
+            loadBranchTable();
+        } else {
+            status.textContent = data.detail?.message || 'เกิดข้อผิดพลาด';
+            status.style.color = '#e53935';
+        }
+    } catch (e) {
+        console.error('import branches error:', e);
+        status.textContent = 'เกิดข้อผิดพลาด';
+        status.style.color = '#e53935';
+    }
+    input.value = '';
+}
+
 async function importOrgs(input) {
     const file = input.files[0];
     if (!file) return;
@@ -177,4 +236,5 @@ async function importOrgs(input) {
 }
 
 loadBranches();
+loadBranchTable();
 loadOrganizations();
