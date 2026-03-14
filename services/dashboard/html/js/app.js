@@ -108,12 +108,22 @@ async function loadProvinceTable(view, btn) {
             data.forEach((d, i) => {
                 tbody.innerHTML += `<tr><td>${i + 1}</td><td>${d.province}</td><td>${FMT.format(d.minutes)}</td><td>${FMT.format(d.records)}</td></tr>`;
             });
-        } else {
+        } else if (view === 'group') {
             thead.innerHTML = '<tr><th>#</th><th>กลุ่ม</th><th>จังหวัด</th><th>สาขา</th><th>นาที</th></tr>';
             const res = await fetch('/api/stats/by-group');
             const data = await res.json();
             data.forEach((d, i) => {
                 tbody.innerHTML += `<tr><td>${i + 1}</td><td>${d.group_name}</td><td>${d.provinces.join(', ')}</td><td>${d.branches_count}</td><td>${FMT.format(d.minutes)}</td></tr>`;
+            });
+        } else if (view === 'markers') {
+            thead.innerHTML = '<tr><th>#</th><th>สาขา</th><th>จังหวัด</th><th>พิกัด</th><th>นาที</th><th>รายการ</th></tr>';
+            const res = await fetch('/api/markers');
+            const data = await res.json();
+            const branches = data.filter(m => m.type === 'branch');
+            branches.sort((a, b) => b.minutes - a.minutes);
+            branches.forEach((d, i) => {
+                const gps = `${d.lat.toFixed(4)}, ${d.lng.toFixed(4)}`;
+                tbody.innerHTML += `<tr><td>${i + 1}</td><td>${d.name}</td><td>${d.province}</td><td><code>${gps}</code></td><td>${FMT.format(d.minutes)}</td><td>${FMT.format(d.records)}</td></tr>`;
             });
         }
     } catch (e) {
