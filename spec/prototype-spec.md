@@ -1,6 +1,6 @@
 # Prototype Spec — วิทิสา 49 ล้านนาที
 
-> สถานะ: **ร่าง** — รอหารือในที่ประชุม
+> สถานะ: **Phase 2 เสร็จ** — ระบบต้นแบบใช้งานได้ครบ
 
 ---
 
@@ -24,22 +24,23 @@
 | **แผนที่ประเทศไทย** | Heat Map รายจังหวัด + Hover tooltip | draft-001 ส่วนที่ ๒ |
 | **Live Feed** | Ticker แสดงบันทึกล่าสุด (mock data) | draft-001 ส่วนที่ ๔ |
 
-### Phase 2: API จริง + Database
+### Phase 2: API จริง + Database ✅
 
-| งาน | รายละเอียด |
-|-----|-----------|
-| **API Server** | ตาม API Spec — บันทึก, สถิติ, คาดการณ์, leaderboard |
-| **Database** | ตาม Data Spec — PostgreSQL |
-| **Anti-fraud** | Rule-based validation ตาม API Spec |
-| **สาขา Admin** | หน้าตรวจสอบ/อนุมัติยอด |
+| งาน | รายละเอียด | สถานะ |
+|-----|-----------|-------|
+| **API Server** | FastAPI — บันทึก, สถิติ, คาดการณ์, leaderboard | ✅ เสร็จ |
+| **Database** | PostgreSQL 16 + schema + seed data | ✅ เสร็จ |
+| **Anti-fraud** | Rule-based validation (session/daily/cooldown/bulk) | ✅ เสร็จ |
+| **สาขา Admin** | หน้าตรวจสอบ/อนุมัติยอด | ✅ เสร็จ |
+| **Adminer** | Web UI จัดการ DB โดยตรง (port 8081) | ✅ เสร็จ |
 
 ### Phase 3: Integration + Load Test
 
-| งาน | รายละเอียด |
-|-----|-----------|
-| **เชื่อม UI ↔ API จริง** | เปลี่ยนจาก mock เป็น API จริง |
-| **Load Test** | จำลอง concurrent users ระดับหมื่น-แสน |
-| **Infra** | Docker Compose modular + CF Tunnel |
+| งาน | รายละเอียด | สถานะ |
+|-----|-----------|-------|
+| **เชื่อม UI ↔ API จริง** | Dashboard เรียก API จริงจาก DB | ✅ เสร็จ |
+| **Load Test** | จำลอง concurrent users ระดับหมื่น-แสน | ⬜ รอดำเนินการ |
+| **Infra** | Docker Compose modular + CF Tunnel | ✅ modular เสร็จ / CF Tunnel placeholder |
 
 ---
 
@@ -60,11 +61,11 @@
 | Layer | เทคโนโลยี | เหตุผล |
 |-------|----------|--------|
 | **Frontend** | HTML + JS (หรือตามทีม UI เลือก) | เรียก API ได้ทุกแบบ |
-| **Mock API** | JSON file / json-server | ทีม UI ใช้ได้ทันที |
-| **Backend API** | TBD (รอหารือ) | ต้องรองรับ concurrent สูง |
-| **Database** | PostgreSQL | เหมาะกับ analytics + scale |
+| **Backend API** | FastAPI (Python 3.12) + async SQLAlchemy | รองรับ concurrent สูง |
+| **Database** | PostgreSQL 16 | เหมาะกับ analytics + scale |
 | **Map** | Leaflet + Thailand GeoJSON | Open source, ไม่มีค่าใช้จ่าย |
-| **Infra** | Docker Compose modular | ตาม checklist 74 ข้อ |
+| **DB Management** | Adminer | Web UI ดู/แก้ข้อมูลได้ทันที |
+| **Infra** | Docker Compose modular (include pattern) | ตาม checklist 74 ข้อ |
 
 ---
 
@@ -92,4 +93,4 @@
 
 ---
 
-> สถานะ: **ร่าง** — รอหารือในที่ประชุม
+> สถานะ: **Phase 2 เสร็จ** — ระบบต้นแบบใช้งานได้ครบ
