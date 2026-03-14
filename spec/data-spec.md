@@ -31,13 +31,29 @@
 | `contact` | string | ช่องทางติดต่อ |
 | `created_at` | timestamp | |
 
-### 3. records — บันทึกการปฏิบัติ
+### 3. organizations — องค์กร
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | PK | รหัสองค์กร เช่น ORG-PLJ, ORG001 |
+| `name` | string | ชื่อองค์กร |
+| `org_type` | string | ประเภท: สถาบันพลังจิตตานุภาพ, โรงเรียน, มหาวิทยาลัย, วัด, หน่วยงาน, ชุมชน |
+| `branch_id` | FK → branches (optional) | สาขาที่สังกัด — เฉพาะ ORG-PLJ, องค์กรภายนอก = NULL |
+| `province` | string | จังหวัด |
+| `latitude` | double | ละติจูด |
+| `longitude` | double | ลองจิจูด |
+| `contact` | string | ข้อมูลติดต่อ |
+
+> **กฎ:** เฉพาะ ORG-PLJ (สถาบันพลังจิตตานุภาพ) ที่มี `branch_id` — องค์กรภายนอก **ไม่สังกัดสาขา** (`branch_id = NULL`)
+
+### 4. records — บันทึกการปฏิบัติ
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | PK | รหัสบันทึก |
 | `type` | enum | `individual` / `bulk` |
 | `branch_id` | FK → branches | สาขาที่ดูแล |
+| `org_id` | FK → organizations | องค์กรเจ้าของนาที |
 | `name` | string | ชื่อผู้บันทึก / ชื่อองค์กร |
 | `minutes` | integer | นาทีรวม |
 | `participant_count` | integer | จำนวนคน (bulk only) |
@@ -53,7 +69,7 @@
 | `created_at` | timestamp | |
 | `updated_at` | timestamp | |
 
-### 4. daily_stats — สรุปรายวัน (Materialized / Cache)
+### 5. daily_stats — สรุปรายวัน (Materialized / Cache)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -63,7 +79,7 @@
 | `total_branches` | integer | จำนวนสาขาที่บันทึก |
 | `cumulative_minutes` | bigint | ยอดสะสมถึงวันนี้ |
 
-### 5. province_stats — สรุปรายจังหวัด (Materialized / Cache)
+### 6. province_stats — สรุปรายจังหวัด (Materialized / Cache)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -78,10 +94,14 @@
 ## ความสัมพันธ์
 
 ```
-branch_groups (1) ──── (N) branches (1) ──── (N) records
-                            │
-                            └── province_code ──── province_stats
+branch_groups (1) ──── (N) branches (1) ──── (N) organizations (optional, เฉพาะ ORG-PLJ)
+                            │ 1                        │ 1
+                            │                          │
+                            │ N                        │ N
+                            └───────── records ────────┘
 ```
+
+> ดู [db-diagram.md](db-diagram.md) สำหรับ ER diagram และกฎการนับนาทีแบบละเอียด
 
 ### Map 2 มุมมอง
 

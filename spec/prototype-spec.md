@@ -32,6 +32,9 @@
 | **Database** | PostgreSQL 16 + schema + seed data | ✅ เสร็จ |
 | **Anti-fraud** | Rule-based validation (session/daily/cooldown/bulk) | ✅ เสร็จ |
 | **สาขา Admin** | หน้าตรวจสอบ/อนุมัติยอด | ✅ เสร็จ |
+| **องค์กร CRUD** | CRUD + Import/Export CSV องค์กร | ✅ เสร็จ |
+| **สาขา CRUD** | CRUD + Import/Export CSV สาขา | ✅ เสร็จ |
+| **SSE Real-time** | Server-Sent Events — Dashboard refresh อัตโนมัติ | ✅ เสร็จ |
 | **Adminer** | Web UI จัดการ DB โดยตรง (port 8081) | ✅ เสร็จ |
 
 ### Phase 3: Integration + Load Test
@@ -39,8 +42,9 @@
 | งาน | รายละเอียด | สถานะ |
 |-----|-----------|-------|
 | **เชื่อม UI ↔ API จริง** | Dashboard เรียก API จริงจาก DB | ✅ เสร็จ |
-| **Integration Test** | 27 test cases ครอบคลุมทุก endpoint + anti-fraud + edge cases | ✅ เสร็จ |
+| **Integration Test** | 65 test cases ครอบคลุมทุก endpoint + anti-fraud + CRUD + import/export | ✅ เสร็จ |
 | **Load Test** | จำลอง concurrent users ระดับหมื่น-แสน | ⬜ รอดำเนินการ |
+| **DB Diagram** | ER diagram + กฎการนับนาที + Business Rules | ✅ เสร็จ |
 | **Infra** | Docker Compose modular + CF Tunnel | ✅ modular เสร็จ / CF Tunnel placeholder |
 
 ---

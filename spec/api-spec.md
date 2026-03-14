@@ -237,6 +237,104 @@
 
 ---
 
+## 7. องค์กร (Organizations)
+
+### GET /api/organizations — รายการองค์กรทั้งหมด
+
+```json
+[
+  {
+    "id": "ORG001", "name": "โรงเรียนสาธิต มศว",
+    "org_type": "โรงเรียน", "branch_id": null,
+    "province": "กรุงเทพมหานคร",
+    "total_minutes": 5000, "total_records": 10
+  }
+]
+```
+
+### GET /api/organizations/{org_id} — ดูรายละเอียดองค์กร
+
+### POST /api/organizations — สร้างองค์กรใหม่
+
+```json
+{
+  "id": "ORG016", "name": "โรงเรียนทดสอบ",
+  "org_type": "โรงเรียน",
+  "branch_id": null,
+  "province": "กรุงเทพมหานคร"
+}
+```
+
+> `branch_id` เป็น optional — เฉพาะ ORG-PLJ (สถาบันพลังจิตตานุภาพ) ที่เชื่อมกับสาขา, องค์กรภายนอกไม่สังกัดสาขา
+
+### PUT /api/organizations/{org_id} — แก้ไของค์กร
+
+### GET /api/organizations/export — ดาวน์โหลด CSV (UTF-8 BOM)
+
+### POST /api/organizations/import — อัพโหลด CSV (upsert)
+
+**Request:** `multipart/form-data` — field `file` (CSV)
+
+**Required headers:** `id`, `name`
+
+```json
+{ "created": 5, "updated": 2, "errors": [], "message": "นำเข้าสำเร็จ: สร้างใหม่ 5, อัพเดท 2" }
+```
+
+---
+
+## 8. สาขา (Branches)
+
+### GET /api/branches — รายการสาขาทั้งหมด (พร้อมยอดนาที)
+
+> ยอดนาทีนับเฉพาะ `org_id = 'ORG-PLJ'` ตามกฎการนับ
+
+### GET /api/branches/{branch_id} — ดูรายละเอียดสาขา
+
+### POST /api/branches — สร้างสาขาใหม่
+
+### PUT /api/branches/{branch_id} — แก้ไขสาขา
+
+### GET /api/branches/export — ดาวน์โหลด CSV
+
+### POST /api/branches/import — อัพโหลด CSV (upsert)
+
+**Required headers:** `id`, `name`, `province`, `province_code`
+
+---
+
+## 9. Real-time (SSE)
+
+### GET /api/sse — Server-Sent Events stream
+
+ส่ง event เมื่อมีการบันทึก/อนุมัติ/ปฏิเสธรายการ — Dashboard จะ refresh อัตโนมัติ
+
+```
+event: record
+data: record
+
+event: approved
+data: approved
+```
+
+- Keepalive comment ทุก 30 วินาที
+- Client ใช้ `EventSource` + fallback polling 60 วินาที
+
+---
+
+## 10. แผนที่ (Markers)
+
+### GET /api/markers — จุดบนแผนที่ (สาขา + องค์กร)
+
+```json
+[
+  { "type": "branch", "id": "B001", "name": "สาขา 1", "lat": 13.75, "lng": 100.5 },
+  { "type": "org", "id": "ORG001", "name": "โรงเรียนสาธิต", "org_type": "โรงเรียน", "lat": 13.74, "lng": 100.53 }
+]
+```
+
+---
+
 ## Error Response
 
 ```json

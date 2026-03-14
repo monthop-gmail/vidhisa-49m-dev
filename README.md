@@ -17,6 +17,7 @@
 | [API Spec](spec/api-spec.md) | API Contract — endpoint, request/response format |
 | [Data Spec](spec/data-spec.md) | โครงสร้างข้อมูล, ตาราง, ความสัมพันธ์ |
 | [Prototype Spec](spec/prototype-spec.md) | ขอบเขตต้นแบบ, สิ่งที่ทำ/ไม่ทำ |
+| [DB Diagram](spec/db-diagram.md) | ER Diagram, ความสัมพันธ์, กฎการนับนาที |
 
 ## Services
 
@@ -41,7 +42,7 @@ docker compose up -d
 
 ## Testing
 
-Integration test ทดสอบกับ API + DB จริง (ไม่ใช่ mock) — 27 cases ครอบคลุมทุก endpoint
+Integration test ทดสอบกับ API + DB จริง (ไม่ใช่ mock) — 65 cases ครอบคลุมทุก endpoint
 
 ```bash
 # ต้อง docker compose up -d ก่อน
@@ -59,6 +60,10 @@ python3 -m pytest tests/ -v
 | `test_feed.py` | 2 | feed + default limit |
 | `test_records.py` | 11 | CRUD, anti-fraud 5 กรณี, approve/reject, 404 |
 | `test_branch.py` | 2 | pending list, empty branch |
+| `test_organizations.py` | 16 | CRUD, import/export CSV, duplicate, markers |
+| `test_branches.py` | 14 | CRUD, import/export CSV, duplicate, stats |
+| `test_sse.py` | 6 | pub/sub events, subscribe/unsubscribe |
+| `test_markers.py` | 2 | map markers (branch + org) |
 
 ## โครงสร้าง
 
@@ -69,10 +74,11 @@ vithisa-49m-dev/
 ├── spec/                  # Spec เอกสาร
 │   ├── api-spec.md
 │   ├── data-spec.md
+│   ├── db-diagram.md
 │   └── prototype-spec.md
 └── services/              # Modular Docker Compose
     ├── api/               # FastAPI + anti-fraud
-    │   └── tests/         # Integration test (27 cases)
+    │   └── tests/         # Integration test (65 cases)
     ├── db/                # PostgreSQL 16 + schema + seed data
     ├── dashboard/         # nginx + static HTML/JS (Leaflet map)
     ├── adminer/           # Adminer — Web DB management
