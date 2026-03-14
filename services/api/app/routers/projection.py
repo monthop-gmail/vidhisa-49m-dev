@@ -4,7 +4,7 @@ from sqlalchemy import select, func
 from datetime import date, timedelta
 from app.database import get_db
 from app.models import Record, DailyStat
-from app.config import TARGET_MINUTES, DEADLINE
+from app.config import TARGET_MINUTES, START_DATE, DEADLINE
 
 router = APIRouter()
 
@@ -41,6 +41,8 @@ async def get_projection(db: AsyncSession = Depends(get_db)):
         "target_minutes": TARGET_MINUTES,
         "current_minutes": current,
         "remaining_minutes": max(remaining, 0),
+        "start_date": str(START_DATE),
+        "today": str(today),
         "deadline": str(DEADLINE),
         "days_remaining": max(days_remaining, 0),
         "daily_rate_current": daily_rate_current,

@@ -23,6 +23,12 @@ section { background: #fff; border-radius: 8px; padding: 1rem; margin-bottom: 1r
 .milestones { position: relative; height: 20px; }
 .milestone { position: absolute; font-size: 0.7rem; color: #999; transform: translateX(-50%); }
 
+/* Dates */
+#dates-section { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; background: transparent; padding: 0; }
+.date-card { background: #fff; border-radius: 8px; padding: 0.8rem; text-align: center; }
+.date-card h3 { font-size: 0.8rem; color: #666; margin-bottom: 0.3rem; }
+.date-card div { font-size: 1.1rem; font-weight: bold; font-family: monospace; color: #1a237e; }
+
 /* Projection */
 #projection-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; background: transparent; padding: 0; }
 .proj-card { background: #fff; border-radius: 8px; padding: 1rem; text-align: center; }

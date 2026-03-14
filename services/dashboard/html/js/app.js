@@ -1,4 +1,10 @@
 const FMT = new Intl.NumberFormat('th-TH');
+const DATE_FMT = new Intl.DateTimeFormat('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+
+function formatThaiDate(str) {
+    if (!str) return '-';
+    return DATE_FMT.format(new Date(str));
+}
 
 async function loadStats() {
     try {
@@ -40,7 +46,11 @@ async function loadProjection() {
         const res = await fetch('/api/projection');
         const d = await res.json();
 
-        document.getElementById('proj-date').textContent = d.estimated_completion_date || '-';
+        document.getElementById('date-start').textContent = formatThaiDate(d.start_date);
+        document.getElementById('date-today').textContent = formatThaiDate(d.today);
+        document.getElementById('date-end').textContent = formatThaiDate(d.deadline);
+
+        document.getElementById('proj-date').textContent = d.estimated_completion_date ? formatThaiDate(d.estimated_completion_date) : '-';
         document.getElementById('proj-needed').textContent = FMT.format(d.daily_rate_needed);
         document.getElementById('proj-current').textContent = FMT.format(d.daily_rate_current);
         document.getElementById('proj-days').textContent = d.days_remaining;
