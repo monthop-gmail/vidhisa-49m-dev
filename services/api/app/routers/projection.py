@@ -34,9 +34,6 @@ async def get_projection(db: AsyncSession = Depends(get_db)):
     if daily_rate_current > 0 and remaining > 0:
         days_to_complete = int(remaining // daily_rate_current)
         estimated_date = today + timedelta(days=days_to_complete)
-        # ถ้าเกิน deadline มาก (เกิน 2 เท่า) ถือว่าคาดการณ์ไม่ได้
-        if estimated_date > DEADLINE + timedelta(days=(DEADLINE - START_DATE).days):
-            estimated_date = None
 
     on_track = daily_rate_current >= daily_rate_needed if daily_rate_needed > 0 else current >= TARGET_MINUTES
 

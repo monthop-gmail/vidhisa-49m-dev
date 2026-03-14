@@ -1,9 +1,14 @@
 const FMT = new Intl.NumberFormat('th-TH');
-const DATE_FMT = new Intl.DateTimeFormat('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
 
 function formatThaiDate(str) {
     if (!str) return '-';
-    return DATE_FMT.format(new Date(str));
+    const d = new Date(str);
+    const day = d.getDate();
+    const months = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+                    'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+    const month = months[d.getMonth()];
+    const year = d.getFullYear() + 543;
+    return `${day} ${month} พ.ศ. ${year}`;
 }
 
 async function loadStats() {
@@ -51,10 +56,16 @@ async function loadProjection() {
         document.getElementById('date-end').textContent = formatThaiDate(d.deadline);
 
         const projDateEl = document.getElementById('proj-date');
-        if (d.estimated_completion_date) {
-            projDateEl.textContent = formatThaiDate(d.estimated_completion_date);
-        } else if (d.current_minutes >= d.target_minutes) {
+        if (d.current_minutes >= d.target_minutes) {
             projDateEl.textContent = 'ครบเป้าแล้ว!';
+        } else if (d.estimated_completion_date) {
+            const estYear = new Date(d.estimated_completion_date).getFullYear();
+            const deadlineYear = new Date(d.deadline).getFullYear();
+            if (estYear <= deadlineYear + 1) {
+                projDateEl.textContent = formatThaiDate(d.estimated_completion_date);
+            } else {
+                projDateEl.textContent = 'เกินกำหนด — ต้องเร่ง!';
+            }
         } else {
             projDateEl.textContent = 'ยังประเมินไม่ได้';
         }
