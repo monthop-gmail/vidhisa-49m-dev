@@ -1,0 +1,38 @@
+name: Docker Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build & Verify
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build all services
+        run: |
+          cp .env.example .env
+          docker compose build
+        timeout-minutes: 10
+
+      - name: Start and health check
+        run: |
+          docker compose up -d --wait
+          sleep 5
+          echo "=== Service Status ==="
+          docker compose ps
+          echo "=== Health Check ==="
+          curl -sf http://localhost:8000/api/health
+          echo ""
+          curl -sf -o /dev/null -w "Dashboard: %{http_code}\n" http://localhost:8080
+          curl -sf -o /dev/null -w "Adminer: %{http_code}\n" http://localhost:8081
+        timeout-minutes: 5
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs

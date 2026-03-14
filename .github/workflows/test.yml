@@ -1,0 +1,57 @@
+name: Test API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/api/**"
+      - ".github/workflows/test.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "services/api/**"
+      - ".github/workflows/test.yml"
+
+jobs:
+  test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start services
+        run: |
+          cp .env.example .env
+          docker compose up -d --build --wait
+        timeout-minutes: 5
+
+      - name: Wait for API ready
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/api/health > /dev/null 2>&1; then
+              echo "API is ready"
+              exit 0
+            fi
+            echo "Waiting for API... ($i/30)"
+            sleep 2
+          done
+          echo "API failed to start"
+          docker compose logs vithisa-api
+          exit 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: pip install -r services/api/requirements-test.txt
+
+      - name: Run tests
+        run: |
+          cd services/api
+          python -m pytest tests/ -v --tb=short
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs
