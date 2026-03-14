@@ -1,13 +1,15 @@
 let map, geoLayer;
 let provinceData = {};
 let groupData = [];
+let markerLayer = null;
 let currentView = 'province';
+const FMT_MAP = new Intl.NumberFormat('th-TH');
 
 function initMap() {
     map = L.map('map').setView([13.0, 101.0], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap',
-        maxZoom: 10,
+        maxZoom: 18,
     }).addTo(map);
 
     loadProvinceData();
@@ -31,7 +33,7 @@ async function loadProvinceData() {
                     const code = getProvinceCode(feature);
                     const data = provinceData[code];
                     const name = feature.properties.NAME_1 || feature.properties.name || code;
-                    const minutes = data ? new Intl.NumberFormat('th-TH').format(data.minutes) : '0';
+                    const minutes = data ? FMT_MAP.format(data.minutes) : '0';
                     layer.bindTooltip(`${name}<br>${minutes} นาที`).openTooltip();
                     layer.setStyle({ weight: 3, fillOpacity: 0.8 });
                 });
@@ -57,6 +59,10 @@ function getProvinceCode(feature) {
 function getProvinceStyle(feature) {
     const code = getProvinceCode(feature);
 
+    if (currentView === 'markers') {
+        return { fillColor: '#f0f0f0', weight: 1, color: '#ccc', fillOpacity: 0.3 };
+    }
+
     if (currentView === 'province') {
         const data = provinceData[code];
         const minutes = data ? data.minutes : 0;
@@ -67,7 +73,7 @@ function getProvinceStyle(feature) {
             fillOpacity: 0.6,
         };
     } else {
-        // Group view — find which group this province belongs to
+        // Group view
         const colors = ['#1b9e77','#d95f02','#7570b3','#e7298a','#66a61e','#e6ab02','#a6761d','#666666','#e41a1c','#377eb8'];
         let groupIdx = -1;
         for (let i = 0; i < groupData.length; i++) {
@@ -95,16 +101,63 @@ function getColor(minutes) {
     return '#f0f0f0';
 }
 
+async function loadMarkers() {
+    if (markerLayer) {
+        map.removeLayer(markerLayer);
+        markerLayer = null;
+    }
+
+    try {
+        const res = await fetch('/api/markers');
+        const data = await res.json();
+        markerLayer = L.layerGroup();
+
+        data.forEach(m => {
+            const icon = m.type === 'branch'
+                ? L.divIcon({ className: 'marker-branch', html: '<div class="pin pin-branch"></div>', iconSize: [24, 24], iconAnchor: [12, 24] })
+                : L.divIcon({ className: 'marker-org', html: '<div class="pin pin-org"></div>', iconSize: [18, 18], iconAnchor: [9, 18] });
+
+            let popup;
+            if (m.type === 'branch') {
+                popup = `<b>${m.name}</b><br>${m.province}<br>${FMT_MAP.format(m.minutes)} นาที (${m.records} รายการ)`;
+            } else {
+                popup = `<b>${m.name}</b><br>สาขา: ${m.branch}<br>${FMT_MAP.format(m.minutes)} นาที`;
+            }
+
+            L.marker([m.lat, m.lng], { icon })
+                .bindPopup(popup)
+                .addTo(markerLayer);
+        });
+
+        markerLayer.addTo(map);
+    } catch (e) {
+        console.error('markers error:', e);
+    }
+}
+
+function clearMarkers() {
+    if (markerLayer) {
+        map.removeLayer(markerLayer);
+        markerLayer = null;
+    }
+}
+
 function switchMapView(view) {
     currentView = view;
     document.getElementById('btn-province').classList.toggle('active', view === 'province');
     document.getElementById('btn-group').classList.toggle('active', view === 'group');
+    document.getElementById('btn-markers').classList.toggle('active', view === 'markers');
 
     if (geoLayer) {
         geoLayer.eachLayer(layer => {
-            const style = getProvinceStyle(layer.feature);
-            layer.setStyle(style);
+            layer.setStyle(getProvinceStyle(layer.feature));
         });
+    }
+
+    if (view === 'markers') {
+        loadMarkers();
+    } else {
+        clearMarkers();
     }
 }
 

@@ -12,6 +12,8 @@ class RecordCreate(BaseModel):
     minutes_per_person: Optional[int] = None
     date: date
     photo_url: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     submitted_by: Optional[str] = None
 
 

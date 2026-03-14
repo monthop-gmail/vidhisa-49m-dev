@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, BigInteger, Date, Text, ForeignKey, CheckConstraint
+from sqlalchemy import Column, String, Integer, BigInteger, Date, Text, ForeignKey, CheckConstraint, Float
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import DateTime
 from sqlalchemy.orm import DeclarativeBase
@@ -23,6 +23,8 @@ class Branch(Base):
     group_id = Column(String(10), ForeignKey("branch_groups.id"))
     province = Column(String(100), nullable=False)
     province_code = Column(String(10), nullable=False)
+    latitude = Column(Float)
+    longitude = Column(Float)
     admin_name = Column(String(200))
     contact = Column(String(200))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -43,6 +45,8 @@ class Record(Base):
     status = Column(String(20), nullable=False, default="pending")
     approved_by = Column(String(200))
     flags = Column(JSONB, default=[])
+    latitude = Column(Float)
+    longitude = Column(Float)
     ip_address = Column(String(45))
     device_id = Column(String(100))
     created_at = Column(DateTime(timezone=True), server_default=func.now())

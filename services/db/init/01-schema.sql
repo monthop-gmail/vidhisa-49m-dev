@@ -14,6 +14,8 @@ CREATE TABLE branches (
     group_id        VARCHAR(10) REFERENCES branch_groups(id),
     province        VARCHAR(100) NOT NULL,
     province_code   VARCHAR(10) NOT NULL,
+    latitude        DOUBLE PRECISION,
+    longitude       DOUBLE PRECISION,
     admin_name      VARCHAR(200),
     contact         VARCHAR(200),
     created_at      TIMESTAMPTZ DEFAULT NOW()
@@ -34,6 +36,8 @@ CREATE TABLE records (
                         CHECK (status IN ('pending', 'approved', 'rejected')),
     approved_by         VARCHAR(200),
     flags               JSONB DEFAULT '[]',
+    latitude            DOUBLE PRECISION,
+    longitude           DOUBLE PRECISION,
     ip_address          VARCHAR(45),
     device_id           VARCHAR(100),
     created_at          TIMESTAMPTZ DEFAULT NOW(),
