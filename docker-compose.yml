@@ -1,0 +1,10 @@
+include:
+  - path: ./services/db/compose.yaml
+  - path: ./services/api/compose.yaml
+  - path: ./services/dashboard/compose.yaml
+  # - path: ./services/tunnels/compose.yaml  # uncomment เมื่อมี CF Tunnel token
+
+networks:
+  vithisa-net:
+    driver: bridge
+    name: vithisa-net

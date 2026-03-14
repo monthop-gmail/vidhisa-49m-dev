@@ -1,0 +1,21 @@
+services:
+  vithisa-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-vithisa49m}
+      POSTGRES_USER: ${POSTGRES_USER:-vithisa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      TZ: ${TZ:-Asia/Bangkok}
+    volumes:
+      - vithisa_db_data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vithisa}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - vithisa-net
+
+volumes:
+  vithisa_db_data:

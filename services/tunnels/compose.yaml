@@ -1,0 +1,32 @@
+# Cloudflare Tunnels — uncomment เมื่อมี token จาก CF Dashboard
+#
+# services:
+#   tunnel-api:
+#     image: cloudflare/cloudflared:latest
+#     command: tunnel --no-autoupdate run
+#     environment:
+#       TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN_API}
+#     depends_on:
+#       - vithisa-api
+#     networks:
+#       - vithisa-net
+#     restart: unless-stopped
+#
+#   tunnel-dashboard:
+#     image: cloudflare/cloudflared:latest
+#     command: tunnel --no-autoupdate run
+#     environment:
+#       TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN_DASHBOARD}
+#     depends_on:
+#       - vithisa-dashboard
+#     networks:
+#       - vithisa-net
+#     restart: unless-stopped
+#
+# networks:
+#   vithisa-net:
+#     external: true
+
+# Placeholder — ไฟล์นี้ต้องมีอย่างน้อย 1 key เพื่อไม่ให้ compose error
+# ลบ block นี้ออกเมื่อ uncomment services ด้านบน
+services: {}

@@ -1,0 +1,15 @@
+services:
+  vithisa-api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-vithisa}:${POSTGRES_PASSWORD:-changeme}@vithisa-db:5432/${POSTGRES_DB:-vithisa49m}
+      TZ: ${TZ:-Asia/Bangkok}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./app:/app/app
+    depends_on:
+      vithisa-db:
+        condition: service_healthy
+    networks:
+      - vithisa-net

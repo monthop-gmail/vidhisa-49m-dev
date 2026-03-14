@@ -1,0 +1,21 @@
+services:
+  vithisa-api:
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  vithisa-db:
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  vithisa-dashboard:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M

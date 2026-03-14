@@ -1,0 +1,67 @@
+from sqlalchemy import Column, String, Integer, BigInteger, Date, Text, ForeignKey, CheckConstraint
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import DateTime
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.sql import func
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class BranchGroup(Base):
+    __tablename__ = "branch_groups"
+    id = Column(String(10), primary_key=True)
+    name = Column(String(100), nullable=False)
+    provinces = Column(JSONB, default=[])
+
+
+class Branch(Base):
+    __tablename__ = "branches"
+    id = Column(String(10), primary_key=True)
+    name = Column(String(200), nullable=False)
+    group_id = Column(String(10), ForeignKey("branch_groups.id"))
+    province = Column(String(100), nullable=False)
+    province_code = Column(String(10), nullable=False)
+    admin_name = Column(String(200))
+    contact = Column(String(200))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Record(Base):
+    __tablename__ = "records"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    type = Column(String(20), nullable=False)
+    branch_id = Column(String(10), ForeignKey("branches.id"))
+    name = Column(String(200), nullable=False)
+    minutes = Column(Integer, nullable=False)
+    participant_count = Column(Integer)
+    minutes_per_person = Column(Integer)
+    date = Column(Date, nullable=False)
+    photo_url = Column(Text)
+    submitted_by = Column(String(200))
+    status = Column(String(20), nullable=False, default="pending")
+    approved_by = Column(String(200))
+    flags = Column(JSONB, default=[])
+    ip_address = Column(String(45))
+    device_id = Column(String(100))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class DailyStat(Base):
+    __tablename__ = "daily_stats"
+    date = Column(Date, primary_key=True)
+    total_minutes = Column(BigInteger, default=0)
+    total_records = Column(Integer, default=0)
+    total_branches = Column(Integer, default=0)
+    cumulative_minutes = Column(BigInteger, default=0)
+
+
+class ProvinceStat(Base):
+    __tablename__ = "province_stats"
+    province_code = Column(String(10), primary_key=True)
+    province = Column(String(100), nullable=False)
+    total_minutes = Column(BigInteger, default=0)
+    total_records = Column(Integer, default=0)
+    last_updated = Column(DateTime(timezone=True), server_default=func.now())

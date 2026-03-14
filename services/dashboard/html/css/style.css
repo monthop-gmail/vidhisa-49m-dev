@@ -1,0 +1,61 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: sans-serif; background: #f5f5f5; color: #333; }
+header { background: #1a237e; color: #fff; padding: 1rem; text-align: center; }
+header h1 { font-size: 1.5rem; }
+header p { font-size: 0.9rem; opacity: 0.8; }
+header a { color: #ffd54f; }
+main { max-width: 1200px; margin: 0 auto; padding: 1rem; }
+footer { text-align: center; padding: 1rem; font-size: 0.8rem; color: #999; }
+footer a { color: #1a237e; }
+h2 { margin: 1rem 0 0.5rem; font-size: 1.2rem; }
+section { background: #fff; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+
+/* Grand Counter */
+#counter-section { text-align: center; }
+.counter-label { font-size: 0.9rem; color: #666; }
+#grand-counter { font-size: 3rem; font-weight: bold; color: #b8860b; font-family: monospace; }
+.counter-unit { font-size: 1rem; color: #666; }
+
+/* Progress Bar */
+.progress-bar { background: #e0e0e0; border-radius: 20px; height: 30px; overflow: hidden; position: relative; }
+.progress-fill { background: linear-gradient(90deg, #43a047, #ffd54f); height: 100%; border-radius: 20px; transition: width 1s; }
+.progress-labels { display: flex; justify-content: space-between; font-size: 0.8rem; margin-top: 4px; }
+.milestones { position: relative; height: 20px; }
+.milestone { position: absolute; font-size: 0.7rem; color: #999; transform: translateX(-50%); }
+
+/* Projection */
+#projection-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; background: transparent; padding: 0; }
+.proj-card { background: #fff; border-radius: 8px; padding: 1rem; text-align: center; }
+.proj-card h3 { font-size: 0.8rem; color: #666; margin-bottom: 0.5rem; }
+.proj-card div:first-of-type { font-size: 1.5rem; font-weight: bold; font-family: monospace; }
+.proj-card p { font-size: 0.75rem; color: #999; }
+.proj-status { font-size: 0.9rem !important; font-weight: normal !important; }
+.on-track { color: #43a047; }
+.off-track { color: #e53935; }
+
+/* Map */
+#map { height: 500px; border-radius: 8px; }
+.map-controls { margin-bottom: 0.5rem; }
+.map-controls button, .tab-controls button { padding: 0.3rem 1rem; margin-right: 0.5rem; border: 1px solid #ccc; background: #fff; cursor: pointer; border-radius: 4px; }
+.map-controls button.active, .tab-controls button.active { background: #1a237e; color: #fff; border-color: #1a237e; }
+
+/* Columns */
+.columns { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 768px) { .columns { grid-template-columns: 1fr; } }
+
+/* Table */
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th, td { padding: 0.5rem; text-align: left; border-bottom: 1px solid #eee; }
+th { background: #f5f5f5; }
+
+/* Feed */
+#feed-list { max-height: 400px; overflow-y: auto; }
+.feed-item { padding: 0.5rem 0; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; }
+.feed-time { font-size: 0.75rem; color: #999; }
+
+/* Admin */
+label { font-weight: bold; margin-right: 0.5rem; }
+select { padding: 0.3rem; font-size: 1rem; }
+.btn-approve { background: #43a047; color: #fff; border: none; padding: 0.3rem 0.8rem; cursor: pointer; border-radius: 4px; }
+.btn-reject { background: #e53935; color: #fff; border: none; padding: 0.3rem 0.8rem; cursor: pointer; border-radius: 4px; }
+.flag-badge { background: #fff3e0; color: #e65100; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.75rem; }

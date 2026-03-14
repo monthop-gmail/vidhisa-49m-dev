@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>สาขา Admin — วิทิสา 49M</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<header>
+    <h1>สาขา Admin</h1>
+    <p><a href="/">← กลับ Dashboard</a></p>
+</header>
+
+<main>
+    <section>
+        <label for="branch-select">เลือกสาขา:</label>
+        <select id="branch-select" onchange="loadPending()">
+            <option value="">-- เลือก --</option>
+        </select>
+    </section>
+
+    <section>
+        <h2>รายการรออนุมัติ</h2>
+        <table id="pending-table">
+            <thead>
+                <tr>
+                    <th>ID</th><th>ประเภท</th><th>ชื่อ</th><th>นาที</th><th>วันที่</th><th>Flags</th><th>จัดการ</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <p id="pending-empty" style="display:none">ไม่มีรายการรออนุมัติ</p>
+    </section>
+</main>
+
+<script src="/js/admin.js"></script>
+</body>
+</html>
