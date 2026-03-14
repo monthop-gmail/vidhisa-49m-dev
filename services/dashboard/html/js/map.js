@@ -50,11 +50,8 @@ async function loadProvinceData() {
 }
 
 function getProvinceCode(feature) {
-    // Try common GeoJSON property names for ISO code
-    return feature.properties.ISO_3166_2 ||
-           feature.properties.iso_3166_2 ||
-           feature.properties.CC_2 ||
-           ('TH-' + (feature.properties.ID_1 || ''));
+    const name = feature.properties.name || feature.properties.NAME_1 || '';
+    return PROVINCE_CODE_MAP[name] || '';
 }
 
 function getProvinceStyle(feature) {
