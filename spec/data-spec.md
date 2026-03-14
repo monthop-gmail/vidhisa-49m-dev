@@ -6,19 +6,32 @@
 
 ## ตาราง
 
-### 1. branches — สาขา
+### 1. branch_groups — กลุ่มสาขา (~30 กลุ่ม)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | PK | รหัสกลุ่ม เช่น G08 |
+| `name` | string | ชื่อกลุ่ม เช่น "กลุ่ม 8" |
+| `provinces` | array | จังหวัดในกลุ่ม เช่น `["TH-76","TH-70","TH-75"]` |
+
+> ตัวอย่าง: กลุ่ม 8 → เพชรบุรี, ราชบุรี, สมุทรสงคราม
+>
+> ข้อมูลกลุ่มทั้งหมด **ต้องขอจากทีม** (อ.เต้ / อ.จีรกาญ)
+
+### 2. branches — สาขา (~305 สาขา)
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | PK | รหัสสาขา เช่น B001 |
 | `name` | string | ชื่อสาขา |
+| `group_id` | FK → branch_groups | กลุ่มที่สังกัด |
 | `province` | string | จังหวัด |
 | `province_code` | string | รหัสจังหวัด ISO 3166-2 เช่น TH-10 |
 | `admin_name` | string | ชื่อผู้ดูแลสาขา |
 | `contact` | string | ช่องทางติดต่อ |
 | `created_at` | timestamp | |
 
-### 2. records — บันทึกการปฏิบัติ
+### 3. records — บันทึกการปฏิบัติ
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -40,7 +53,7 @@
 | `created_at` | timestamp | |
 | `updated_at` | timestamp | |
 
-### 3. daily_stats — สรุปรายวัน (Materialized / Cache)
+### 4. daily_stats — สรุปรายวัน (Materialized / Cache)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -50,7 +63,7 @@
 | `total_branches` | integer | จำนวนสาขาที่บันทึก |
 | `cumulative_minutes` | bigint | ยอดสะสมถึงวันนี้ |
 
-### 4. province_stats — สรุปรายจังหวัด (Materialized / Cache)
+### 5. province_stats — สรุปรายจังหวัด (Materialized / Cache)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -65,9 +78,18 @@
 ## ความสัมพันธ์
 
 ```
-branches (1) ──── (N) records
-    │
-    └── province_code ──── province_stats
+branch_groups (1) ──── (N) branches (1) ──── (N) records
+                            │
+                            └── province_code ──── province_stats
+```
+
+### Map 2 มุมมอง
+
+```
+มุมมอง "จังหวัด"          มุมมอง "กลุ่มสาขา"
+  77 จังหวัด                30 กลุ่ม
+  province_stats             group by branch_groups.provinces
+  Heat Map สีตามยอดจังหวัด   Heat Map สีตามยอดกลุ่ม
 ```
 
 ---
@@ -90,6 +112,7 @@ branches (1) ──── (N) records
 
 | รายการ | ประมาณการ |
 |--------|----------|
+| กลุ่มสาขา | ~30 rows |
 | สาขา | ~305 rows |
 | จังหวัด | 77 rows |
 | บันทึกต่อวัน (peak) | ~100,000 records |
