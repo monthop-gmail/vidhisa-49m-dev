@@ -50,13 +50,24 @@ async function loadProjection() {
         document.getElementById('date-today').textContent = formatThaiDate(d.today);
         document.getElementById('date-end').textContent = formatThaiDate(d.deadline);
 
-        document.getElementById('proj-date').textContent = d.estimated_completion_date ? formatThaiDate(d.estimated_completion_date) : '-';
+        const projDateEl = document.getElementById('proj-date');
+        if (d.estimated_completion_date) {
+            projDateEl.textContent = formatThaiDate(d.estimated_completion_date);
+        } else if (d.current_minutes >= d.target_minutes) {
+            projDateEl.textContent = 'ครบเป้าแล้ว!';
+        } else {
+            projDateEl.textContent = 'ยังประเมินไม่ได้';
+        }
+
         document.getElementById('proj-needed').textContent = FMT.format(d.daily_rate_needed);
         document.getElementById('proj-current').textContent = FMT.format(d.daily_rate_current);
         document.getElementById('proj-days').textContent = d.days_remaining;
 
         const statusEl = document.getElementById('proj-status');
-        if (d.on_track) {
+        if (d.current_minutes >= d.target_minutes) {
+            statusEl.textContent = 'ครบเป้าแล้ว!';
+            statusEl.className = 'proj-status on-track';
+        } else if (d.on_track) {
             statusEl.textContent = 'ทันกำหนด!';
             statusEl.className = 'proj-status on-track';
         } else {
