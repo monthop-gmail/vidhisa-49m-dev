@@ -1,0 +1,89 @@
+# CLAUDE.md — vithisa-49m-dev (ระบบต้นแบบ)
+
+## โครงการ
+
+โครงการวิทิสา 49 ล้านนาที — ระบบบันทึกและประมวลผลการปฏิบัติสมาธิวิทิสา
+- **Deadline:** 2026-07-31
+- **Docs repo:** [vithisa-49m](https://github.com/monthop-gmail/vithisa-49m) — เอกสาร, วาระประชุม
+
+## Quick Start
+
+```bash
+cp .env.example .env
+docker compose up -d
+```
+- Dashboard: http://localhost:8080
+- API Docs: http://localhost:8000/docs
+- Adminer: http://localhost:8081
+
+## โครงสร้าง
+
+```
+docker-compose.yml          # Root orchestrator (include pattern)
+services/
+  api/                      # FastAPI (Python 3.12)
+    app/config.py            # ค่าคงที่: target, deadline, anti-fraud limits
+    app/anti_fraud.py        # Validation rules
+    app/routers/             # Endpoint ทั้งหมด
+    tests/                   # Integration test (65 cases, ทดสอบกับ DB จริง)
+  db/init/                   # SQL schema (01-schema.sql) + seed (02-seed.sql)
+  dashboard/html/            # Static HTML/JS/CSS (nginx)
+  adminer/                   # Adminer — Web DB management
+  tunnels/                   # Cloudflare Tunnel (placeholder)
+spec/
+  api-spec.md                # API Contract ทุก endpoint
+  data-spec.md               # โครงสร้างตาราง + ความสัมพันธ์
+  db-diagram.md              # ER diagram + Business Rules
+  prototype-spec.md          # ขอบเขตต้นแบบ
+```
+
+## วิทิสาสมาธิ (Domain Knowledge)
+
+- เป็นรูปแบบหนึ่งของการปฏิบัติสมาธิ
+- ครั้งละ **5 นาที**, สูงสุด **3 ครั้ง/วัน** (เช้า กลางวัน เย็น)
+- เพดานต่อคน = 15 นาที/วัน
+
+## คำศัพท์
+
+| คำ | ความหมาย |
+|----|---------|
+| สาขา (branch) | สาขาสถาบันพลังจิตตานุภาพ ~305 แห่ง |
+| กลุ่มสาขา (branch_group) | กลุ่มรวมสาขา ~30 กลุ่ม จัดตามภูมิภาค |
+| ORG-PLJ | สถาบันพลังจิตตานุภาพ — องค์กรพิเศษที่เชื่อมกับสาขา |
+| องค์กรภายนอก | โรงเรียน/วัด/มหาวิทยาลัย — **ไม่สังกัดสาขา** (branch_id = NULL) |
+
+## กฎสำคัญ
+
+### Data Model
+- องค์กรภายนอก **ไม่สังกัดสาขา** — `branch_id = NULL` เสมอ
+- เฉพาะ ORG-PLJ ที่มี `branch_id`
+
+### การนับนาที (Business Rules)
+- ยอดรวม = สถาบันฯ (ORG-PLJ) + องค์กรภายนอก
+- รายสาขา/กลุ่มสาขา = เฉพาะ `org_id = 'ORG-PLJ'`
+- รายจังหวัด = รวมทั้งหมด (สาขา + องค์กร)
+
+### Anti-fraud Limits (config.py)
+- `MAX_SESSION_MINUTES = 5` — วิทิสาสมาธิครั้งละ 5 นาที
+- `MAX_DAILY_MINUTES = 15` — 3 ครั้ง/วัน
+- `MAX_BULK_MINUTES_PER_PERSON = 5`
+- `COOLDOWN_SECONDS = 0` — ยังไม่ยืนยัน, ปิดไว้ก่อน
+
+## การทดสอบ
+
+```bash
+# ต้อง docker compose up -d ก่อน
+docker compose exec vithisa-api python3 -m pytest tests/ -v
+```
+- ใช้ integration test กับ DB จริง — **ห้ามใช้ mock**
+- 65 test cases ครอบคลุมทุก endpoint
+
+## แนวทางการพัฒนา
+
+- **Modular Docker Compose** — ใช้ `include` pattern เสมอ, 1 service = 1 compose.yaml
+- **ไม่มี Login/Auth** — ตามแนวทาง อ.เต้
+- Commit message ภาษาไทย, prefix: `feat:`, `fix:`, `docs:`, `test:`
+- เมื่อแก้ schema หรือ seed data → ต้อง `docker compose down -v && docker compose up -d`
+- เมื่อเพิ่ม dependency → ต้อง `docker compose build --no-cache vithisa-api`
+- Route ordering: static routes (`/export`, `/import`) ต้องอยู่ **ก่อน** parameterized routes (`/{id}`)
+- CSV import/export ใช้ UTF-8 BOM สำหรับ Excel compatibility
