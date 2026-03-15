@@ -13,7 +13,7 @@ class TestCreateRecord:
             "type": "individual",
             "branch_id": "B005",
             "name": _uid(),
-            "minutes": 15,
+            "minutes": 5,
             "date": "2026-03-14",
         })
         assert r.status_code == 201
@@ -26,9 +26,9 @@ class TestCreateRecord:
             "type": "bulk",
             "branch_id": "B005",
             "name": _uid(),
-            "minutes": 300,
+            "minutes": 100,
             "participant_count": 20,
-            "minutes_per_person": 15,
+            "minutes_per_person": 5,
             "date": "2026-03-14",
         })
         assert r.status_code == 201
@@ -64,7 +64,7 @@ class TestAntifraud:
             "type": "individual",
             "branch_id": "B005",
             "name": _uid(),
-            "minutes": 60,
+            "minutes": 10,
             "date": "2026-03-14",
         })
         assert r.status_code == 422
@@ -75,9 +75,9 @@ class TestAntifraud:
             "type": "bulk",
             "branch_id": "B005",
             "name": _uid(),
-            "minutes": 1000,
+            "minutes": 100,
             "participant_count": 10,
-            "minutes_per_person": 100,
+            "minutes_per_person": 10,
             "date": "2026-03-14",
         })
         assert r.status_code == 422
@@ -98,7 +98,7 @@ class TestApproveReject:
             "type": "individual",
             "branch_id": "B003",
             "name": name,
-            "minutes": 10,
+            "minutes": 5,
             "date": "2026-03-13",
         })
         assert r.status_code == 201
@@ -116,7 +116,7 @@ class TestApproveReject:
             "type": "individual",
             "branch_id": "B003",
             "name": name,
-            "minutes": 10,
+            "minutes": 5,
             "date": "2026-03-13",
         })
         assert r.status_code == 201

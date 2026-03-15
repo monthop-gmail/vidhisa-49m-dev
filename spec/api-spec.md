@@ -49,13 +49,11 @@
 }
 ```
 
-**Validation Rules (Anti-fraud):**
-- `minutes` ต่อครั้ง: ไม่เกิน 30 นาที (individual)
-- `minutes` ต่อวันต่อคน: ไม่เกิน 120 นาที
-- `total_minutes` ต่อองค์กร: ไม่เกิน `participant_count × 30`
-- Cooldown: ห่างจากครั้งก่อนอย่างน้อย 5 นาที (individual)
-
-> ค่าเพดานทั้งหมดยังเป็น **ร่าง** — รอหารือกับฝ่ายวิชาการ
+**Validation Rules (Anti-fraud) — วิทิสาสมาธิ: ครั้งละ 5 นาที, 3 ครั้ง/วัน:**
+- `minutes` ต่อครั้ง: ไม่เกิน **5 นาที** (individual)
+- `minutes` ต่อวันต่อคน: ไม่เกิน **15 นาที** (3 ครั้ง × 5)
+- `total_minutes` ต่อองค์กร: ไม่เกิน `participant_count × 5`
+- Cooldown: **ยังไม่ยืนยัน** — ปิดไว้ก่อน รอหารือในที่ประชุม
 
 ---
 

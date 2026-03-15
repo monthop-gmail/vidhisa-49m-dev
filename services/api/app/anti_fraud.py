@@ -46,24 +46,25 @@ async def validate_record(data, db: AsyncSession) -> list[str]:
         if current_today + data.minutes >= MAX_DAILY_MINUTES:
             flags.append("daily_limit_reached")
 
-        # Cooldown check
-        stmt = select(Record.created_at).where(
-            Record.name == data.name,
-            Record.branch_id == data.branch_id,
-        ).order_by(Record.created_at.desc()).limit(1)
-        result = await db.execute(stmt)
-        last_record = result.scalar()
+        # Cooldown check (skip if COOLDOWN_SECONDS == 0)
+        if COOLDOWN_SECONDS > 0:
+            stmt = select(Record.created_at).where(
+                Record.name == data.name,
+                Record.branch_id == data.branch_id,
+            ).order_by(Record.created_at.desc()).limit(1)
+            result = await db.execute(stmt)
+            last_record = result.scalar()
 
-        if last_record:
-            from datetime import datetime, timezone
-            now = datetime.now(timezone.utc)
-            diff = (now - last_record).total_seconds()
-            if diff < COOLDOWN_SECONDS:
-                raise HTTPException(status_code=422, detail={
-                    "error": "COOLDOWN_ACTIVE",
-                    "message": f"รอ {COOLDOWN_SECONDS} วินาที ก่อนบันทึกครั้งถัดไป",
-                    "detail": {"wait_seconds": int(COOLDOWN_SECONDS - diff)}
-                })
+            if last_record:
+                from datetime import datetime, timezone
+                now = datetime.now(timezone.utc)
+                diff = (now - last_record).total_seconds()
+                if diff < COOLDOWN_SECONDS:
+                    raise HTTPException(status_code=422, detail={
+                        "error": "COOLDOWN_ACTIVE",
+                        "message": f"รอ {COOLDOWN_SECONDS} วินาที ก่อนบันทึกครั้งถัดไป",
+                        "detail": {"wait_seconds": int(COOLDOWN_SECONDS - diff)}
+                    })
 
     elif data.type == "bulk":
         if data.participant_count and data.minutes > data.participant_count * MAX_BULK_MINUTES_PER_PERSON:
