@@ -1,0 +1,12 @@
+# =============================================
+# vidhisa-49m - Terraform Variables
+# =============================================
+
+# GCP Project ID (required)
+project_id = "your-gcp-project-id"
+
+# Instance Name
+instance_name = "vidhisa-49m"
+
+# Machine Type
+machine_type = "n4-standard-2"

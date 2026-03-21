@@ -10,7 +10,11 @@ services:
       - vidhisa_db_data:/var/lib/postgresql/data
       - ./init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vidhisa} -d ${POSTGRES_DB:-vidhisa49m}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-vidhisa} -d ${POSTGRES_DB:-vidhisa49m}"
+        ]
       interval: 5s
       timeout: 3s
       retries: 5
