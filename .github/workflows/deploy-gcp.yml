@@ -1,0 +1,124 @@
+name: Deploy to GCP Cloud Run
+
+# ยังไม่ใช้งาน — กด Run manually เมื่อพร้อม
+# ต้องตั้ง secrets ใน GitHub repo ก่อน:
+#   - GCP_PROJECT_ID
+#   - GCP_REGION (เช่น asia-southeast1)
+#   - GCP_SA_KEY (Service Account JSON key)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  API_IMAGE: asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/vidhisa/vidhisa-api
+  DASHBOARD_IMAGE: asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/vidhisa/vidhisa-dashboard
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start services
+        run: |
+          cp .env.example .env
+          docker compose up -d --build --wait
+        timeout-minutes: 5
+
+      - name: Wait for API
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/api/health > /dev/null 2>&1; then
+              echo "API is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API failed to start"
+          exit 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run tests
+        run: |
+          pip install -r services/api/requirements-test.txt
+          cd services/api
+          python -m pytest tests/ -v --tb=short
+
+  build-and-push:
+    name: Build & Push Images
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker asia-southeast1-docker.pkg.dev --quiet
+
+      - name: Build and push API image
+        run: |
+          docker build -t ${{ env.API_IMAGE }}:${{ github.sha }} -t ${{ env.API_IMAGE }}:latest services/api
+          docker push ${{ env.API_IMAGE }}:${{ github.sha }}
+          docker push ${{ env.API_IMAGE }}:latest
+
+      - name: Build and push Dashboard image
+        run: |
+          docker build -t ${{ env.DASHBOARD_IMAGE }}:${{ github.sha }} -t ${{ env.DASHBOARD_IMAGE }}:latest services/dashboard
+          docker push ${{ env.DASHBOARD_IMAGE }}:${{ github.sha }}
+          docker push ${{ env.DASHBOARD_IMAGE }}:latest
+
+  deploy-api:
+    name: Deploy API to Cloud Run
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy API
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: vidhisa-api
+          image: ${{ env.API_IMAGE }}:${{ github.sha }}
+          region: ${{ secrets.GCP_REGION }}
+          env_vars: |
+            TZ=Asia/Bangkok
+
+  deploy-dashboard:
+    name: Deploy Dashboard to Cloud Run
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy Dashboard
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: vidhisa-dashboard
+          image: ${{ env.DASHBOARD_IMAGE }}:${{ github.sha }}
+          region: ${{ secrets.GCP_REGION }}
