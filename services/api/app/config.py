@@ -1,7 +1,16 @@
 import os
 from datetime import date
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://vidhisa:changeme@localhost:5432/vidhisa49m")
+
+def _build_db_url() -> str:
+    user = os.getenv("POSTGRES_USER", "vidhisa")
+    password = os.getenv("POSTGRES_PASSWORD", "changeme")
+    db = os.getenv("POSTGRES_DB", "vidhisa49m")
+    host = os.getenv("DB_HOST", "vidhisa-db")
+    return f"postgresql+asyncpg://{user}:{password}@{host}:5432/{db}"
+
+
+DATABASE_URL = os.getenv("DATABASE_URL") or _build_db_url()
 
 TARGET_MINUTES = 49_000_000
 START_DATE = date(2026, 3, 1)
