@@ -127,19 +127,22 @@ gcloud compute ssh vidhisa-49m --zone=asia-southeast3-a
 ssh ubuntu@xx.xx.xx.xx
 ```
 
-## Deploy vidhisa-49m
+## Deploy vidhisa-49m-dev
 
 ```bash
 # SSH into instance
 gcloud compute ssh vidhisa-49m --zone=asia-southeast3-a
 
 # Clone repo
-git clone https://github.com/monthop-gmail/vidhisa-49m.git
-cd vidhisa-49m
+git clone https://github.com/monthop-gmail/vidhisa-49m-dev.git
+cd vidhisa-49m-dev
 
-# Copy env and start
+# Copy env and edit password
 cp .env.example .env
-docker compose up -d
+# ⚠️ แก้ POSTGRES_PASSWORD จาก changeme เป็น password จริง
+
+# Start with production resource limits
+docker compose -f docker-compose.yml -f docker-compose.prd.yml up -d
 
 # Verify
 docker compose ps
