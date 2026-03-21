@@ -1,10 +1,10 @@
-name: Deploy to GCP Cloud Run
+name: Deploy to GCP VM
 
 # ยังไม่ใช้งาน — กด Run manually เมื่อพร้อม
 # ต้องตั้ง secrets ใน GitHub repo ก่อน:
-#   - GCP_PROJECT_ID
-#   - GCP_REGION (เช่น asia-southeast1)
-#   - GCP_SA_KEY (Service Account JSON key)
+#   - GCP_VM_HOST (IP ของ VM จาก OpenTofu output)
+#   - GCP_VM_USER (เช่น ubuntu)
+#   - GCP_VM_SSH_KEY (SSH private key สำหรับเข้า VM)
 
 on:
   workflow_dispatch:
@@ -17,10 +17,6 @@ on:
         options:
           - staging
           - production
-
-env:
-  API_IMAGE: asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/vidhisa/vidhisa-api
-  DASHBOARD_IMAGE: asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/vidhisa/vidhisa-dashboard
 
 jobs:
   test:
@@ -57,68 +53,35 @@ jobs:
           cd services/api
           python -m pytest tests/ -v --tb=short
 
-  build-and-push:
-    name: Build & Push Images
+  deploy:
+    name: Deploy to VM
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
+      - name: SSH and deploy
+        uses: appleboy/ssh-action@v1
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          host: ${{ secrets.GCP_VM_HOST }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_VM_SSH_KEY }}
+          script: |
+            cd ~/vidhisa-49m-dev || {
+              git clone https://github.com/monthop-gmail/vidhisa-49m-dev.git ~/vidhisa-49m-dev
+              cd ~/vidhisa-49m-dev
+              cp .env.example .env
+              echo "⚠️ อย่าลืมแก้ POSTGRES_PASSWORD ใน .env"
+            }
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+            echo "=== Git Pull ==="
+            git pull origin main
 
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker asia-southeast1-docker.pkg.dev --quiet
+            echo "=== Rebuild & Restart ==="
+            docker compose -f docker-compose.yml -f docker-compose.prd.yml up -d --build --remove-orphans
 
-      - name: Build and push API image
-        run: |
-          docker build -t ${{ env.API_IMAGE }}:${{ github.sha }} -t ${{ env.API_IMAGE }}:latest services/api
-          docker push ${{ env.API_IMAGE }}:${{ github.sha }}
-          docker push ${{ env.API_IMAGE }}:latest
+            echo "=== Health Check ==="
+            sleep 5
+            curl -sf http://localhost:8000/api/health && echo " ✅ API OK" || echo " ❌ API FAILED"
+            curl -sf -o /dev/null -w "Dashboard: %{http_code}" http://localhost:8080 && echo " ✅" || echo " ❌"
 
-      - name: Build and push Dashboard image
-        run: |
-          docker build -t ${{ env.DASHBOARD_IMAGE }}:${{ github.sha }} -t ${{ env.DASHBOARD_IMAGE }}:latest services/dashboard
-          docker push ${{ env.DASHBOARD_IMAGE }}:${{ github.sha }}
-          docker push ${{ env.DASHBOARD_IMAGE }}:latest
-
-  deploy-api:
-    name: Deploy API to Cloud Run
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Deploy API
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: vidhisa-api
-          image: ${{ env.API_IMAGE }}:${{ github.sha }}
-          region: ${{ secrets.GCP_REGION }}
-          env_vars: |
-            TZ=Asia/Bangkok
-
-  deploy-dashboard:
-    name: Deploy Dashboard to Cloud Run
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Deploy Dashboard
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: vidhisa-dashboard
-          image: ${{ env.DASHBOARD_IMAGE }}:${{ github.sha }}
-          region: ${{ secrets.GCP_REGION }}
+            echo "=== Services ==="
+            docker compose ps
