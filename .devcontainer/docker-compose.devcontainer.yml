@@ -1,0 +1,19 @@
+services:
+  devcontainer:
+    image: mcr.microsoft.com/devcontainers/python:3.12
+    volumes:
+      - .:/workspace:cached
+    command: sleep infinity
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-vidhisa}:${POSTGRES_PASSWORD:-changeme}@vidhisa-db:5432/${POSTGRES_DB:-vidhisa49m}
+      API_BASE_URL: http://vidhisa-api:8000
+      TZ: ${TZ:-Asia/Bangkok}
+    depends_on:
+      vidhisa-db:
+        condition: service_healthy
+      vidhisa-api:
+        condition: service_started
+      vidhisa-dashboard:
+        condition: service_started
+    networks:
+      - vidhisa-net

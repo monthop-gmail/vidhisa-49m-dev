@@ -1,0 +1,30 @@
+{
+  "name": "Vidhisa 49M Dev",
+  "dockerComposeFile": ["../docker-compose.yml", "docker-compose.devcontainer.yml"],
+  "service": "devcontainer",
+  "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
+  "forwardPorts": [8000, 8080, 8081],
+  "portsAttributes": {
+    "8000": { "label": "API (FastAPI)", "onAutoForward": "notify" },
+    "8080": { "label": "Dashboard", "onAutoForward": "openBrowser" },
+    "8081": { "label": "Adminer", "onAutoForward": "notify" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-azuretools.vscode-docker",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python3",
+        "python.testing.pytestEnabled": true,
+        "python.testing.pytestArgs": ["services/api/tests"],
+        "editor.formatOnSave": true
+      }
+    }
+  },
+  "postStartCommand": "echo '✅ Vidhisa 49M Dev ready — API: http://localhost:8000/docs | Dashboard: http://localhost:8080'"
+}

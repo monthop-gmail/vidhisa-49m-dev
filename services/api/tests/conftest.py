@@ -1,7 +1,8 @@
+import os
 import pytest
 import httpx
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 
 @pytest.fixture(scope="session")
