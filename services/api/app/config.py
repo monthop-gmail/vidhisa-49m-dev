@@ -1,7 +1,7 @@
 import os
 from datetime import date
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://vithisa:changeme@localhost:5432/vithisa49m")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://vidhisa:changeme@localhost:5432/vidhisa49m")
 
 TARGET_MINUTES = 49_000_000
 START_DATE = date(2026, 3, 1)

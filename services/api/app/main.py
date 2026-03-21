@@ -14,7 +14,7 @@ class NoCacheMiddleware(BaseHTTPMiddleware):
         return response
 
 
-app = FastAPI(title="Vithisa 49M API", version="0.1.0")
+app = FastAPI(title="Vidhisa 49M API", version="0.1.0")
 
 app.add_middleware(NoCacheMiddleware)
 app.add_middleware(

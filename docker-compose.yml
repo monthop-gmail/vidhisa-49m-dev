@@ -6,6 +6,6 @@ include:
   # - path: ./services/tunnels/compose.yaml  # uncomment เมื่อมี CF Tunnel token
 
 networks:
-  vithisa-net:
+  vidhisa-net:
     driver: bridge
-    name: vithisa-net
+    name: vidhisa-net

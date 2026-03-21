@@ -1,4 +1,4 @@
-# CLAUDE.md — vithisa-49m-dev (ระบบต้นแบบ)
+# CLAUDE.md — vidhisa-49m-dev (ระบบต้นแบบ)
 
 ## บทบาทของ AI ใน Repo นี้
 
@@ -21,7 +21,7 @@
 
 โครงการวิทิสา 49 ล้านนาที — ระบบบันทึกและประมวลผลการปฏิบัติสมาธิวิทิสา
 - **Deadline:** 2026-07-31
-- **Docs repo:** [vithisa-49m](https://github.com/monthop-gmail/vithisa-49m) — เอกสาร, วาระประชุม
+- **Docs repo:** [vidhisa-49m](https://github.com/monthop-gmail/vidhisa-49m) — เอกสาร, วาระประชุม
 
 ## Quick Start
 
@@ -90,7 +90,7 @@ spec/
 
 ```bash
 # ต้อง docker compose up -d ก่อน
-docker compose exec vithisa-api python3 -m pytest tests/ -v
+docker compose exec vidhisa-api python3 -m pytest tests/ -v
 ```
 - ใช้ integration test กับ DB จริง — **ห้ามใช้ mock**
 - 65 test cases ครอบคลุมทุก endpoint
@@ -101,6 +101,6 @@ docker compose exec vithisa-api python3 -m pytest tests/ -v
 - **ไม่มี Login/Auth** — ตามแนวทาง อ.เต้
 - Commit message ภาษาไทย, prefix: `feat:`, `fix:`, `docs:`, `test:`
 - เมื่อแก้ schema หรือ seed data → ต้อง `docker compose down -v && docker compose up -d`
-- เมื่อเพิ่ม dependency → ต้อง `docker compose build --no-cache vithisa-api`
+- เมื่อเพิ่ม dependency → ต้อง `docker compose build --no-cache vidhisa-api`
 - Route ordering: static routes (`/export`, `/import`) ต้องอยู่ **ก่อน** parameterized routes (`/{id}`)
 - CSV import/export ใช้ UTF-8 BOM สำหรับ Excel compatibility

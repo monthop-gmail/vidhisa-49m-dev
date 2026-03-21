@@ -1,5 +1,5 @@
 -- =============================================
--- Vithisa 49M — Database Schema
+-- Vidhisa 49M — Database Schema
 -- =============================================
 
 CREATE TABLE branch_groups (

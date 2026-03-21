@@ -16,4 +16,4 @@ def test_openapi_json(client):
     r = client.get("/openapi.json")
     assert r.status_code == 200
     data = r.json()
-    assert data["info"]["title"] == "Vithisa 49M API"
+    assert data["info"]["title"] == "Vidhisa 49M API"

@@ -7,9 +7,9 @@
 #     environment:
 #       TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN_API}
 #     depends_on:
-#       - vithisa-api
+#       - vidhisa-api
 #     networks:
-#       - vithisa-net
+#       - vidhisa-net
 #     restart: unless-stopped
 #
 #   tunnel-dashboard:
@@ -18,13 +18,13 @@
 #     environment:
 #       TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN_DASHBOARD}
 #     depends_on:
-#       - vithisa-dashboard
+#       - vidhisa-dashboard
 #     networks:
-#       - vithisa-net
+#       - vidhisa-net
 #     restart: unless-stopped
 #
 # networks:
-#   vithisa-net:
+#   vidhisa-net:
 #     external: true
 
 # Placeholder — ไฟล์นี้ต้องมีอย่างน้อย 1 key เพื่อไม่ให้ compose error

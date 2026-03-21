@@ -37,7 +37,7 @@ jobs:
             sleep 2
           done
           echo "API failed to start"
-          docker compose logs vithisa-api
+          docker compose logs vidhisa-api
           exit 1
 
       - uses: actions/setup-python@v5

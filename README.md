@@ -1,8 +1,8 @@
-# vithisa-49m-dev
+# vidhisa-49m-dev
 
 ต้นแบบ (Prototype) ระบบบันทึกและประมวลผลโครงการวิทิสา 49 ล้านนาที
 
-> Repo หลัก: [vithisa-49m](https://github.com/monthop-gmail/vithisa-49m) — เอกสาร, วาระประชุม, ภาพรวมโครงการ
+> Repo หลัก: [vidhisa-49m](https://github.com/monthop-gmail/vidhisa-49m) — เอกสาร, วาระประชุม, ภาพรวมโครงการ
 
 ## จุดประสงค์ของ Repo นี้
 
@@ -38,7 +38,7 @@ docker compose up -d
 เปิดดู:
 - Dashboard: http://localhost:8080
 - API Docs: http://localhost:8000/docs
-- Adminer: http://localhost:8081 (server: `vithisa-db`, user: `vithisa`, pass: `changeme`, db: `vithisa49m`)
+- Adminer: http://localhost:8081 (server: `vidhisa-db`, user: `vidhisa`, pass: `changeme`, db: `vidhisa49m`)
 
 ## Testing
 
@@ -68,7 +68,7 @@ python3 -m pytest tests/ -v
 ## โครงสร้าง
 
 ```
-vithisa-49m-dev/
+vidhisa-49m-dev/
 ├── docker-compose.yml     # Root orchestrator (include pattern)
 ├── .env.example           # ตัวแปร environment
 ├── spec/                  # Spec เอกสาร
