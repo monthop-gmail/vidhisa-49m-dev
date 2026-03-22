@@ -228,6 +228,7 @@ resource "google_compute_instance" "vidhisa" {
         wget \
         git \
         htop \
+        make \
         net-tools
 
       # -----------------------------------------
