@@ -5,6 +5,7 @@
 คุณคือ **นักพัฒนา (Developer)** ของระบบต้นแบบวิทิสา 49 ล้านนาที
 
 **หน้าที่หลัก:**
+
 - เขียนและแก้ไขโค้ด (API, Dashboard, DB schema, tests)
 - ออกแบบ endpoint, data model, business logic
 - เขียน integration test ครอบคลุมทุก endpoint (ห้าม mock)
@@ -12,6 +13,7 @@
 - รักษาความสอดคล้องระหว่างโค้ดกับ spec
 
 **สิ่งที่ต้องระวัง:**
+
 - ตรวจสอบ business rules ก่อนเขียนโค้ด (ดูหัวข้อ "กฎสำคัญ" ด้านล่าง)
 - รัน test ทุกครั้งหลังแก้โค้ด — ต้อง pass ทั้งหมดก่อน commit
 - อัพเดท spec (`spec/*.md`) ให้ตรงกับโค้ดเสมอ
@@ -20,6 +22,7 @@
 ## โครงการ
 
 โครงการวิทิสา 49 ล้านนาที — ระบบบันทึกและประมวลผลการปฏิบัติสมาธิวิทิสา
+
 - **Deadline:** 2026-07-31
 - **Docs repo:** [vidhisa-49m](https://github.com/monthop-gmail/vidhisa-49m) — เอกสาร, วาระประชุม
 
@@ -29,6 +32,7 @@
 cp .env.example .env
 docker compose up -d
 ```
+
 - Dashboard: http://localhost:8080
 - API Docs: http://localhost:8000/docs
 - Adminer: http://localhost:8081
@@ -62,25 +66,28 @@ spec/
 
 ## คำศัพท์
 
-| คำ | ความหมาย |
-|----|---------|
-| สาขา (branch) | สาขาสถาบันพลังจิตตานุภาพ ~305 แห่ง |
-| กลุ่มสาขา (branch_group) | กลุ่มรวมสาขา ~30 กลุ่ม จัดตามภูมิภาค |
-| ORG-PLJ | สถาบันพลังจิตตานุภาพ — องค์กรพิเศษที่เชื่อมกับสาขา |
-| องค์กรภายนอก | โรงเรียน/วัด/มหาวิทยาลัย — **ไม่สังกัดสาขา** (branch_id = NULL) |
+| คำ                       | ความหมาย                                                        |
+| ------------------------ | --------------------------------------------------------------- |
+| สาขา (branch)            | สาขาสถาบันพลังจิตตานุภาพ ~305 แห่ง                              |
+| กลุ่มสาขา (branch_group) | กลุ่มรวมสาขา ~30 กลุ่ม จัดตามภูมิภาค                            |
+| ORG-PLJ                  | สถาบันพลังจิตตานุภาพ — องค์กรพิเศษที่เชื่อมกับสาขา              |
+| องค์กรภายนอก             | โรงเรียน/วัด/มหาวิทยาลัย — **ไม่สังกัดสาขา** (branch_id = NULL) |
 
 ## กฎสำคัญ
 
 ### Data Model
+
 - องค์กรภายนอก **ไม่สังกัดสาขา** — `branch_id = NULL` เสมอ
 - เฉพาะ ORG-PLJ ที่มี `branch_id`
 
 ### การนับนาที (Business Rules)
+
 - ยอดรวม = สถาบันฯ (ORG-PLJ) + องค์กรภายนอก
 - รายสาขา/กลุ่มสาขา = เฉพาะ `org_id = 'ORG-PLJ'`
 - รายจังหวัด = รวมทั้งหมด (สาขา + องค์กร)
 
 ### Anti-fraud Limits (config.py)
+
 - `MAX_SESSION_MINUTES = 5` — วิทิสาสมาธิครั้งละ 5 นาที
 - `MAX_DAILY_MINUTES = 15` — 3 ครั้ง/วัน
 - `MAX_BULK_MINUTES_PER_PERSON = 5`
@@ -92,6 +99,7 @@ spec/
 # ต้อง docker compose up -d ก่อน
 docker compose exec vidhisa-api python3 -m pytest tests/ -v
 ```
+
 - ใช้ integration test กับ DB จริง — **ห้ามใช้ mock**
 - 65 test cases ครอบคลุมทุก endpoint
 
