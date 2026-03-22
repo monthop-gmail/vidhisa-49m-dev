@@ -13,7 +13,7 @@ class RecordCreate(BaseModel):
     branch_id: str = Field(..., min_length=1, max_length=10)
     name: str = Field(..., min_length=1, max_length=200)
     org_id: str | None = Field(None, max_length=10)
-    minutes: int = Field(..., ge=1, le=99999)
+    minutes: int = Field(..., description="Minutes of meditation practice")
     participant_count: int | None = Field(None, ge=1)
     minutes_per_person: int | None = Field(None, ge=1)
     date: date
