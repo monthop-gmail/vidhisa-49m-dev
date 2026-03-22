@@ -1,10 +1,17 @@
 """Test: Health + Swagger"""
 
+from datetime import datetime
+
 
 def test_health(client):
-    r = client.get("/api/health")
+    r = client.get("/api/healthz")
     assert r.status_code == 200
-    assert r.json()["status"] == "ok"
+    data = r.json()
+    assert data["status"] == "ok"
+    assert "timestamp" in data
+    assert "version" in data
+    assert data["version"] == "0.1.0"
+    datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
 
 
 def test_swagger_ui(client):
