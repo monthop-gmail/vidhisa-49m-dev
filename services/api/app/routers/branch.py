@@ -1,6 +1,9 @@
+"""Branch API endpoints."""
+
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.database import get_db
 from app.models import Record
 
@@ -9,10 +12,15 @@ router = APIRouter()
 
 @router.get("/branch/{branch_id}/pending")
 async def get_pending(branch_id: str, db: AsyncSession = Depends(get_db)):
-    stmt = select(Record).where(
-        Record.branch_id == branch_id,
-        Record.status == "pending"
-    ).order_by(Record.created_at.desc())
+    """Get all pending records for a specific branch."""
+    stmt = (
+        select(Record)
+        .where(
+            Record.branch_id == branch_id,
+            Record.status == "pending",
+        )
+        .order_by(Record.created_at.desc())
+    )
 
     result = await db.execute(stmt)
     rows = result.scalars().all()

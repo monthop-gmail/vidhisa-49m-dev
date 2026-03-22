@@ -1,6 +1,10 @@
+"""Server-Sent Events (SSE) endpoint for real-time notifications."""
+
 import asyncio
+
 from fastapi import APIRouter
 from starlette.responses import StreamingResponse
+
 from app.events import subscribe, unsubscribe
 
 router = APIRouter()
@@ -8,6 +12,11 @@ router = APIRouter()
 
 @router.get("/sse")
 async def sse_stream():
+    """Stream real-time event notifications via SSE.
+
+    Clients receive events for new records, approvals, and rejections.
+    Sends keepalive comments every 30 seconds to maintain connection.
+    """
     q = subscribe()
 
     async def event_generator():
@@ -17,7 +26,6 @@ async def sse_stream():
                     event_type = await asyncio.wait_for(q.get(), timeout=30)
                     yield f"event: {event_type}\ndata: {event_type}\n\n"
                 except asyncio.TimeoutError:
-                    # Send keepalive comment every 30s
                     yield ": keepalive\n\n"
         except asyncio.CancelledError:
             pass

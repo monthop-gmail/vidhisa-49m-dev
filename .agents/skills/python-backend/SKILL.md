@@ -145,12 +145,12 @@ def protected(request: Request):
 
 For detailed patterns, see:
 
-| Document | Content |
-|----------|---------|
-| `references/fastapi_patterns.md` | Project structure, async, Pydantic, dependencies, testing |
-| `references/security_patterns.md` | JWT, OAuth2, password hashing, CORS, API keys |
+| Document                          | Content                                                   |
+| --------------------------------- | --------------------------------------------------------- |
+| `references/fastapi_patterns.md`  | Project structure, async, Pydantic, dependencies, testing |
+| `references/security_patterns.md` | JWT, OAuth2, password hashing, CORS, API keys             |
 | `references/database_patterns.md` | SQLAlchemy async, transactions, eager loading, migrations |
-| `references/upstash_patterns.md` | Redis, rate limiting, QStash background jobs |
+| `references/upstash_patterns.md`  | Redis, rate limiting, QStash background jobs              |
 
 ## Resources
 

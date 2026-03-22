@@ -1,46 +1,61 @@
-from pydantic import BaseModel
+"""Pydantic schemas for request/response validation."""
+
 from datetime import date, datetime
-from typing import Optional
+from typing import Annotated, Any
+
+from pydantic import BaseModel, Field
 
 
 class RecordCreate(BaseModel):
-    type: str  # "individual" or "bulk"
+    """Schema for creating a new meditation record."""
+
+    type: str
     branch_id: str
     name: str
-    org_id: Optional[str] = None
+    org_id: str | None = None
     minutes: int
-    participant_count: Optional[int] = None
-    minutes_per_person: Optional[int] = None
+    participant_count: int | None = None
+    minutes_per_person: int | None = None
     date: date
-    photo_url: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    submitted_by: Optional[str] = None
+    photo_url: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    submitted_by: str | None = None
 
 
 class RecordResponse(BaseModel):
+    """Schema for record creation response."""
+
     id: int
     status: str
     message: str
 
 
 class ApproveRequest(BaseModel):
+    """Schema for approving a record."""
+
     approved_by: str
 
 
 class RejectRequest(BaseModel):
+    """Schema for rejecting a record."""
+
     reason: str
 
 
 class TotalStats(BaseModel):
+    """Schema for overall statistics response."""
+
     total_minutes: int
     total_records: int
     total_branches: int
     total_orgs: int
-    last_updated: Optional[datetime] = None
+    last_updated: datetime | None = None
 
 
 class ProvinceStats(BaseModel):
+    """Schema for province-level statistics."""
+
     province: str
     code: str
     minutes: int
@@ -48,6 +63,8 @@ class ProvinceStats(BaseModel):
 
 
 class GroupStats(BaseModel):
+    """Schema for branch group statistics."""
+
     group_id: str
     group_name: str
     provinces: list[str]
@@ -57,6 +74,8 @@ class GroupStats(BaseModel):
 
 
 class BranchStats(BaseModel):
+    """Schema for individual branch statistics."""
+
     branch_id: str
     branch_name: str
     province: str
@@ -64,11 +83,15 @@ class BranchStats(BaseModel):
 
 
 class DailyStatsItem(BaseModel):
+    """Schema for daily statistics item."""
+
     date: date
     minutes: int
 
 
 class Projection(BaseModel):
+    """Schema for project completion projection."""
+
     target_minutes: int
     current_minutes: int
     remaining_minutes: int
@@ -76,18 +99,22 @@ class Projection(BaseModel):
     days_remaining: int
     daily_rate_current: int
     daily_rate_needed: int
-    estimated_completion_date: Optional[date] = None
+    estimated_completion_date: date | None = None
     on_track: bool
 
 
 class LeaderboardEntry(BaseModel):
+    """Schema for leaderboard entry."""
+
     rank: int
     name: str
-    branch: Optional[str] = None
+    branch: str | None = None
     minutes: int
 
 
 class FeedEntry(BaseModel):
+    """Schema for activity feed entry."""
+
     id: int
     message: str
     minutes: int
@@ -96,6 +123,8 @@ class FeedEntry(BaseModel):
 
 
 class PendingRecord(BaseModel):
+    """Schema for pending record item."""
+
     id: int
     type: str
     name: str
@@ -106,28 +135,34 @@ class PendingRecord(BaseModel):
 
 
 class OrganizationCreate(BaseModel):
+    """Schema for creating an organization."""
+
     id: str
     name: str
-    org_type: Optional[str] = None
-    branch_id: Optional[str] = None
-    province: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    contact: Optional[str] = None
+    org_type: str | None = None
+    branch_id: str | None = None
+    province: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    contact: str | None = None
 
 
 class OrganizationResponse(BaseModel):
+    """Schema for organization response."""
+
     id: str
     name: str
-    org_type: Optional[str] = None
+    org_type: str | None = None
     branch_id: str
-    province: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    contact: Optional[str] = None
+    province: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    contact: str | None = None
 
 
 class ErrorResponse(BaseModel):
+    """Schema for error responses."""
+
     error: str
     message: str
-    detail: Optional[dict] = None
+    detail: dict[str, Any] | None = None

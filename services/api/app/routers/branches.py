@@ -1,39 +1,80 @@
+"""Branches API endpoints with CSV import/export support."""
+
 import csv
 import io
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+
 from app.database import get_db
 from app.models import Branch, BranchGroup, Record
 
 router = APIRouter()
 
-EXPORT_FIELDS = ["id", "name", "group_id", "province", "province_code", "latitude", "longitude", "admin_name", "contact"]
+EXPORT_FIELDS = [
+    "id",
+    "name",
+    "group_id",
+    "province",
+    "province_code",
+    "latitude",
+    "longitude",
+    "admin_name",
+    "contact",
+]
 
 
 @router.get("/branches")
 async def list_branches(db: AsyncSession = Depends(get_db)):
-    stmt = select(
-        Branch.id, Branch.name, Branch.group_id, Branch.province, Branch.province_code,
-        Branch.latitude, Branch.longitude, Branch.admin_name, Branch.contact,
-        func.coalesce(func.sum(Record.minutes), 0).label("total_minutes"),
-        func.count(Record.id).label("total_records"),
-    ).outerjoin(
-        Record, (Record.branch_id == Branch.id) & (Record.status == "approved") & (Record.org_id == "ORG-PLJ")
-    ).group_by(
-        Branch.id, Branch.name, Branch.group_id, Branch.province, Branch.province_code,
-        Branch.latitude, Branch.longitude, Branch.admin_name, Branch.contact,
-    ).order_by(Branch.name)
+    """List all branches with their statistics."""
+    stmt = (
+        select(
+            Branch.id,
+            Branch.name,
+            Branch.group_id,
+            Branch.province,
+            Branch.province_code,
+            Branch.latitude,
+            Branch.longitude,
+            Branch.admin_name,
+            Branch.contact,
+            func.coalesce(func.sum(Record.minutes), 0).label("total_minutes"),
+            func.count(Record.id).label("total_records"),
+        )
+        .outerjoin(
+            Record,
+            (Record.branch_id == Branch.id) & (Record.status == "approved") & (Record.org_id == "ORG-PLJ"),
+        )
+        .group_by(
+            Branch.id,
+            Branch.name,
+            Branch.group_id,
+            Branch.province,
+            Branch.province_code,
+            Branch.latitude,
+            Branch.longitude,
+            Branch.admin_name,
+            Branch.contact,
+        )
+        .order_by(Branch.name)
+    )
 
     result = await db.execute(stmt)
     return [
         {
-            "id": r.id, "name": r.name, "group_id": r.group_id,
-            "province": r.province, "province_code": r.province_code,
-            "latitude": r.latitude, "longitude": r.longitude,
-            "admin_name": r.admin_name, "contact": r.contact,
-            "total_minutes": r.total_minutes, "total_records": r.total_records,
+            "id": r.id,
+            "name": r.name,
+            "group_id": r.group_id,
+            "province": r.province,
+            "province_code": r.province_code,
+            "latitude": r.latitude,
+            "longitude": r.longitude,
+            "admin_name": r.admin_name,
+            "contact": r.contact,
+            "total_minutes": r.total_minutes,
+            "total_records": r.total_records,
         }
         for r in result.all()
     ]
@@ -41,6 +82,7 @@ async def list_branches(db: AsyncSession = Depends(get_db)):
 
 @router.get("/branches/export")
 async def export_branches(db: AsyncSession = Depends(get_db)):
+    """Export all branches as CSV with UTF-8 BOM for Excel compatibility."""
     result = await db.execute(select(Branch).order_by(Branch.id))
     branches = result.scalars().all()
 
@@ -61,8 +103,15 @@ async def export_branches(db: AsyncSession = Depends(get_db)):
 
 @router.post("/branches/import")
 async def import_branches(file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
+    """Import branches from CSV file.
+
+    Creates new branches or updates existing ones based on ID.
+    """
     if not file.filename.endswith(".csv"):
-        raise HTTPException(status_code=400, detail={"error": "INVALID_FILE", "message": "รองรับเฉพาะไฟล์ .csv"})
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "INVALID_FILE", "message": "รองรับเฉพาะไฟล์ .csv"},
+        )
 
     content = await file.read()
     text = content.decode("utf-8-sig")
@@ -70,12 +119,14 @@ async def import_branches(file: UploadFile = File(...), db: AsyncSession = Depen
 
     required = {"id", "name", "province", "province_code"}
     if not required.issubset(set(reader.fieldnames or [])):
-        raise HTTPException(status_code=400, detail={
-            "error": "INVALID_HEADER",
-            "message": f"CSV ต้องมีคอลัมน์: {', '.join(EXPORT_FIELDS)}"
-        })
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "INVALID_HEADER",
+                "message": f"CSV ต้องมีคอลัมน์: {', '.join(EXPORT_FIELDS)}",
+            },
+        )
 
-    # Load existing branches and valid group IDs
     existing_result = await db.execute(select(Branch.id))
     existing_ids = {r[0] for r in existing_result.all()}
     group_result = await db.execute(select(BranchGroup.id))
@@ -135,42 +186,65 @@ async def import_branches(file: UploadFile = File(...), db: AsyncSession = Depen
         "created": created,
         "updated": updated,
         "errors": errors,
-        "message": f"นำเข้าสำเร็จ: สร้างใหม่ {created}, อัพเดท {updated}" + (f", ข้อผิดพลาด {len(errors)} แถว" if errors else ""),
+        "message": (
+            f"นำเข้าสำเร็จ: สร้างใหม่ {created}, อัพเดท {updated}" + (f", ข้อผิดพลาด {len(errors)} แถว" if errors else "")
+        ),
     }
 
 
 @router.get("/branches/{branch_id}")
 async def get_branch(branch_id: str, db: AsyncSession = Depends(get_db)):
+    """Get details and statistics for a specific branch."""
     result = await db.execute(select(Branch).where(Branch.id == branch_id))
     branch = result.scalar_one_or_none()
     if not branch:
-        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบสาขา"})
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "NOT_FOUND", "message": "ไม่พบสาขา"},
+        )
 
     stmt = select(
         func.coalesce(func.sum(Record.minutes), 0),
         func.count(Record.id),
-    ).where(Record.branch_id == branch_id, Record.status == "approved", Record.org_id == "ORG-PLJ")
+    ).where(
+        Record.branch_id == branch_id,
+        Record.status == "approved",
+        Record.org_id == "ORG-PLJ",
+    )
     stats = (await db.execute(stmt)).one()
 
     return {
-        "id": branch.id, "name": branch.name, "group_id": branch.group_id,
-        "province": branch.province, "province_code": branch.province_code,
-        "latitude": branch.latitude, "longitude": branch.longitude,
-        "admin_name": branch.admin_name, "contact": branch.contact,
-        "total_minutes": stats[0], "total_records": stats[1],
+        "id": branch.id,
+        "name": branch.name,
+        "group_id": branch.group_id,
+        "province": branch.province,
+        "province_code": branch.province_code,
+        "latitude": branch.latitude,
+        "longitude": branch.longitude,
+        "admin_name": branch.admin_name,
+        "contact": branch.contact,
+        "total_minutes": stats[0],
+        "total_records": stats[1],
     }
 
 
 @router.post("/branches", status_code=201)
 async def create_branch(data: dict, db: AsyncSession = Depends(get_db)):
+    """Create a new branch."""
     branch_id = data.get("id", "").strip()
     name = data.get("name", "").strip()
     if not branch_id or not name:
-        raise HTTPException(status_code=400, detail={"error": "MISSING_FIELDS", "message": "ต้องระบุ id และ name"})
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "MISSING_FIELDS", "message": "ต้องระบุ id และ name"},
+        )
 
     existing = await db.execute(select(Branch).where(Branch.id == branch_id))
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=409, detail={"error": "DUPLICATE_ID", "message": "รหัสสาขาซ้ำ"})
+        raise HTTPException(
+            status_code=409,
+            detail={"error": "DUPLICATE_ID", "message": "รหัสสาขาซ้ำ"},
+        )
 
     branch = Branch(
         id=branch_id,
@@ -190,10 +264,14 @@ async def create_branch(data: dict, db: AsyncSession = Depends(get_db)):
 
 @router.put("/branches/{branch_id}")
 async def update_branch(branch_id: str, data: dict, db: AsyncSession = Depends(get_db)):
+    """Update an existing branch."""
     result = await db.execute(select(Branch).where(Branch.id == branch_id))
     branch = result.scalar_one_or_none()
     if not branch:
-        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบสาขา"})
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "NOT_FOUND", "message": "ไม่พบสาขา"},
+        )
 
     branch.name = data.get("name", branch.name)
     branch.group_id = data.get("group_id", branch.group_id)

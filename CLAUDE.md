@@ -112,3 +112,44 @@ docker compose exec vidhisa-api python3 -m pytest tests/ -v
 - เมื่อเพิ่ม dependency → ต้อง `docker compose build --no-cache vidhisa-api`
 - Route ordering: static routes (`/export`, `/import`) ต้องอยู่ **ก่อน** parameterized routes (`/{id}`)
 - CSV import/export ใช้ UTF-8 BOM สำหรับ Excel compatibility
+
+## Code Style (Python)
+
+ใช้ ruff เป็น linter และ formatter เพียงตัวเดียว
+
+```bash
+# Lint และ format
+ruff check --fix services/api/app/
+ruff format services/api/app/
+
+# ติดตั้ง dependency
+pip install ruff mypy
+```
+
+### การตั้งค่า (`services/api/pyproject.toml`)
+
+```toml
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "SIM", "ANN"]
+ignore = ["E501", "ANN401"]
+```
+
+### มาตรฐานการเขียน
+
+- **Type hints** สำหรับทุก function และ class
+- **Docstrings** แบบ Google style สำหรับ public API
+- **Naming**: snake_case สำหรับ functions/variables, PascalCase สำหรับ classes
+- **Imports**: จัดลำดับ standard library → third-party → local
+- **Column definitions** ใน models.py: ใช้ `Column(...)` wrapper เสมอ
+
+```python
+# ถูกต้อง
+id = Column(String(10), primary_key=True)
+
+# ผิด - จะ error เพราะ String() ไม่รับ primary_key
+id = String(10, primary_key=True)
+```

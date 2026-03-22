@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -17,7 +19,10 @@ from app.routers import (
 
 
 class NoCacheMiddleware(BaseHTTPMiddleware):
+    """Middleware to prevent caching of API responses."""
+
     async def dispatch(self, request: Request, call_next):
+        """Process request and add no-cache headers for API routes."""
         response = await call_next(request)
         if request.url.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
@@ -50,8 +55,7 @@ app.include_router(sse.router, prefix="/api")
 
 @app.get("/api/healthz")
 async def health():
-    from datetime import datetime, timezone
-
+    """Health check endpoint returning service status."""
     return {
         "status": "ok",
         "timestamp": datetime.now(timezone.utc).isoformat(),

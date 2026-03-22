@@ -1,17 +1,24 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+"""Project completion projection API endpoint."""
+
 from datetime import date, timedelta
+
+from fastapi import APIRouter, Depends
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config import DEADLINE, START_DATE, TARGET_MINUTES
 from app.database import get_db
-from app.models import Record, DailyStat
-from app.config import TARGET_MINUTES, START_DATE, DEADLINE
+from app.models import DailyStat, Record
 
 router = APIRouter()
 
 
 @router.get("/projection")
 async def get_projection(db: AsyncSession = Depends(get_db)):
-    # Current total
+    """Calculate projection for meeting the 49M minute target.
+
+    Returns current progress, required daily rate, and estimated completion date.
+    """
     stmt = select(func.coalesce(func.sum(Record.minutes), 0)).where(Record.status == "approved")
     result = await db.execute(stmt)
     current = result.scalar()
@@ -20,8 +27,10 @@ async def get_projection(db: AsyncSession = Depends(get_db)):
     today = date.today()
     days_remaining = (DEADLINE - today).days
 
-    # Average daily rate from daily_stats
-    stmt = select(func.count(), func.coalesce(func.sum(DailyStat.total_minutes), 0)).select_from(DailyStat)
+    stmt = select(
+        func.count(),
+        func.coalesce(func.sum(DailyStat.total_minutes), 0),
+    ).select_from(DailyStat)
     result = await db.execute(stmt)
     row = result.one()
     days_with_data = row[0] or 1
