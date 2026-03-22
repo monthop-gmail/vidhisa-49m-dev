@@ -1,23 +1,33 @@
-from sqlalchemy import Column, String, Integer, BigInteger, Date, Text, ForeignKey, CheckConstraint, Float
+"""SQLAlchemy ORM models for the Vidhisa 49M system."""
+
+from sqlalchemy import BigInteger, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import CheckConstraint
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy import DateTime
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql import func
 
 
 class Base(DeclarativeBase):
+    """Base class for all ORM models."""
+
     pass
 
 
 class BranchGroup(Base):
+    """Regional grouping of branches for reporting purposes."""
+
     __tablename__ = "branch_groups"
+
     id = Column(String(10), primary_key=True)
     name = Column(String(100), nullable=False)
     provinces = Column(JSONB, default=[])
 
 
 class Branch(Base):
+    """Individual meditation branch/location."""
+
     __tablename__ = "branches"
+
     id = Column(String(10), primary_key=True)
     name = Column(String(200), nullable=False)
     group_id = Column(String(10), ForeignKey("branch_groups.id"))
@@ -31,7 +41,10 @@ class Branch(Base):
 
 
 class Organization(Base):
+    """External organization participating in meditation practice."""
+
     __tablename__ = "organizations"
+
     id = Column(String(10), primary_key=True)
     name = Column(String(200), nullable=False)
     org_type = Column(String(50))
@@ -44,7 +57,11 @@ class Organization(Base):
 
 
 class Record(Base):
+    """Individual or bulk meditation session record."""
+
     __tablename__ = "records"
+    __table_args__ = (CheckConstraint("minutes > 0", name="positive_minutes"),)
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     type = Column(String(20), nullable=False)
     branch_id = Column(String(10), ForeignKey("branches.id"))
@@ -68,7 +85,10 @@ class Record(Base):
 
 
 class DailyStat(Base):
+    """Aggregated daily statistics."""
+
     __tablename__ = "daily_stats"
+
     date = Column(Date, primary_key=True)
     total_minutes = Column(BigInteger, default=0)
     total_records = Column(Integer, default=0)
@@ -77,7 +97,10 @@ class DailyStat(Base):
 
 
 class ProvinceStat(Base):
+    """Aggregated statistics by province."""
+
     __tablename__ = "province_stats"
+
     province_code = Column(String(10), primary_key=True)
     province = Column(String(100), nullable=False)
     total_minutes = Column(BigInteger, default=0)

@@ -1,42 +1,77 @@
+"""Organizations API endpoints with CSV import/export support."""
+
 import csv
 import io
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+
 from app.database import get_db
-from app.models import Organization, Record, Branch
-from app.schemas import OrganizationCreate, OrganizationResponse
+from app.models import Branch, Organization, Record
+from app.schemas import OrganizationCreate
 
 router = APIRouter()
 
-EXPORT_FIELDS = ["id", "name", "org_type", "branch_id", "province", "latitude", "longitude", "contact"]
+EXPORT_FIELDS = [
+    "id",
+    "name",
+    "org_type",
+    "branch_id",
+    "province",
+    "latitude",
+    "longitude",
+    "contact",
+]
 
 
 @router.get("/organizations")
 async def list_organizations(db: AsyncSession = Depends(get_db)):
-    stmt = select(
-        Organization.id, Organization.name, Organization.org_type,
-        Organization.branch_id, Organization.province,
-        Organization.latitude, Organization.longitude, Organization.contact,
-        func.coalesce(func.sum(Record.minutes), 0).label("total_minutes"),
-        func.count(Record.id).label("total_records"),
-    ).outerjoin(
-        Record, (Record.org_id == Organization.id) & (Record.status == "approved")
-    ).group_by(
-        Organization.id, Organization.name, Organization.org_type,
-        Organization.branch_id, Organization.province,
-        Organization.latitude, Organization.longitude, Organization.contact,
-    ).order_by(Organization.name)
+    """List all organizations with their statistics."""
+    stmt = (
+        select(
+            Organization.id,
+            Organization.name,
+            Organization.org_type,
+            Organization.branch_id,
+            Organization.province,
+            Organization.latitude,
+            Organization.longitude,
+            Organization.contact,
+            func.coalesce(func.sum(Record.minutes), 0).label("total_minutes"),
+            func.count(Record.id).label("total_records"),
+        )
+        .outerjoin(
+            Record,
+            (Record.org_id == Organization.id) & (Record.status == "approved"),
+        )
+        .group_by(
+            Organization.id,
+            Organization.name,
+            Organization.org_type,
+            Organization.branch_id,
+            Organization.province,
+            Organization.latitude,
+            Organization.longitude,
+            Organization.contact,
+        )
+        .order_by(Organization.name)
+    )
 
     result = await db.execute(stmt)
     return [
         {
-            "id": r.id, "name": r.name, "org_type": r.org_type,
-            "branch_id": r.branch_id, "province": r.province,
-            "latitude": r.latitude, "longitude": r.longitude,
+            "id": r.id,
+            "name": r.name,
+            "org_type": r.org_type,
+            "branch_id": r.branch_id,
+            "province": r.province,
+            "latitude": r.latitude,
+            "longitude": r.longitude,
             "contact": r.contact,
-            "total_minutes": r.total_minutes, "total_records": r.total_records,
+            "total_minutes": r.total_minutes,
+            "total_records": r.total_records,
         }
         for r in result.all()
     ]
@@ -44,6 +79,7 @@ async def list_organizations(db: AsyncSession = Depends(get_db)):
 
 @router.get("/organizations/export")
 async def export_organizations(db: AsyncSession = Depends(get_db)):
+    """Export all organizations as CSV with UTF-8 BOM for Excel compatibility."""
     result = await db.execute(select(Organization).order_by(Organization.name))
     orgs = result.scalars().all()
 
@@ -63,9 +99,19 @@ async def export_organizations(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/organizations/import")
-async def import_organizations(file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
+async def import_organizations(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Import organizations from CSV file.
+
+    Creates new organizations or updates existing ones based on ID.
+    """
     if not file.filename.endswith(".csv"):
-        raise HTTPException(status_code=400, detail={"error": "INVALID_FILE", "message": "รองรับเฉพาะไฟล์ .csv"})
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "INVALID_FILE", "message": "รองรับเฉพาะไฟล์ .csv"},
+        )
 
     content = await file.read()
     text = content.decode("utf-8-sig")
@@ -73,10 +119,13 @@ async def import_organizations(file: UploadFile = File(...), db: AsyncSession = 
 
     required = {"id", "name"}
     if not required.issubset(set(reader.fieldnames or [])):
-        raise HTTPException(status_code=400, detail={
-            "error": "INVALID_HEADER",
-            "message": f"CSV ต้องมีคอลัมน์: {', '.join(EXPORT_FIELDS)}"
-        })
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "INVALID_HEADER",
+                "message": f"CSV ต้องมีคอลัมน์: {', '.join(EXPORT_FIELDS)}",
+            },
+        )
 
     existing_result = await db.execute(select(Organization.id))
     existing_ids = {r[0] for r in existing_result.all()}
@@ -133,16 +182,22 @@ async def import_organizations(file: UploadFile = File(...), db: AsyncSession = 
         "created": created,
         "updated": updated,
         "errors": errors,
-        "message": f"นำเข้าสำเร็จ: สร้างใหม่ {created}, อัพเดท {updated}" + (f", ข้อผิดพลาด {len(errors)} แถว" if errors else ""),
+        "message": (
+            f"นำเข้าสำเร็จ: สร้างใหม่ {created}, อัพเดท {updated}" + (f", ข้อผิดพลาด {len(errors)} แถว" if errors else "")
+        ),
     }
 
 
 @router.get("/organizations/{org_id}")
 async def get_organization(org_id: str, db: AsyncSession = Depends(get_db)):
+    """Get details and statistics for a specific organization."""
     result = await db.execute(select(Organization).where(Organization.id == org_id))
     org = result.scalar_one_or_none()
     if not org:
-        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบองค์กร"})
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "NOT_FOUND", "message": "ไม่พบองค์กร"},
+        )
 
     stmt = select(
         func.coalesce(func.sum(Record.minutes), 0),
@@ -151,19 +206,28 @@ async def get_organization(org_id: str, db: AsyncSession = Depends(get_db)):
     stats = (await db.execute(stmt)).one()
 
     return {
-        "id": org.id, "name": org.name, "org_type": org.org_type,
-        "branch_id": org.branch_id, "province": org.province,
-        "latitude": org.latitude, "longitude": org.longitude,
+        "id": org.id,
+        "name": org.name,
+        "org_type": org.org_type,
+        "branch_id": org.branch_id,
+        "province": org.province,
+        "latitude": org.latitude,
+        "longitude": org.longitude,
         "contact": org.contact,
-        "total_minutes": stats[0], "total_records": stats[1],
+        "total_minutes": stats[0],
+        "total_records": stats[1],
     }
 
 
 @router.post("/organizations", status_code=201)
 async def create_organization(data: OrganizationCreate, db: AsyncSession = Depends(get_db)):
+    """Create a new organization."""
     existing = await db.execute(select(Organization).where(Organization.id == data.id))
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=409, detail={"error": "DUPLICATE_ID", "message": "รหัสองค์กรซ้ำ"})
+        raise HTTPException(
+            status_code=409,
+            detail={"error": "DUPLICATE_ID", "message": "รหัสองค์กรซ้ำ"},
+        )
 
     org = Organization(
         id=data.id,
@@ -181,11 +245,19 @@ async def create_organization(data: OrganizationCreate, db: AsyncSession = Depen
 
 
 @router.put("/organizations/{org_id}")
-async def update_organization(org_id: str, data: OrganizationCreate, db: AsyncSession = Depends(get_db)):
+async def update_organization(
+    org_id: str,
+    data: OrganizationCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Update an existing organization."""
     result = await db.execute(select(Organization).where(Organization.id == org_id))
     org = result.scalar_one_or_none()
     if not org:
-        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบองค์กร"})
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "NOT_FOUND", "message": "ไม่พบองค์กร"},
+        )
 
     org.name = data.name
     org.org_type = data.org_type
