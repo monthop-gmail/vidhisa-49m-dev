@@ -34,7 +34,7 @@ jobs:
       - name: Wait for API
         run: |
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:8000/api/health > /dev/null 2>&1; then
+            if curl -sf http://localhost:8000/api/healthz > /dev/null 2>&1; then
               echo "API is ready"
               exit 0
             fi
@@ -80,7 +80,7 @@ jobs:
 
             echo "=== Health Check ==="
             sleep 5
-            curl -sf http://localhost:8000/api/health && echo " ✅ API OK" || echo " ❌ API FAILED"
+            curl -sf http://localhost:8000/api/healthz && echo " ✅ API OK" || echo " ❌ API FAILED"
             curl -sf -o /dev/null -w "Dashboard: %{http_code}" http://localhost:8080 && echo " ✅" || echo " ❌"
 
             echo "=== Services ==="

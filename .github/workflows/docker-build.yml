@@ -27,7 +27,7 @@ jobs:
           echo "=== Service Status ==="
           docker compose ps
           echo "=== Health Check ==="
-          curl -sf http://localhost:8000/api/health
+          curl -sf http://localhost:8000/api/healthz
           echo ""
           curl -sf -o /dev/null -w "Dashboard: %{http_code}\n" http://localhost:8080
           curl -sf -o /dev/null -w "Adminer: %{http_code}\n" http://localhost:8081
