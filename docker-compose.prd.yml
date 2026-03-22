@@ -1,5 +1,8 @@
 services:
   vidhisa-api:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile-prd
     deploy:
       resources:
         limits:

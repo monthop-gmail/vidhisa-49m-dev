@@ -1,7 +1,19 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from app.routers import records, stats, projection, leaderboard, feed, branch, branches, markers, organizations, sse
+
+from app.routers import (
+    branch,
+    branches,
+    feed,
+    leaderboard,
+    markers,
+    organizations,
+    projection,
+    records,
+    sse,
+    stats,
+)
 
 
 class NoCacheMiddleware(BaseHTTPMiddleware):
@@ -36,6 +48,12 @@ app.include_router(organizations.router, prefix="/api")
 app.include_router(sse.router, prefix="/api")
 
 
-@app.get("/api/health")
+@app.get("/api/healthz")
 async def health():
-    return {"status": "ok"}
+    from datetime import datetime, timezone
+
+    return {
+        "status": "ok",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "version": app.version,
+    }
