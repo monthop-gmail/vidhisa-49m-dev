@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Branch, BranchGroup, Record
+from app.schemas import BranchCreateResponse, BranchDetail, BranchListItem, ImportResult
 
 router = APIRouter()
 
@@ -26,7 +27,7 @@ EXPORT_FIELDS = [
 ]
 
 
-@router.get("/branches")
+@router.get("/branches", response_model=list[BranchListItem])
 async def list_branches(db: AsyncSession = Depends(get_db)):
     """List all branches with their statistics."""
     stmt = (
@@ -101,7 +102,7 @@ async def export_branches(db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.post("/branches/import")
+@router.post("/branches/import", response_model=ImportResult)
 async def import_branches(file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
     """Import branches from CSV file.
 
@@ -192,7 +193,7 @@ async def import_branches(file: UploadFile = File(...), db: AsyncSession = Depen
     }
 
 
-@router.get("/branches/{branch_id}")
+@router.get("/branches/{branch_id}", response_model=BranchDetail)
 async def get_branch(branch_id: str, db: AsyncSession = Depends(get_db)):
     """Get details and statistics for a specific branch."""
     result = await db.execute(select(Branch).where(Branch.id == branch_id))
@@ -228,7 +229,7 @@ async def get_branch(branch_id: str, db: AsyncSession = Depends(get_db)):
     }
 
 
-@router.post("/branches", status_code=201)
+@router.post("/branches", status_code=201, response_model=BranchCreateResponse)
 async def create_branch(data: dict, db: AsyncSession = Depends(get_db)):
     """Create a new branch."""
     branch_id = data.get("id", "").strip()

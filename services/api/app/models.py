@@ -22,6 +22,9 @@ class BranchGroup(Base):
     name = Column(String(100), nullable=False)
     provinces = Column(JSONB, default=[])
 
+    def __repr__(self) -> str:
+        return f"<BranchGroup(id='{self.id}', name='{self.name}')>"
+
 
 class Branch(Base):
     """Individual meditation branch/location."""
@@ -39,6 +42,9 @@ class Branch(Base):
     contact = Column(String(200))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    def __repr__(self) -> str:
+        return f"<Branch(id='{self.id}', name='{self.name}', province='{self.province}')>"
+
 
 class Organization(Base):
     """External organization participating in meditation practice."""
@@ -54,6 +60,9 @@ class Organization(Base):
     longitude = Column(Float)
     contact = Column(String(200))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    def __repr__(self) -> str:
+        return f"<Organization(id='{self.id}', name='{self.name}')>"
 
 
 class Record(Base):
@@ -83,6 +92,9 @@ class Record(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+    def __repr__(self) -> str:
+        return f"<Record(id={self.id}, name='{self.name}', minutes={self.minutes}, status='{self.status}')>"
+
 
 class DailyStat(Base):
     """Aggregated daily statistics."""
@@ -95,6 +107,9 @@ class DailyStat(Base):
     total_branches = Column(Integer, default=0)
     cumulative_minutes = Column(BigInteger, default=0)
 
+    def __repr__(self) -> str:
+        return f"<DailyStat(date={self.date}, minutes={self.total_minutes})>"
+
 
 class ProvinceStat(Base):
     """Aggregated statistics by province."""
@@ -106,3 +121,6 @@ class ProvinceStat(Base):
     total_minutes = Column(BigInteger, default=0)
     total_records = Column(Integer, default=0)
     last_updated = Column(DateTime(timezone=True), server_default=func.now())
+
+    def __repr__(self) -> str:
+        return f"<ProvinceStat(code='{self.province_code}', province='{self.province}', minutes={self.total_minutes})>"

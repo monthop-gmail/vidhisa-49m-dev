@@ -10,7 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Branch, Organization, Record
-from app.schemas import OrganizationCreate
+from app.schemas import (
+    ImportResult,
+    OrganizationCreate,
+    OrganizationCreateResponse,
+    OrganizationDetail,
+    OrganizationListItem,
+)
 
 router = APIRouter()
 
@@ -26,7 +32,7 @@ EXPORT_FIELDS = [
 ]
 
 
-@router.get("/organizations")
+@router.get("/organizations", response_model=list[OrganizationListItem])
 async def list_organizations(db: AsyncSession = Depends(get_db)):
     """List all organizations with their statistics."""
     stmt = (
@@ -98,7 +104,7 @@ async def export_organizations(db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.post("/organizations/import")
+@router.post("/organizations/import", response_model=ImportResult)
 async def import_organizations(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
@@ -188,7 +194,7 @@ async def import_organizations(
     }
 
 
-@router.get("/organizations/{org_id}")
+@router.get("/organizations/{org_id}", response_model=OrganizationDetail)
 async def get_organization(org_id: str, db: AsyncSession = Depends(get_db)):
     """Get details and statistics for a specific organization."""
     result = await db.execute(select(Organization).where(Organization.id == org_id))
@@ -219,7 +225,7 @@ async def get_organization(org_id: str, db: AsyncSession = Depends(get_db)):
     }
 
 
-@router.post("/organizations", status_code=201)
+@router.post("/organizations", status_code=201, response_model=OrganizationCreateResponse)
 async def create_organization(data: OrganizationCreate, db: AsyncSession = Depends(get_db)):
     """Create a new organization."""
     existing = await db.execute(select(Organization).where(Organization.id == data.id))

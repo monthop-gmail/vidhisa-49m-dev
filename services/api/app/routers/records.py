@@ -8,7 +8,13 @@ from app.anti_fraud import validate_record
 from app.database import get_db
 from app.events import publish
 from app.models import Record
-from app.schemas import ApproveRequest, RecordCreate, RecordResponse, RejectRequest
+from app.schemas import (
+    ApproveRequest,
+    RecordCreate,
+    RecordResponse,
+    RejectRequest,
+    StatusResponse,
+)
 
 router = APIRouter()
 
@@ -49,7 +55,7 @@ async def create_record(data: RecordCreate, db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.patch("/records/{record_id}/approve")
+@router.patch("/records/{record_id}/approve", response_model=StatusResponse)
 async def approve_record(record_id: int, data: ApproveRequest, db: AsyncSession = Depends(get_db)):
     """Approve a pending meditation record."""
     result = await db.execute(select(Record).where(Record.id == record_id))
@@ -67,7 +73,7 @@ async def approve_record(record_id: int, data: ApproveRequest, db: AsyncSession 
     return {"id": record_id, "status": "approved"}
 
 
-@router.patch("/records/{record_id}/reject")
+@router.patch("/records/{record_id}/reject", response_model=StatusResponse)
 async def reject_record(record_id: int, data: RejectRequest, db: AsyncSession = Depends(get_db)):
     """Reject a pending meditation record."""
     result = await db.execute(select(Record).where(Record.id == record_id))

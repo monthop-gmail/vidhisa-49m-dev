@@ -1,26 +1,34 @@
 """Pydantic schemas for request/response validation."""
 
 from datetime import date, datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class RecordCreate(BaseModel):
     """Schema for creating a new meditation record."""
 
-    type: str
-    branch_id: str
-    name: str
-    org_id: str | None = None
-    minutes: int
-    participant_count: int | None = None
-    minutes_per_person: int | None = None
+    type: Literal["individual", "bulk"]
+    branch_id: str = Field(..., min_length=1, max_length=10)
+    name: str = Field(..., min_length=1, max_length=200)
+    org_id: str | None = Field(None, max_length=10)
+    minutes: int = Field(..., ge=1, le=99999)
+    participant_count: int | None = Field(None, ge=1)
+    minutes_per_person: int | None = Field(None, ge=1)
     date: date
-    photo_url: str | None = None
-    latitude: float | None = None
-    longitude: float | None = None
-    submitted_by: str | None = None
+    photo_url: str | None = Field(None, max_length=2000)
+    latitude: float | None = Field(None, ge=-90, le=90)
+    longitude: float | None = Field(None, ge=-180, le=180)
+    submitted_by: str | None = Field(None, max_length=200)
+
+    @field_validator("name")
+    @classmethod
+    def name_not_empty(cls, v: str) -> str:
+        """Ensure name is not empty or whitespace only."""
+        if not v.strip():
+            raise ValueError("name cannot be empty")
+        return v.strip()
 
 
 class RecordResponse(BaseModel):
@@ -126,11 +134,11 @@ class PendingRecord(BaseModel):
     """Schema for pending record item."""
 
     id: int
-    type: str
+    type: Literal["individual", "bulk"]
     name: str
     minutes: int
     date: date
-    status: str
+    status: Literal["pending", "approved", "rejected"]
     flags: list[str]
 
 
@@ -166,3 +174,105 @@ class ErrorResponse(BaseModel):
     error: str
     message: str
     detail: dict[str, Any] | None = None
+
+
+class BranchListItem(BaseModel):
+    """Schema for branch list response item."""
+
+    id: str
+    name: str
+    group_id: str | None
+    province: str
+    province_code: str
+    latitude: float | None
+    longitude: float | None
+    admin_name: str | None
+    contact: str | None
+    total_minutes: int
+    total_records: int
+
+    model_config = {"from_attributes": True}
+
+
+class BranchDetail(BaseModel):
+    """Schema for branch detail response."""
+
+    id: str
+    name: str
+    group_id: str | None
+    province: str
+    province_code: str
+    latitude: float | None
+    longitude: float | None
+    admin_name: str | None
+    contact: str | None
+    total_minutes: int
+    total_records: int
+
+    model_config = {"from_attributes": True}
+
+
+class OrganizationListItem(BaseModel):
+    """Schema for organization list response item."""
+
+    id: str
+    name: str
+    org_type: str | None
+    branch_id: str | None
+    province: str | None
+    latitude: float | None
+    longitude: float | None
+    contact: str | None
+    total_minutes: int
+    total_records: int
+
+    model_config = {"from_attributes": True}
+
+
+class OrganizationDetail(BaseModel):
+    """Schema for organization detail response."""
+
+    id: str
+    name: str
+    org_type: str | None
+    branch_id: str | None
+    province: str | None
+    latitude: float | None
+    longitude: float | None
+    contact: str | None
+    total_minutes: int
+    total_records: int
+
+    model_config = {"from_attributes": True}
+
+
+class ImportResult(BaseModel):
+    """Schema for CSV import response."""
+
+    created: int
+    updated: int
+    errors: list[str]
+    message: str
+
+
+class BranchCreateResponse(BaseModel):
+    """Schema for branch creation response."""
+
+    id: str
+    name: str
+    message: str
+
+
+class OrganizationCreateResponse(BaseModel):
+    """Schema for organization creation response."""
+
+    id: str
+    name: str
+    message: str
+
+
+class StatusResponse(BaseModel):
+    """Schema for status update responses."""
+
+    id: int | str
+    status: str
