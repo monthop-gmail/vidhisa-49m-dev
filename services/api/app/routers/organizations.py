@@ -158,31 +158,45 @@ async def import_organizations(
             errors.append(f"แถว {i}: branch_id '{branch_id}' ไม่มีในระบบ")
             continue
 
-        lat = row.get("latitude", "").strip()
-        lng = row.get("longitude", "").strip()
+        lat = (row.get("latitude") or "").strip()
+        lng = (row.get("longitude") or "").strip()
+        max_p = (row.get("max_participants") or "").strip()
+        g_male = (row.get("gender_male") or "").strip()
+        g_female = (row.get("gender_female") or "").strip()
+        g_unspec = (row.get("gender_unspecified") or "").strip()
+
+        fields = {
+            "name": name,
+            "org_type": (row.get("org_type") or "").strip() or None,
+            "branch_id": branch_id or None,
+            "sub_district": (row.get("sub_district") or "").strip() or None,
+            "district": (row.get("district") or "").strip() or None,
+            "province": (row.get("province") or "").strip() or None,
+            "email": (row.get("email") or "").strip() or None,
+            "max_participants": int(max_p) if max_p else None,
+            "gender_male": int(g_male) if g_male else 0,
+            "gender_female": int(g_female) if g_female else 0,
+            "gender_unspecified": int(g_unspec) if g_unspec else 0,
+            "contact_name": (row.get("contact_name") or "").strip() or None,
+            "contact_phone": (row.get("contact_phone") or "").strip() or None,
+            "contact_line_id": (row.get("contact_line_id") or "").strip() or None,
+            "enrolled_date": (row.get("enrolled_date") or "").strip() or None,
+            "enrolled_until": (row.get("enrolled_until") or "").strip() or None,
+            "latitude": float(lat) if lat else None,
+            "longitude": float(lng) if lng else None,
+            "contact": (row.get("contact") or "").strip() or None,
+        }
 
         if org_id in existing_ids:
             result = await db.execute(select(Organization).where(Organization.id == org_id))
             org = result.scalar_one()
-            org.name = name
-            org.org_type = (row.get("org_type") or "").strip() or None
-            org.branch_id = branch_id or org.branch_id
-            org.province = (row.get("province") or "").strip() or None
-            org.latitude = float(lat) if lat else None
-            org.longitude = float(lng) if lng else None
-            org.contact = (row.get("contact") or "").strip() or None
+            for k, v in fields.items():
+                if k == "branch_id" and not v:
+                    continue  # keep existing branch_id if not provided
+                setattr(org, k, v)
             updated += 1
         else:
-            org = Organization(
-                id=org_id,
-                name=name,
-                org_type=(row.get("org_type") or "").strip() or None,
-                branch_id=branch_id,
-                province=(row.get("province") or "").strip() or None,
-                latitude=float(lat) if lat else None,
-                longitude=float(lng) if lng else None,
-                contact=(row.get("contact") or "").strip() or None,
-            )
+            org = Organization(id=org_id, **fields)
             db.add(org)
             existing_ids.add(org_id)
             created += 1
