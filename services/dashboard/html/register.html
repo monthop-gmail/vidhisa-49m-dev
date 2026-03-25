@@ -107,6 +107,7 @@
     </section>
 </main>
 
+<script src="/js/branch-context.js"></script>
 <script>
 const API = '/api';
 
@@ -121,20 +122,6 @@ function showMsg(id, text, ok) {
     const el = document.getElementById(id);
     el.innerHTML = `<span class="msg ${ok ? 'msg-ok' : 'msg-err'}">${text}</span>`;
     setTimeout(() => el.innerHTML = '', 5000);
-}
-
-async function loadBranches() {
-    const res = await fetch(API + '/branches');
-    const branches = await res.json();
-    ['r-org-branch', 'r-p-branch'].forEach(id => {
-        const sel = document.getElementById(id);
-        branches.forEach(b => {
-            const opt = document.createElement('option');
-            opt.value = b.id;
-            opt.textContent = `${b.id} — ${b.name}`;
-            sel.appendChild(opt);
-        });
-    });
 }
 
 async function registerOrg() {
@@ -196,7 +183,9 @@ async function registerParticipant() {
     else showMsg('r-p-msg', data.detail?.message || 'เกิดข้อผิดพลาด', false);
 }
 
-loadBranches();
+// Init both branch selectors with shared context
+initBranchSelector('r-org-branch');
+initBranchSelector('r-p-branch');
 </script>
 </body>
 </html>

@@ -4,16 +4,12 @@ async function loadBranches() {
     try {
         const res = await fetch('/api/stats/by-branch');
         const data = await res.json();
-        const sel = document.getElementById('branch-select');
         const orgSel = document.getElementById('org-branch');
         data.forEach(b => {
             const opt = document.createElement('option');
             opt.value = b.branch_id;
             opt.textContent = `${b.branch_name} (${b.province})`;
-            sel.appendChild(opt);
-
-            const opt2 = opt.cloneNode(true);
-            orgSel.appendChild(opt2);
+            orgSel.appendChild(opt);
         });
     } catch (e) {
         console.error('branches error:', e);
@@ -273,24 +269,10 @@ async function loadParticipants() {
     }
 }
 
-async function loadParticipantBranchFilter() {
-    try {
-        const res = await fetch('/api/branches');
-        const branches = await res.json();
-        const sel = document.getElementById('participant-branch-filter');
-        branches.forEach(b => {
-            const opt = document.createElement('option');
-            opt.value = b.id;
-            opt.textContent = `${b.id} — ${b.name}`;
-            sel.appendChild(opt);
-        });
-    } catch (e) {
-        console.error('participant filter error:', e);
-    }
-}
 
 loadBranches();
 loadBranchTable();
 loadOrganizations();
-loadParticipantBranchFilter();
+initBranchSelector('branch-select', loadPending);
+initBranchSelector('participant-branch-filter', loadParticipants);
 loadParticipants();

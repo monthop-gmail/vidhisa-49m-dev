@@ -100,6 +100,7 @@
     </section>
 </main>
 
+<script src="/js/branch-context.js"></script>
 <script>
 const API = '/api';
 let allOrgs = [];
@@ -134,19 +135,7 @@ function calcIndMinutes() {
     document.getElementById('i-minutes').textContent = sessions * 5;
 }
 
-async function loadBranches() {
-    const res = await fetch(API + '/branches');
-    const branches = await res.json();
-    ['b-branch', 'i-branch'].forEach(id => {
-        const sel = document.getElementById(id);
-        branches.forEach(b => {
-            const opt = document.createElement('option');
-            opt.value = b.id;
-            opt.textContent = `${b.id} — ${b.name}`;
-            sel.appendChild(opt);
-        });
-    });
-}
+// loadBranches replaced by initBranchSelector
 
 async function loadOrgs() {
     const branchId = document.getElementById('b-branch').value;
@@ -264,7 +253,8 @@ const today = new Date().toISOString().split('T')[0];
 document.getElementById('b-date').value = today;
 document.getElementById('i-date').value = today;
 
-loadBranches();
+initBranchSelector('b-branch', loadOrgs);
+initBranchSelector('i-branch', loadParticipants);
 calcTotal();
 </script>
 </body>
