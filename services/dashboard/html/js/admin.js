@@ -324,6 +324,9 @@ function updateLinks() {
 
     const addOrgLink = document.getElementById('add-org-link');
     if (addOrgLink) addOrgLink.href = bid ? `/register.html?branch=${bid}` : '/register.html';
+
+    const addPLink = document.getElementById('add-participant-link');
+    if (addPLink) addPLink.href = bid ? `/register.html?branch=${bid}#individual` : '/register.html#individual';
 }
 
 initAdmin();

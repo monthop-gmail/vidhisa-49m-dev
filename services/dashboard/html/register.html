@@ -186,6 +186,13 @@ async function registerParticipant() {
 // Init both branch selectors with shared context
 initBranchSelector('r-org-branch');
 initBranchSelector('r-p-branch');
+
+// Auto-switch tab from URL hash
+if (window.location.hash === '#individual') {
+    switchTab('individual');
+    document.querySelector('.tab-bar button:last-child').classList.add('active');
+    document.querySelector('.tab-bar button:first-child').classList.remove('active');
+}
 </script>
 </body>
 </html>
