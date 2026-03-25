@@ -96,6 +96,40 @@
         </table>
         <p id="participant-empty" style="display:none; color:#999;">ไม่มีผู้เข้าร่วมรายคน</p>
     </section>
+
+    <section>
+        <h2>บันทึกการปฏิบัติ — แบบกลุ่ม <span id="bulk-record-count" style="font-size:0.85rem; color:#666; font-weight:normal;"></span></h2>
+        <div style="margin-bottom:0.5rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+            <a id="add-bulk-link" href="/record.html" class="btn-approve" style="text-decoration:none; display:inline-block;">+ บันทึกแบบกลุ่ม</a>
+            <a id="export-bulk-link" href="/api/records/export?record_type=bulk" class="btn-approve" style="text-decoration:none; display:inline-block;">Export CSV</a>
+        </div>
+        <table id="bulk-record-table">
+            <thead>
+                <tr>
+                    <th>ID</th><th>องค์กร</th><th>นาที</th><th>จำนวนคน</th><th>เช้า</th><th>กลางวัน</th><th>เย็น</th><th>วันที่</th><th>สถานะ</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <p id="bulk-record-empty" style="display:none; color:#999;">ไม่มีบันทึกแบบกลุ่ม</p>
+    </section>
+
+    <section>
+        <h2>บันทึกการปฏิบัติ — แบบรายคน <span id="ind-record-count" style="font-size:0.85rem; color:#666; font-weight:normal;"></span></h2>
+        <div style="margin-bottom:0.5rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+            <a id="add-ind-link" href="/record.html#ind" class="btn-approve" style="text-decoration:none; display:inline-block;">+ บันทึกรายคน</a>
+            <a id="export-ind-link" href="/api/records/export?record_type=individual" class="btn-approve" style="text-decoration:none; display:inline-block;">Export CSV</a>
+        </div>
+        <table id="ind-record-table">
+            <thead>
+                <tr>
+                    <th>ID</th><th>ชื่อ</th><th>นาที</th><th>เช้า</th><th>กลางวัน</th><th>เย็น</th><th>วันที่</th><th>สถานะ</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <p id="ind-record-empty" style="display:none; color:#999;">ไม่มีบันทึกรายคน</p>
+    </section>
 </main>
 
 <script src="/js/branch-context.js"></script>

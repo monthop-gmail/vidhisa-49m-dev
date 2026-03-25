@@ -256,6 +256,13 @@ document.getElementById('i-date').value = today;
 initBranchSelector('b-branch', loadOrgs);
 initBranchSelector('i-branch', loadParticipants);
 calcTotal();
+
+// Auto-switch tab from URL hash
+if (window.location.hash === '#ind') {
+    switchTab('ind');
+    document.querySelector('.tab-bar button:last-child').classList.add('active');
+    document.querySelector('.tab-bar button:first-child').classList.remove('active');
+}
 </script>
 </body>
 </html>

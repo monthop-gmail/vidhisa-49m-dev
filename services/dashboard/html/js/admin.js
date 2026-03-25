@@ -272,6 +272,8 @@ async function initAdmin() {
         loadPending();
         loadOrganizations();
         loadParticipants();
+        loadBulkRecords();
+        loadIndRecords();
         updateLinks();
     } else {
         document.getElementById('admin-title').textContent = 'Admin กลาง';
@@ -279,8 +281,57 @@ async function initAdmin() {
         loadBranchTable();
         loadOrganizations();
         loadParticipants();
+        loadBulkRecords();
+        loadIndRecords();
         updateLinks();
     }
+}
+
+async function loadBulkRecords() {
+    try {
+        const bid = branchMode ? getBranchContext() : '';
+        const url = bid ? `/api/records?record_type=bulk&branch_id=${bid}` : '/api/records?record_type=bulk';
+        const res = await fetch(url);
+        const data = await res.json();
+        const tbody = document.querySelector('#bulk-record-table tbody');
+        const empty = document.getElementById('bulk-record-empty');
+        const count = document.getElementById('bulk-record-count');
+        tbody.innerHTML = '';
+        count.textContent = `(${data.length} รายการ)`;
+        if (data.length === 0) { empty.style.display = 'block'; return; }
+        empty.style.display = 'none';
+        data.forEach(r => {
+            const chk = v => v ? '✓' : '';
+            tbody.innerHTML += `<tr>
+                <td>${r.id}</td><td>${r.name}</td><td>${FMT.format(r.minutes)}</td>
+                <td>${r.participant_count || '-'}</td>
+                <td>${chk(r.session_morning)}</td><td>${chk(r.session_afternoon)}</td><td>${chk(r.session_evening)}</td>
+                <td>${r.date}</td><td>${r.status}</td></tr>`;
+        });
+    } catch (e) { console.error('bulk records error:', e); }
+}
+
+async function loadIndRecords() {
+    try {
+        const bid = branchMode ? getBranchContext() : '';
+        const url = bid ? `/api/records?record_type=individual&branch_id=${bid}` : '/api/records?record_type=individual';
+        const res = await fetch(url);
+        const data = await res.json();
+        const tbody = document.querySelector('#ind-record-table tbody');
+        const empty = document.getElementById('ind-record-empty');
+        const count = document.getElementById('ind-record-count');
+        tbody.innerHTML = '';
+        count.textContent = `(${data.length} รายการ)`;
+        if (data.length === 0) { empty.style.display = 'block'; return; }
+        empty.style.display = 'none';
+        data.forEach(r => {
+            const chk = v => v ? '✓' : '';
+            tbody.innerHTML += `<tr>
+                <td>${r.id}</td><td>${r.name}</td><td>${FMT.format(r.minutes)}</td>
+                <td>${chk(r.session_morning)}</td><td>${chk(r.session_afternoon)}</td><td>${chk(r.session_evening)}</td>
+                <td>${r.date}</td><td>${r.status}</td></tr>`;
+        });
+    } catch (e) { console.error('ind records error:', e); }
 }
 
 async function importParticipants(input) {
@@ -327,6 +378,18 @@ function updateLinks() {
 
     const addPLink = document.getElementById('add-participant-link');
     if (addPLink) addPLink.href = bid ? `/register.html?branch=${bid}#individual` : '/register.html#individual';
+
+    const addBulkLink = document.getElementById('add-bulk-link');
+    if (addBulkLink) addBulkLink.href = bid ? `/record.html?branch=${bid}` : '/record.html';
+
+    const addIndLink = document.getElementById('add-ind-link');
+    if (addIndLink) addIndLink.href = bid ? `/record.html?branch=${bid}#ind` : '/record.html#ind';
+
+    const exportBulk = document.getElementById('export-bulk-link');
+    if (exportBulk) exportBulk.href = bid ? `/api/records/export?record_type=bulk&branch_id=${bid}` : '/api/records/export?record_type=bulk';
+
+    const exportInd = document.getElementById('export-ind-link');
+    if (exportInd) exportInd.href = bid ? `/api/records/export?record_type=individual&branch_id=${bid}` : '/api/records/export?record_type=individual';
 }
 
 initAdmin();

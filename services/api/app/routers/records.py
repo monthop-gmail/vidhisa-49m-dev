@@ -1,6 +1,10 @@
-"""Records API endpoints."""
+"""Records API endpoints with CSV export."""
+
+import csv
+import io
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +21,88 @@ from app.schemas import (
 )
 
 router = APIRouter()
+
+EXPORT_FIELDS_BULK = [
+    "id", "type", "branch_id", "org_id", "name", "minutes",
+    "participant_count", "minutes_per_person",
+    "session_morning", "session_afternoon", "session_evening",
+    "gender_male", "gender_female", "gender_unspecified",
+    "date", "status", "submitted_by", "submitted_phone",
+]
+
+EXPORT_FIELDS_INDIVIDUAL = [
+    "id", "type", "branch_id", "participant_id", "name", "minutes",
+    "session_morning", "session_afternoon", "session_evening",
+    "date", "status", "submitted_by",
+]
+
+
+@router.get("/records")
+async def list_records(
+    branch_id: str | None = None,
+    record_type: str | None = None,
+    status: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """List records with optional filters."""
+    stmt = select(Record).order_by(Record.date.desc(), Record.id.desc())
+    if branch_id:
+        stmt = stmt.where(Record.branch_id == branch_id)
+    if record_type:
+        stmt = stmt.where(Record.type == record_type)
+    if status:
+        stmt = stmt.where(Record.status == status)
+    result = await db.execute(stmt)
+    records = result.scalars().all()
+    return [
+        {
+            "id": r.id, "type": r.type, "branch_id": r.branch_id,
+            "org_id": r.org_id, "participant_id": r.participant_id,
+            "name": r.name, "minutes": r.minutes,
+            "participant_count": r.participant_count,
+            "session_morning": r.session_morning,
+            "session_afternoon": r.session_afternoon,
+            "session_evening": r.session_evening,
+            "gender_male": r.gender_male, "gender_female": r.gender_female,
+            "gender_unspecified": r.gender_unspecified,
+            "date": str(r.date), "status": r.status,
+            "submitted_by": r.submitted_by,
+        }
+        for r in records
+    ]
+
+
+@router.get("/records/export")
+async def export_records(
+    branch_id: str | None = None,
+    record_type: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """Export records as CSV."""
+    stmt = select(Record).order_by(Record.date.desc(), Record.id.desc())
+    if branch_id:
+        stmt = stmt.where(Record.branch_id == branch_id)
+    if record_type:
+        stmt = stmt.where(Record.type == record_type)
+    result = await db.execute(stmt)
+    records = result.scalars().all()
+
+    fields = EXPORT_FIELDS_BULK if record_type == "bulk" else EXPORT_FIELDS_INDIVIDUAL if record_type == "individual" else EXPORT_FIELDS_BULK
+    filename = f"records-{record_type or 'all'}.csv"
+
+    output = io.StringIO()
+    output.write("\ufeff")
+    writer = csv.writer(output)
+    writer.writerow(fields)
+    for r in records:
+        writer.writerow([getattr(r, f, "") or "" for f in fields])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 @router.post("/records", response_model=RecordResponse, status_code=201)
