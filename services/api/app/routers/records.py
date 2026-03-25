@@ -25,14 +25,17 @@ router = APIRouter()
 EXPORT_FIELDS_BULK = [
     "id", "type", "branch_id", "org_id", "name", "minutes",
     "participant_count", "minutes_per_person",
-    "session_morning", "session_afternoon", "session_evening",
-    "gender_male", "gender_female", "gender_unspecified",
+    "morning_male", "morning_female", "morning_unspecified",
+    "afternoon_male", "afternoon_female", "afternoon_unspecified",
+    "evening_male", "evening_female", "evening_unspecified",
     "date", "status", "submitted_by", "submitted_phone",
 ]
 
 EXPORT_FIELDS_INDIVIDUAL = [
     "id", "type", "branch_id", "participant_id", "name", "minutes",
-    "session_morning", "session_afternoon", "session_evening",
+    "morning_male", "morning_female", "morning_unspecified",
+    "afternoon_male", "afternoon_female", "afternoon_unspecified",
+    "evening_male", "evening_female", "evening_unspecified",
     "date", "status", "submitted_by",
 ]
 
@@ -60,11 +63,12 @@ async def list_records(
             "org_id": r.org_id, "participant_id": r.participant_id,
             "name": r.name, "minutes": r.minutes,
             "participant_count": r.participant_count,
-            "session_morning": r.session_morning,
-            "session_afternoon": r.session_afternoon,
-            "session_evening": r.session_evening,
-            "gender_male": r.gender_male, "gender_female": r.gender_female,
-            "gender_unspecified": r.gender_unspecified,
+            "morning_male": r.morning_male, "morning_female": r.morning_female,
+            "morning_unspecified": r.morning_unspecified,
+            "afternoon_male": r.afternoon_male, "afternoon_female": r.afternoon_female,
+            "afternoon_unspecified": r.afternoon_unspecified,
+            "evening_male": r.evening_male, "evening_female": r.evening_female,
+            "evening_unspecified": r.evening_unspecified,
             "date": str(r.date), "status": r.status,
             "submitted_by": r.submitted_by,
         }
@@ -164,12 +168,15 @@ async def import_records(
             "minutes": minutes,
             "participant_count": int(pc_str) if pc_str else None,
             "minutes_per_person": int(mpp_str) if mpp_str else None,
-            "session_morning": (row.get("session_morning") or "").strip().lower() in ("true", "1", "yes"),
-            "session_afternoon": (row.get("session_afternoon") or "").strip().lower() in ("true", "1", "yes"),
-            "session_evening": (row.get("session_evening") or "").strip().lower() in ("true", "1", "yes"),
-            "gender_male": int((row.get("gender_male") or "0").strip() or "0"),
-            "gender_female": int((row.get("gender_female") or "0").strip() or "0"),
-            "gender_unspecified": int((row.get("gender_unspecified") or "0").strip() or "0"),
+            "morning_male": int((row.get("morning_male") or "0").strip() or "0"),
+            "morning_female": int((row.get("morning_female") or "0").strip() or "0"),
+            "morning_unspecified": int((row.get("morning_unspecified") or "0").strip() or "0"),
+            "afternoon_male": int((row.get("afternoon_male") or "0").strip() or "0"),
+            "afternoon_female": int((row.get("afternoon_female") or "0").strip() or "0"),
+            "afternoon_unspecified": int((row.get("afternoon_unspecified") or "0").strip() or "0"),
+            "evening_male": int((row.get("evening_male") or "0").strip() or "0"),
+            "evening_female": int((row.get("evening_female") or "0").strip() or "0"),
+            "evening_unspecified": int((row.get("evening_unspecified") or "0").strip() or "0"),
             "date": date_str,
             "status": (row.get("status") or "pending").strip(),
             "submitted_by": (row.get("submitted_by") or "").strip() or None,
@@ -227,12 +234,15 @@ async def create_record(data: RecordCreate, db: AsyncSession = Depends(get_db)):
         existing.minutes = data.minutes
         existing.participant_count = data.participant_count
         existing.minutes_per_person = data.minutes_per_person
-        existing.session_morning = data.session_morning
-        existing.session_afternoon = data.session_afternoon
-        existing.session_evening = data.session_evening
-        existing.gender_male = data.gender_male
-        existing.gender_female = data.gender_female
-        existing.gender_unspecified = data.gender_unspecified
+        existing.morning_male = data.morning_male
+        existing.morning_female = data.morning_female
+        existing.morning_unspecified = data.morning_unspecified
+        existing.afternoon_male = data.afternoon_male
+        existing.afternoon_female = data.afternoon_female
+        existing.afternoon_unspecified = data.afternoon_unspecified
+        existing.evening_male = data.evening_male
+        existing.evening_female = data.evening_female
+        existing.evening_unspecified = data.evening_unspecified
         existing.submitted_by = data.submitted_by
         existing.submitted_phone = data.submitted_phone
         existing.flags = flags
@@ -255,12 +265,15 @@ async def create_record(data: RecordCreate, db: AsyncSession = Depends(get_db)):
         minutes=data.minutes,
         participant_count=data.participant_count,
         minutes_per_person=data.minutes_per_person,
-        session_morning=data.session_morning,
-        session_afternoon=data.session_afternoon,
-        session_evening=data.session_evening,
-        gender_male=data.gender_male,
-        gender_female=data.gender_female,
-        gender_unspecified=data.gender_unspecified,
+        morning_male=data.morning_male,
+        morning_female=data.morning_female,
+        morning_unspecified=data.morning_unspecified,
+        afternoon_male=data.afternoon_male,
+        afternoon_female=data.afternoon_female,
+        afternoon_unspecified=data.afternoon_unspecified,
+        evening_male=data.evening_male,
+        evening_female=data.evening_female,
+        evening_unspecified=data.evening_unspecified,
         date=data.date,
         photo_url=data.photo_url,
         latitude=data.latitude,

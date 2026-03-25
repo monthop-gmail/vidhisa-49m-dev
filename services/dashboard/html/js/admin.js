@@ -301,11 +301,12 @@ async function loadBulkRecords() {
         if (data.length === 0) { empty.style.display = 'block'; return; }
         empty.style.display = 'none';
         data.forEach(r => {
-            const chk = v => v ? '✓' : '';
+            const ms = (r.morning_male||0)+(r.morning_female||0)+(r.morning_unspecified||0);
+            const as = (r.afternoon_male||0)+(r.afternoon_female||0)+(r.afternoon_unspecified||0);
+            const es = (r.evening_male||0)+(r.evening_female||0)+(r.evening_unspecified||0);
             tbody.innerHTML += `<tr>
                 <td>${r.id}</td><td>${r.name}</td><td>${FMT.format(r.minutes)}</td>
-                <td>${r.participant_count || '-'}</td>
-                <td>${chk(r.session_morning)}</td><td>${chk(r.session_afternoon)}</td><td>${chk(r.session_evening)}</td>
+                <td>${ms || '-'}</td><td>${as || '-'}</td><td>${es || '-'}</td>
                 <td>${r.date}</td><td>${r.status}</td></tr>`;
         });
     } catch (e) { console.error('bulk records error:', e); }
@@ -325,10 +326,12 @@ async function loadIndRecords() {
         if (data.length === 0) { empty.style.display = 'block'; return; }
         empty.style.display = 'none';
         data.forEach(r => {
-            const chk = v => v ? '✓' : '';
+            const ms = (r.morning_male||0)+(r.morning_female||0)+(r.morning_unspecified||0);
+            const as = (r.afternoon_male||0)+(r.afternoon_female||0)+(r.afternoon_unspecified||0);
+            const es = (r.evening_male||0)+(r.evening_female||0)+(r.evening_unspecified||0);
             tbody.innerHTML += `<tr>
                 <td>${r.id}</td><td>${r.name}</td><td>${FMT.format(r.minutes)}</td>
-                <td>${chk(r.session_morning)}</td><td>${chk(r.session_afternoon)}</td><td>${chk(r.session_evening)}</td>
+                <td>${ms ? '✓' : ''}</td><td>${as ? '✓' : ''}</td><td>${es ? '✓' : ''}</td>
                 <td>${r.date}</td><td>${r.status}</td></tr>`;
         });
     } catch (e) { console.error('ind records error:', e); }

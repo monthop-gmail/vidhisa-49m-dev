@@ -69,24 +69,25 @@ INSERT INTO records (type, branch_id, name, org_id, minutes, participant_count, 
 ('bulk', 'B010', 'สถาบันพลังจิตตานุภาพ',  'ORG-PLJ', 2200,  440,  5, '2026-04-10', 'สาขา 10',  'approved');
 
 -- individual: นักศึกษาสถาบันฯ ปฏิบัติรายบุคคล (ครั้งละ 5 นาที, สูงสุด 3 ครั้ง/วัน = 15 นาที)
-INSERT INTO records (type, branch_id, name, org_id, minutes, session_morning, session_afternoon, session_evening, date, submitted_by, status) VALUES
-('individual', 'B001', 'สมชาย ใจดี',        'ORG-PLJ', 15, true, true, true,  '2026-04-15', 'สมชาย',    'approved'),
-('individual', 'B001', 'สมหญิง รักสวย',     'ORG-PLJ', 10, true, true, false, '2026-04-15', 'สมหญิง',   'approved'),
-('individual', 'B002', 'วิชัย มานะ',        'ORG-PLJ',  5, true, false, false,'2026-04-15', 'วิชัย',    'approved'),
-('individual', 'B003', 'มาลี สุขใจ',        'ORG-PLJ', 15, true, true, true,  '2026-04-16', 'มาลี',     'approved'),
-('individual', 'B004', 'สุนทร ปฏิบัติ',     'ORG-PLJ', 10, true, true, false, '2026-04-16', 'สุนทร',    'approved'),
-('individual', 'B005', 'จิตรา สว่าง',       'ORG-PLJ',  5, true, false, false,'2026-04-16', 'จิตรา',    'approved'),
-('individual', 'B006', 'ประวิทย์ ตั้งใจ',   'ORG-PLJ', 15, true, true, true,  '2026-04-17', 'ประวิทย์',  'approved'),
-('individual', 'B007', 'นิตยา เพียร',       'ORG-PLJ', 10, true, true, false, '2026-04-17', 'นิตยา',    'approved'),
-('individual', 'B008', 'พิชัย สงบ',         'ORG-PLJ',  5, true, false, false,'2026-04-17', 'พิชัย',    'approved'),
-('individual', 'B009', 'ศิริ สุข',          'ORG-PLJ', 15, true, true, true,  '2026-04-18', 'ศิริ',     'approved'),
-('individual', 'B010', 'วิรัช มั่นคง',      'ORG-PLJ', 10, true, true, false, '2026-04-18', 'วิรัช',    'approved'),
-('individual', 'B001', 'สมชาย ใจดี',        'ORG-PLJ',  5, true, false, false,'2026-04-18', 'สมชาย',    'approved'),
-('individual', 'B001', 'สมหญิง รักสวย',     'ORG-PLJ', 15, true, true, true,  '2026-04-19', 'สมหญิง',   'approved'),
-('individual', 'B004', 'สุนทร ปฏิบัติ',     'ORG-PLJ', 10, true, true, false, '2026-04-19', 'สุนทร',    'approved'),
-('individual', 'B006', 'ประวิทย์ ตั้งใจ',   'ORG-PLJ',  5, true, false, false,'2026-04-19', 'ประวิทย์',  'approved'),
-('individual', 'B008', 'พิชัย สงบ',         'ORG-PLJ', 15, true, true, true,  '2026-04-20', 'พิชัย',    'approved');
--- สถาบันฯ individual = 155 นาที (5+10+15 แต่ละคน ตามจำนวนรอบ)
+-- morning_male=1 หมายถึงปฏิบัติรอบเช้า (รายคน = 1 คน)
+INSERT INTO records (type, branch_id, name, org_id, minutes, morning_male, afternoon_male, evening_male, date, submitted_by, status) VALUES
+('individual', 'B001', 'สมชาย ใจดี',        'ORG-PLJ', 15, 1, 1, 1, '2026-04-15', 'สมชาย',    'approved'),
+('individual', 'B001', 'สมหญิง รักสวย',     'ORG-PLJ', 10, 1, 1, 0, '2026-04-15', 'สมหญิง',   'approved'),
+('individual', 'B002', 'วิชัย มานะ',        'ORG-PLJ',  5, 1, 0, 0, '2026-04-15', 'วิชัย',    'approved'),
+('individual', 'B003', 'มาลี สุขใจ',        'ORG-PLJ', 15, 1, 1, 1, '2026-04-16', 'มาลี',     'approved'),
+('individual', 'B004', 'สุนทร ปฏิบัติ',     'ORG-PLJ', 10, 1, 1, 0, '2026-04-16', 'สุนทร',    'approved'),
+('individual', 'B005', 'จิตรา สว่าง',       'ORG-PLJ',  5, 1, 0, 0, '2026-04-16', 'จิตรา',    'approved'),
+('individual', 'B006', 'ประวิทย์ ตั้งใจ',   'ORG-PLJ', 15, 1, 1, 1, '2026-04-17', 'ประวิทย์',  'approved'),
+('individual', 'B007', 'นิตยา เพียร',       'ORG-PLJ', 10, 1, 1, 0, '2026-04-17', 'นิตยา',    'approved'),
+('individual', 'B008', 'พิชัย สงบ',         'ORG-PLJ',  5, 1, 0, 0, '2026-04-17', 'พิชัย',    'approved'),
+('individual', 'B009', 'ศิริ สุข',          'ORG-PLJ', 15, 1, 1, 1, '2026-04-18', 'ศิริ',     'approved'),
+('individual', 'B010', 'วิรัช มั่นคง',      'ORG-PLJ', 10, 1, 1, 0, '2026-04-18', 'วิรัช',    'approved'),
+('individual', 'B001', 'สมชาย ใจดี',        'ORG-PLJ',  5, 1, 0, 0, '2026-04-18', 'สมชาย',    'approved'),
+('individual', 'B001', 'สมหญิง รักสวย',     'ORG-PLJ', 15, 1, 1, 1, '2026-04-19', 'สมหญิง',   'approved'),
+('individual', 'B004', 'สุนทร ปฏิบัติ',     'ORG-PLJ', 10, 1, 1, 0, '2026-04-19', 'สุนทร',    'approved'),
+('individual', 'B006', 'ประวิทย์ ตั้งใจ',   'ORG-PLJ',  5, 1, 0, 0, '2026-04-19', 'ประวิทย์',  'approved'),
+('individual', 'B008', 'พิชัย สงบ',         'ORG-PLJ', 15, 1, 1, 1, '2026-04-20', 'พิชัย',    'approved');
+-- สถาบันฯ individual = 155 นาที
 
 -- =============================================
 -- องค์กรภายนอก — ไม่สังกัดสาขา ส่งนาทีเอง
@@ -113,15 +114,15 @@ INSERT INTO records (type, branch_id, name, org_id, minutes, participant_count, 
 -- =============================================
 -- Pending / Rejected (ตัวอย่าง)
 -- =============================================
-INSERT INTO records (type, branch_id, name, org_id, minutes, session_morning, date, submitted_by, status) VALUES
-('individual', 'B001', 'ทดสอบ ระบบ',     'ORG-PLJ', 5, true, '2026-04-20', 'ทดสอบ',   'pending'),
-('individual', 'B002', 'ใหม่ วันนี้',    'ORG-PLJ', 5, true, '2026-04-20', 'ใหม่',    'pending');
+INSERT INTO records (type, branch_id, name, org_id, minutes, morning_male, date, submitted_by, status) VALUES
+('individual', 'B001', 'ทดสอบ ระบบ',     'ORG-PLJ', 5, 1, '2026-04-20', 'ทดสอบ',   'pending'),
+('individual', 'B002', 'ใหม่ วันนี้',    'ORG-PLJ', 5, 1, '2026-04-20', 'ใหม่',    'pending');
 
 INSERT INTO records (type, branch_id, name, org_id, minutes, participant_count, minutes_per_person, date, submitted_by, status) VALUES
 ('bulk', 'B006', 'โรงเรียนทดสอบ', 'ORG007', 1500, 300, 5, '2026-04-20', 'ครูทดสอบ', 'pending');
 
-INSERT INTO records (type, branch_id, name, org_id, minutes, session_morning, date, submitted_by, status, flags) VALUES
-('individual', 'B001', 'ผิดปกติ นามสกุล', 'ORG-PLJ', 5, true, '2026-04-20', 'ผิดปกติ', 'rejected', '["daily_limit_reached"]');
+INSERT INTO records (type, branch_id, name, org_id, minutes, morning_male, date, submitted_by, status, flags) VALUES
+('individual', 'B001', 'ผิดปกติ นามสกุล', 'ORG-PLJ', 5, 1, '2026-04-20', 'ผิดปกติ', 'rejected', '["daily_limit_reached"]');
 
 -- =============================================
 -- Pre-computed stats (ตัวอย่าง)

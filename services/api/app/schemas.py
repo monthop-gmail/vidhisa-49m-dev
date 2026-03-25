@@ -17,12 +17,15 @@ class RecordCreate(BaseModel):
     minutes: int = Field(..., description="Minutes of meditation practice")
     participant_count: int | None = Field(None, ge=1)
     minutes_per_person: int | None = Field(None, ge=1)
-    session_morning: bool = False
-    session_afternoon: bool = False
-    session_evening: bool = False
-    gender_male: int = 0
-    gender_female: int = 0
-    gender_unspecified: int = 0
+    morning_male: int = 0
+    morning_female: int = 0
+    morning_unspecified: int = 0
+    afternoon_male: int = 0
+    afternoon_female: int = 0
+    afternoon_unspecified: int = 0
+    evening_male: int = 0
+    evening_female: int = 0
+    evening_unspecified: int = 0
     date: date
     photo_url: str | None = Field(None, max_length=2000)
     latitude: float | None = Field(None, ge=-90, le=90)
