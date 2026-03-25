@@ -95,7 +95,7 @@ class Participant(Base):
     phone = Column(String(50))
     line_id = Column(String(100))
     enrolled_date = Column(Date)
-    privacy_accepted = Column(Integer, default=0)
+    privacy_accepted = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self) -> str:
