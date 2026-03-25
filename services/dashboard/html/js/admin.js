@@ -2,19 +2,7 @@ const FMT = new Intl.NumberFormat('th-TH');
 let branchMode = false; // true = admin สาขา, false = admin กลาง
 
 async function loadBranches() {
-    try {
-        const res = await fetch('/api/stats/by-branch');
-        const data = await res.json();
-        const orgSel = document.getElementById('org-branch');
-        data.forEach(b => {
-            const opt = document.createElement('option');
-            opt.value = b.branch_id;
-            opt.textContent = `${b.branch_name} (${b.province})`;
-            orgSel.appendChild(opt);
-        });
-    } catch (e) {
-        console.error('branches error:', e);
-    }
+    // kept for branch table
 }
 
 async function loadPending() {
@@ -102,44 +90,6 @@ async function loadOrganizations() {
     }
 }
 
-async function createOrg() {
-    const body = {
-        id: document.getElementById('org-id').value,
-        name: document.getElementById('org-name').value,
-        org_type: document.getElementById('org-type').value || null,
-        branch_id: document.getElementById('org-branch').value || null,
-        province: document.getElementById('org-province').value || null,
-        latitude: parseFloat(document.getElementById('org-lat').value) || null,
-        longitude: parseFloat(document.getElementById('org-lng').value) || null,
-        contact: document.getElementById('org-contact').value || null,
-    };
-
-    if (!body.id || !body.name) {
-        alert('กรุณากรอก รหัส และ ชื่อ');
-        return;
-    }
-
-    try {
-        const res = await fetch('/api/organizations', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(body),
-        });
-        if (res.ok) {
-            alert('เพิ่มองค์กรสำเร็จ');
-            ['org-id','org-name','org-province','org-lat','org-lng','org-contact'].forEach(
-                id => document.getElementById(id).value = ''
-            );
-            loadOrganizations();
-        } else {
-            const err = await res.json();
-            alert(err.detail?.message || 'เกิดข้อผิดพลาด');
-        }
-    } catch (e) {
-        console.error('create org error:', e);
-        alert('เกิดข้อผิดพลาด');
-    }
-}
 
 async function loadBranchTable() {
     try {
@@ -322,14 +272,14 @@ async function initAdmin() {
         loadPending();
         loadOrganizations();
         loadParticipants();
-        updateExportLink();
+        updateLinks();
     } else {
         document.getElementById('admin-title').textContent = 'Admin กลาง';
         loadBranches();
         loadBranchTable();
         loadOrganizations();
         loadParticipants();
-        updateExportLink();
+        updateLinks();
     }
 }
 
@@ -366,11 +316,14 @@ async function importParticipants(input) {
     input.value = '';
 }
 
-function updateExportLink() {
-    const link = document.getElementById('export-participant-link');
-    if (!link) return;
+function updateLinks() {
     const bid = branchMode ? getBranchContext() : '';
-    link.href = bid ? `/api/participants/export?branch_id=${bid}` : '/api/participants/export';
+
+    const exportLink = document.getElementById('export-participant-link');
+    if (exportLink) exportLink.href = bid ? `/api/participants/export?branch_id=${bid}` : '/api/participants/export';
+
+    const addOrgLink = document.getElementById('add-org-link');
+    if (addOrgLink) addOrgLink.href = bid ? `/register.html?branch=${bid}` : '/register.html';
 }
 
 initAdmin();
