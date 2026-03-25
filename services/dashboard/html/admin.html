@@ -10,7 +10,7 @@
 
 <header>
     <h1>สาขา Admin</h1>
-    <p><a href="/">← กลับ Dashboard</a></p>
+    <p><a href="/">Dashboard</a> | <a href="/register.html">ลงทะเบียน</a> | <a href="/record.html">บันทึก</a></p>
 </header>
 
 <main>
@@ -93,6 +93,26 @@
             <div><label>ติดต่อ</label><input id="org-contact" placeholder="เบอร์โทร/LINE" style="width:100%"></div>
         </div>
         <button class="btn-approve" style="margin-top:0.5rem" onclick="createOrg()">เพิ่มองค์กร</button>
+    </section>
+
+    <section>
+        <h2>ผู้เข้าร่วมรายคน</h2>
+        <div style="margin-bottom:0.5rem;">
+            <label>กรองตามสาขา:</label>
+            <select id="participant-branch-filter" onchange="loadParticipants()">
+                <option value="">-- ทั้งหมด --</option>
+            </select>
+            <span id="participant-count" style="font-size:0.85rem; color:#666; margin-left:0.5rem;"></span>
+        </div>
+        <table id="participant-table">
+            <thead>
+                <tr>
+                    <th>ID</th><th>คำนำหน้า</th><th>ชื่อ</th><th>นามสกุล</th><th>เพศ</th><th>อายุ</th><th>จังหวัด</th><th>สาขา</th><th>สมัคร</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <p id="participant-empty" style="display:none; color:#999;">ไม่มีผู้เข้าร่วมรายคน</p>
     </section>
 </main>
 

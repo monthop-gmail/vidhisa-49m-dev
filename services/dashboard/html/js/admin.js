@@ -235,6 +235,62 @@ async function importOrgs(input) {
     input.value = '';
 }
 
+async function loadParticipants() {
+    try {
+        const branchId = document.getElementById('participant-branch-filter').value;
+        const url = branchId ? `/api/participants?branch_id=${branchId}` : '/api/participants';
+        const res = await fetch(url);
+        const data = await res.json();
+        const tbody = document.querySelector('#participant-table tbody');
+        const empty = document.getElementById('participant-empty');
+        const count = document.getElementById('participant-count');
+        tbody.innerHTML = '';
+
+        count.textContent = `(${data.length} คน)`;
+
+        if (data.length === 0) {
+            empty.style.display = 'block';
+            return;
+        }
+        empty.style.display = 'none';
+
+        data.forEach(p => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${p.id}</td>
+                    <td>${p.prefix || '-'}</td>
+                    <td>${p.first_name}</td>
+                    <td>${p.last_name}</td>
+                    <td>${p.gender || '-'}</td>
+                    <td>${p.age || '-'}</td>
+                    <td>${p.province || '-'}</td>
+                    <td>${p.branch_id}</td>
+                    <td>${p.enrolled_date || '-'}</td>
+                </tr>`;
+        });
+    } catch (e) {
+        console.error('participants error:', e);
+    }
+}
+
+async function loadParticipantBranchFilter() {
+    try {
+        const res = await fetch('/api/branches');
+        const branches = await res.json();
+        const sel = document.getElementById('participant-branch-filter');
+        branches.forEach(b => {
+            const opt = document.createElement('option');
+            opt.value = b.id;
+            opt.textContent = `${b.id} — ${b.name}`;
+            sel.appendChild(opt);
+        });
+    } catch (e) {
+        console.error('participant filter error:', e);
+    }
+}
+
 loadBranches();
 loadBranchTable();
 loadOrganizations();
+loadParticipantBranchFilter();
+loadParticipants();
