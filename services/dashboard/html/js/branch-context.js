@@ -26,6 +26,14 @@ function setBranchContext(branchId) {
     } else {
         localStorage.removeItem(STORAGE_KEY);
     }
+    // Update URL without reload
+    const url = new URL(window.location);
+    if (branchId) {
+        url.searchParams.set('branch', branchId);
+    } else {
+        url.searchParams.delete('branch');
+    }
+    window.history.replaceState({}, '', url);
 }
 
 async function initBranchSelector(selectId, onChange) {
