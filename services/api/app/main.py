@@ -11,6 +11,7 @@ from app.routers import (
     leaderboard,
     markers,
     organizations,
+    participants,
     projection,
     records,
     sse,
@@ -50,6 +51,7 @@ app.include_router(branch.router, prefix="/api")
 app.include_router(branches.router, prefix="/api")
 app.include_router(markers.router, prefix="/api")
 app.include_router(organizations.router, prefix="/api")
+app.include_router(participants.router, prefix="/api")
 app.include_router(sse.router, prefix="/api")
 
 

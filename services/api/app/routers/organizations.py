@@ -25,7 +25,19 @@ EXPORT_FIELDS = [
     "name",
     "org_type",
     "branch_id",
+    "sub_district",
+    "district",
     "province",
+    "email",
+    "max_participants",
+    "gender_male",
+    "gender_female",
+    "gender_unspecified",
+    "contact_name",
+    "contact_phone",
+    "contact_line_id",
+    "enrolled_date",
+    "enrolled_until",
     "latitude",
     "longitude",
     "contact",
@@ -37,14 +49,11 @@ async def list_organizations(db: AsyncSession = Depends(get_db)):
     """List all organizations with their statistics."""
     stmt = (
         select(
-            Organization.id,
-            Organization.name,
-            Organization.org_type,
-            Organization.branch_id,
-            Organization.province,
-            Organization.latitude,
-            Organization.longitude,
-            Organization.contact,
+            Organization.id, Organization.name, Organization.org_type,
+            Organization.branch_id, Organization.sub_district, Organization.district,
+            Organization.province, Organization.email, Organization.max_participants,
+            Organization.enrolled_date, Organization.enrolled_until,
+            Organization.latitude, Organization.longitude, Organization.contact,
             func.coalesce(func.sum(Record.minutes), 0).label("total_minutes"),
             func.count(Record.id).label("total_records"),
         )
@@ -53,14 +62,11 @@ async def list_organizations(db: AsyncSession = Depends(get_db)):
             (Record.org_id == Organization.id) & (Record.status == "approved"),
         )
         .group_by(
-            Organization.id,
-            Organization.name,
-            Organization.org_type,
-            Organization.branch_id,
-            Organization.province,
-            Organization.latitude,
-            Organization.longitude,
-            Organization.contact,
+            Organization.id, Organization.name, Organization.org_type,
+            Organization.branch_id, Organization.sub_district, Organization.district,
+            Organization.province, Organization.email, Organization.max_participants,
+            Organization.enrolled_date, Organization.enrolled_until,
+            Organization.latitude, Organization.longitude, Organization.contact,
         )
         .order_by(Organization.name)
     )
@@ -68,16 +74,14 @@ async def list_organizations(db: AsyncSession = Depends(get_db)):
     result = await db.execute(stmt)
     return [
         {
-            "id": r.id,
-            "name": r.name,
-            "org_type": r.org_type,
-            "branch_id": r.branch_id,
-            "province": r.province,
-            "latitude": r.latitude,
-            "longitude": r.longitude,
+            "id": r.id, "name": r.name, "org_type": r.org_type,
+            "branch_id": r.branch_id, "sub_district": r.sub_district,
+            "district": r.district, "province": r.province,
+            "email": r.email, "max_participants": r.max_participants,
+            "enrolled_date": r.enrolled_date, "enrolled_until": r.enrolled_until,
+            "latitude": r.latitude, "longitude": r.longitude,
             "contact": r.contact,
-            "total_minutes": r.total_minutes,
-            "total_records": r.total_records,
+            "total_minutes": r.total_minutes, "total_records": r.total_records,
         }
         for r in result.all()
     ]
@@ -212,16 +216,18 @@ async def get_organization(org_id: str, db: AsyncSession = Depends(get_db)):
     stats = (await db.execute(stmt)).one()
 
     return {
-        "id": org.id,
-        "name": org.name,
-        "org_type": org.org_type,
-        "branch_id": org.branch_id,
-        "province": org.province,
-        "latitude": org.latitude,
-        "longitude": org.longitude,
+        "id": org.id, "name": org.name, "org_type": org.org_type,
+        "branch_id": org.branch_id, "sub_district": org.sub_district,
+        "district": org.district, "province": org.province,
+        "email": org.email, "max_participants": org.max_participants,
+        "gender_male": org.gender_male, "gender_female": org.gender_female,
+        "gender_unspecified": org.gender_unspecified,
+        "contact_name": org.contact_name, "contact_phone": org.contact_phone,
+        "contact_line_id": org.contact_line_id,
+        "enrolled_date": org.enrolled_date, "enrolled_until": org.enrolled_until,
+        "latitude": org.latitude, "longitude": org.longitude,
         "contact": org.contact,
-        "total_minutes": stats[0],
-        "total_records": stats[1],
+        "total_minutes": stats[0], "total_records": stats[1],
     }
 
 
@@ -240,7 +246,19 @@ async def create_organization(data: OrganizationCreate, db: AsyncSession = Depen
         name=data.name,
         org_type=data.org_type,
         branch_id=data.branch_id,
+        sub_district=data.sub_district,
+        district=data.district,
         province=data.province,
+        email=data.email,
+        max_participants=data.max_participants,
+        gender_male=data.gender_male,
+        gender_female=data.gender_female,
+        gender_unspecified=data.gender_unspecified,
+        contact_name=data.contact_name,
+        contact_phone=data.contact_phone,
+        contact_line_id=data.contact_line_id,
+        enrolled_date=data.enrolled_date,
+        enrolled_until=data.enrolled_until,
         latitude=data.latitude,
         longitude=data.longitude,
         contact=data.contact,
@@ -268,7 +286,19 @@ async def update_organization(
     org.name = data.name
     org.org_type = data.org_type
     org.branch_id = data.branch_id
+    org.sub_district = data.sub_district
+    org.district = data.district
     org.province = data.province
+    org.email = data.email
+    org.max_participants = data.max_participants
+    org.gender_male = data.gender_male
+    org.gender_female = data.gender_female
+    org.gender_unspecified = data.gender_unspecified
+    org.contact_name = data.contact_name
+    org.contact_phone = data.contact_phone
+    org.contact_line_id = data.contact_line_id
+    org.enrolled_date = data.enrolled_date
+    org.enrolled_until = data.enrolled_until
     org.latitude = data.latitude
     org.longitude = data.longitude
     org.contact = data.contact

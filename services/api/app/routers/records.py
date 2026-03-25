@@ -27,19 +27,62 @@ async def create_record(data: RecordCreate, db: AsyncSession = Depends(get_db)):
     """
     flags = await validate_record(data, db)
 
+    # Upsert: ถ้า branch_id + org_id + name + date ซ้ำ → อัพเดตแทน
+    existing = None
+    if data.org_id:
+        stmt = select(Record).where(
+            Record.branch_id == data.branch_id,
+            Record.org_id == data.org_id,
+            Record.name == data.name,
+            Record.date == data.date,
+        )
+        result = await db.execute(stmt)
+        existing = result.scalar_one_or_none()
+
+    if existing:
+        existing.minutes = data.minutes
+        existing.participant_count = data.participant_count
+        existing.minutes_per_person = data.minutes_per_person
+        existing.session_morning = data.session_morning
+        existing.session_afternoon = data.session_afternoon
+        existing.session_evening = data.session_evening
+        existing.gender_male = data.gender_male
+        existing.gender_female = data.gender_female
+        existing.gender_unspecified = data.gender_unspecified
+        existing.submitted_by = data.submitted_by
+        existing.submitted_phone = data.submitted_phone
+        existing.flags = flags
+        existing.status = "pending"
+        await db.commit()
+        await db.refresh(existing)
+        await publish("record")
+        return RecordResponse(
+            id=existing.id,
+            status="pending",
+            message="อัพเดตบันทึกสำเร็จ รอสาขาตรวจสอบ",
+        )
+
     record = Record(
         type=data.type,
         branch_id=data.branch_id,
         name=data.name,
         org_id=data.org_id,
+        participant_id=data.participant_id,
         minutes=data.minutes,
         participant_count=data.participant_count,
         minutes_per_person=data.minutes_per_person,
+        session_morning=data.session_morning,
+        session_afternoon=data.session_afternoon,
+        session_evening=data.session_evening,
+        gender_male=data.gender_male,
+        gender_female=data.gender_female,
+        gender_unspecified=data.gender_unspecified,
         date=data.date,
         photo_url=data.photo_url,
         latitude=data.latitude,
         longitude=data.longitude,
         submitted_by=data.submitted_by,
+        submitted_phone=data.submitted_phone,
         status="pending",
         flags=flags,
     )

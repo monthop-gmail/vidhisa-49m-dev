@@ -13,14 +13,22 @@ class RecordCreate(BaseModel):
     branch_id: str = Field(..., min_length=1, max_length=10)
     name: str = Field(..., min_length=1, max_length=200)
     org_id: str | None = Field(None, max_length=10)
+    participant_id: int | None = None
     minutes: int = Field(..., description="Minutes of meditation practice")
     participant_count: int | None = Field(None, ge=1)
     minutes_per_person: int | None = Field(None, ge=1)
+    session_morning: bool = False
+    session_afternoon: bool = False
+    session_evening: bool = False
+    gender_male: int = 0
+    gender_female: int = 0
+    gender_unspecified: int = 0
     date: date
     photo_url: str | None = Field(None, max_length=2000)
     latitude: float | None = Field(None, ge=-90, le=90)
     longitude: float | None = Field(None, ge=-180, le=180)
     submitted_by: str | None = Field(None, max_length=200)
+    submitted_phone: str | None = Field(None, max_length=50)
 
     @field_validator("name")
     @classmethod
@@ -149,7 +157,19 @@ class OrganizationCreate(BaseModel):
     name: str
     org_type: str | None = None
     branch_id: str | None = None
+    sub_district: str | None = None
+    district: str | None = None
     province: str | None = None
+    email: str | None = None
+    max_participants: int | None = None
+    gender_male: int = 0
+    gender_female: int = 0
+    gender_unspecified: int = 0
+    contact_name: str | None = None
+    contact_phone: str | None = None
+    contact_line_id: str | None = None
+    enrolled_date: date | None = None
+    enrolled_until: date | None = None
     latitude: float | None = None
     longitude: float | None = None
     contact: str | None = None
@@ -219,7 +239,13 @@ class OrganizationListItem(BaseModel):
     name: str
     org_type: str | None
     branch_id: str | None
+    sub_district: str | None = None
+    district: str | None = None
     province: str | None
+    email: str | None = None
+    max_participants: int | None = None
+    enrolled_date: date | None = None
+    enrolled_until: date | None = None
     latitude: float | None
     longitude: float | None
     contact: str | None
@@ -236,7 +262,19 @@ class OrganizationDetail(BaseModel):
     name: str
     org_type: str | None
     branch_id: str | None
+    sub_district: str | None = None
+    district: str | None = None
     province: str | None
+    email: str | None = None
+    max_participants: int | None = None
+    gender_male: int = 0
+    gender_female: int = 0
+    gender_unspecified: int = 0
+    contact_name: str | None = None
+    contact_phone: str | None = None
+    contact_line_id: str | None = None
+    enrolled_date: date | None = None
+    enrolled_until: date | None = None
     latitude: float | None
     longitude: float | None
     contact: str | None
@@ -269,6 +307,45 @@ class OrganizationCreateResponse(BaseModel):
     id: str
     name: str
     message: str
+
+
+class ParticipantCreate(BaseModel):
+    """Schema for creating a participant."""
+
+    branch_id: str
+    prefix: str | None = None
+    first_name: str
+    last_name: str
+    gender: str | None = None
+    age: int | None = None
+    sub_district: str | None = None
+    district: str | None = None
+    province: str | None = None
+    phone: str | None = None
+    line_id: str | None = None
+    enrolled_date: date | None = None
+    privacy_accepted: bool = False
+
+
+class ParticipantResponse(BaseModel):
+    """Schema for participant response."""
+
+    id: int
+    branch_id: str
+    prefix: str | None
+    first_name: str
+    last_name: str
+    gender: str | None
+    age: int | None
+    sub_district: str | None
+    district: str | None
+    province: str | None
+    phone: str | None
+    line_id: str | None
+    enrolled_date: date | None
+    privacy_accepted: bool
+
+    model_config = {"from_attributes": True}
 
 
 class StatusResponse(BaseModel):

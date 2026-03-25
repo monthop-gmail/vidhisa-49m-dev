@@ -1,6 +1,6 @@
 """SQLAlchemy ORM models for the Vidhisa 49M system."""
 
-from sqlalchemy import BigInteger, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy import CheckConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase
@@ -55,7 +55,19 @@ class Organization(Base):
     name = Column(String(200), nullable=False)
     org_type = Column(String(50))
     branch_id = Column(String(10), ForeignKey("branches.id"))
+    sub_district = Column(String(100))
+    district = Column(String(100))
     province = Column(String(100))
+    email = Column(String(200))
+    max_participants = Column(Integer)
+    gender_male = Column(Integer, default=0)
+    gender_female = Column(Integer, default=0)
+    gender_unspecified = Column(Integer, default=0)
+    contact_name = Column(String(200))
+    contact_phone = Column(String(50))
+    contact_line_id = Column(String(100))
+    enrolled_date = Column(Date)
+    enrolled_until = Column(Date)
     latitude = Column(Float)
     longitude = Column(Float)
     contact = Column(String(200))
@@ -63,6 +75,31 @@ class Organization(Base):
 
     def __repr__(self) -> str:
         return f"<Organization(id='{self.id}', name='{self.name}')>"
+
+
+class Participant(Base):
+    """Individual participant registered via a branch."""
+
+    __tablename__ = "participants"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    branch_id = Column(String(10), ForeignKey("branches.id"))
+    prefix = Column(String(50))
+    first_name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=False)
+    gender = Column(String(20))
+    age = Column(Integer)
+    sub_district = Column(String(100))
+    district = Column(String(100))
+    province = Column(String(100))
+    phone = Column(String(50))
+    line_id = Column(String(100))
+    enrolled_date = Column(Date)
+    privacy_accepted = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    def __repr__(self) -> str:
+        return f"<Participant(id={self.id}, name='{self.first_name} {self.last_name}')>"
 
 
 class Record(Base):
@@ -76,12 +113,20 @@ class Record(Base):
     branch_id = Column(String(10), ForeignKey("branches.id"))
     name = Column(String(200), nullable=False)
     org_id = Column(String(10), ForeignKey("organizations.id"))
+    participant_id = Column(Integer, ForeignKey("participants.id"))
     minutes = Column(Integer, nullable=False)
     participant_count = Column(Integer)
     minutes_per_person = Column(Integer)
+    session_morning = Column(Boolean, default=False)
+    session_afternoon = Column(Boolean, default=False)
+    session_evening = Column(Boolean, default=False)
+    gender_male = Column(Integer, default=0)
+    gender_female = Column(Integer, default=0)
+    gender_unspecified = Column(Integer, default=0)
     date = Column(Date, nullable=False)
     photo_url = Column(Text)
     submitted_by = Column(String(200))
+    submitted_phone = Column(String(50))
     status = Column(String(20), nullable=False, default="pending")
     approved_by = Column(String(200))
     flags = Column(JSONB, default=[])
