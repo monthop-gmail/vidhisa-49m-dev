@@ -1,14 +1,24 @@
-"""Participants API endpoints — individual registration."""
+"""Participants API endpoints — individual registration with CSV import/export."""
 
-from fastapi import APIRouter, Depends, HTTPException
+import csv
+import io
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import Participant
-from app.schemas import ParticipantCreate, ParticipantResponse
+from app.models import Branch, Participant
+from app.schemas import ImportResult, ParticipantCreate, ParticipantResponse
 
 router = APIRouter()
+
+EXPORT_FIELDS = [
+    "id", "branch_id", "prefix", "first_name", "last_name",
+    "gender", "age", "sub_district", "district", "province",
+    "phone", "line_id", "enrolled_date",
+]
 
 
 @router.get("/participants", response_model=list[ParticipantResponse])
@@ -22,6 +32,99 @@ async def list_participants(
         stmt = stmt.where(Participant.branch_id == branch_id)
     result = await db.execute(stmt)
     return result.scalars().all()
+
+
+@router.get("/participants/export")
+async def export_participants(
+    branch_id: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """Export participants as CSV with UTF-8 BOM."""
+    stmt = select(Participant).order_by(Participant.branch_id, Participant.first_name)
+    if branch_id:
+        stmt = stmt.where(Participant.branch_id == branch_id)
+    result = await db.execute(stmt)
+    participants = result.scalars().all()
+
+    output = io.StringIO()
+    output.write("\ufeff")
+    writer = csv.writer(output)
+    writer.writerow(EXPORT_FIELDS)
+    for p in participants:
+        writer.writerow([getattr(p, f) or "" for f in EXPORT_FIELDS])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=participants.csv"},
+    )
+
+
+@router.post("/participants/import", response_model=ImportResult)
+async def import_participants(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Import participants from CSV. Creates new records based on branch_id + name."""
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail={"error": "INVALID_FILE", "message": "รองรับเฉพาะไฟล์ .csv"})
+
+    content = await file.read()
+    text = content.decode("utf-8-sig")
+    reader = csv.DictReader(io.StringIO(text))
+
+    required = {"branch_id", "first_name", "last_name"}
+    if not required.issubset(set(reader.fieldnames or [])):
+        raise HTTPException(status_code=400, detail={
+            "error": "INVALID_HEADER",
+            "message": f"CSV ต้องมีคอลัมน์: {', '.join(sorted(required))}",
+        })
+
+    branch_result = await db.execute(select(Branch.id))
+    valid_branches = {r[0] for r in branch_result.all()}
+
+    created = 0
+    errors = []
+
+    for i, row in enumerate(reader, start=2):
+        branch_id = (row.get("branch_id") or "").strip()
+        first_name = (row.get("first_name") or "").strip()
+        last_name = (row.get("last_name") or "").strip()
+
+        if not branch_id or not first_name or not last_name:
+            errors.append(f"แถว {i}: ขาด branch_id, first_name หรือ last_name")
+            continue
+        if branch_id not in valid_branches:
+            errors.append(f"แถว {i}: branch_id '{branch_id}' ไม่มีในระบบ")
+            continue
+
+        age_str = (row.get("age") or "").strip()
+        p = Participant(
+            branch_id=branch_id,
+            prefix=(row.get("prefix") or "").strip() or None,
+            first_name=first_name,
+            last_name=last_name,
+            gender=(row.get("gender") or "").strip() or None,
+            age=int(age_str) if age_str else None,
+            sub_district=(row.get("sub_district") or "").strip() or None,
+            district=(row.get("district") or "").strip() or None,
+            province=(row.get("province") or "").strip() or None,
+            phone=(row.get("phone") or "").strip() or None,
+            line_id=(row.get("line_id") or "").strip() or None,
+            enrolled_date=(row.get("enrolled_date") or "").strip() or None,
+            privacy_accepted=True,
+        )
+        db.add(p)
+        created += 1
+
+    await db.commit()
+    return {
+        "created": created,
+        "updated": 0,
+        "errors": errors,
+        "message": f"นำเข้าสำเร็จ: สร้างใหม่ {created}" + (f", ข้อผิดพลาด {len(errors)} แถว" if errors else ""),
+    }
 
 
 @router.get("/participants/{participant_id}", response_model=ParticipantResponse)

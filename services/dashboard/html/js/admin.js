@@ -322,13 +322,55 @@ async function initAdmin() {
         loadPending();
         loadOrganizations();
         loadParticipants();
+        updateExportLink();
     } else {
         document.getElementById('admin-title').textContent = 'Admin กลาง';
         loadBranches();
         loadBranchTable();
         loadOrganizations();
         loadParticipants();
+        updateExportLink();
     }
+}
+
+async function importParticipants(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const status = document.getElementById('import-participant-status');
+    status.textContent = 'กำลังนำเข้า...';
+    status.style.color = '#666';
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch('/api/participants/import', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (res.ok) {
+            status.textContent = data.message;
+            status.style.color = '#43a047';
+            if (data.errors.length > 0) {
+                status.textContent += ' | ' + data.errors.join(', ');
+                status.style.color = '#e65100';
+            }
+            loadParticipants();
+        } else {
+            status.textContent = data.detail?.message || 'เกิดข้อผิดพลาด';
+            status.style.color = '#e53935';
+        }
+    } catch (e) {
+        console.error('import participants error:', e);
+        status.textContent = 'เกิดข้อผิดพลาด';
+        status.style.color = '#e53935';
+    }
+    input.value = '';
+}
+
+function updateExportLink() {
+    const link = document.getElementById('export-participant-link');
+    if (!link) return;
+    const bid = branchMode ? getBranchContext() : '';
+    link.href = bid ? `/api/participants/export?branch_id=${bid}` : '/api/participants/export';
 }
 
 initAdmin();

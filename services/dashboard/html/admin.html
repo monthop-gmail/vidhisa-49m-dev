@@ -97,6 +97,14 @@
 
     <section>
         <h2>ผู้เข้าร่วมรายคน <span id="participant-count" style="font-size:0.85rem; color:#666; font-weight:normal;"></span></h2>
+        <div style="margin-bottom:0.5rem; display:flex; gap:0.5rem; align-items:center;">
+            <a id="export-participant-link" href="/api/participants/export" class="btn-approve" style="text-decoration:none; display:inline-block;">Export CSV</a>
+            <label class="btn-approve" style="cursor:pointer; display:inline-block;">
+                Import CSV
+                <input type="file" id="import-participant-file" accept=".csv" style="display:none" onchange="importParticipants(this)">
+            </label>
+            <span id="import-participant-status" style="font-size:0.85rem; color:#666;"></span>
+        </div>
         <table id="participant-table">
             <thead>
                 <tr>
