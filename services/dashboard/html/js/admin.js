@@ -334,6 +334,41 @@ async function loadIndRecords() {
     } catch (e) { console.error('ind records error:', e); }
 }
 
+async function importRecords(input, type) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const statusId = type === 'bulk' ? 'import-bulk-status' : 'import-ind-status';
+    const status = document.getElementById(statusId);
+    status.textContent = 'กำลังนำเข้า...';
+    status.style.color = '#666';
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch('/api/records/import', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (res.ok) {
+            status.textContent = data.message;
+            status.style.color = '#43a047';
+            if (data.errors && data.errors.length > 0) {
+                status.textContent += ' | ' + data.errors.slice(0, 3).join(', ');
+                status.style.color = '#e65100';
+            }
+            loadBulkRecords();
+            loadIndRecords();
+        } else {
+            status.textContent = data.detail?.message || 'เกิดข้อผิดพลาด';
+            status.style.color = '#e53935';
+        }
+    } catch (e) {
+        console.error('import records error:', e);
+        status.textContent = 'เกิดข้อผิดพลาด';
+        status.style.color = '#e53935';
+    }
+    input.value = '';
+}
+
 async function importParticipants(input) {
     const file = input.files[0];
     if (!file) return;

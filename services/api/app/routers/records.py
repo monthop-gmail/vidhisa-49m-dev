@@ -3,7 +3,7 @@
 import csv
 import io
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.anti_fraud import validate_record
 from app.database import get_db
 from app.events import publish
-from app.models import Record
+from app.models import Branch, Organization, Record
 from app.schemas import (
     ApproveRequest,
     RecordCreate,
@@ -103,6 +103,104 @@ async def export_records(
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+@router.post("/records/import")
+async def import_records(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Import records from CSV. Upsert by branch_id + org_id + name + date."""
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail={"error": "INVALID_FILE", "message": "รองรับเฉพาะไฟล์ .csv"})
+
+    content = await file.read()
+    text = content.decode("utf-8-sig")
+    reader = csv.DictReader(io.StringIO(text))
+
+    required = {"type", "branch_id", "name", "minutes", "date"}
+    if not required.issubset(set(reader.fieldnames or [])):
+        raise HTTPException(status_code=400, detail={
+            "error": "INVALID_HEADER",
+            "message": f"CSV ต้องมีคอลัมน์: {', '.join(sorted(required))}",
+        })
+
+    branch_result = await db.execute(select(Branch.id))
+    valid_branches = {r[0] for r in branch_result.all()}
+    org_result = await db.execute(select(Organization.id))
+    valid_orgs = {r[0] for r in org_result.all()}
+
+    created = 0
+    updated = 0
+    errors = []
+
+    for i, row in enumerate(reader, start=2):
+        rec_type = (row.get("type") or "").strip()
+        branch_id = (row.get("branch_id") or "").strip()
+        name = (row.get("name") or "").strip()
+        minutes_str = (row.get("minutes") or "").strip()
+        date_str = (row.get("date") or "").strip()
+        org_id = (row.get("org_id") or "").strip()
+
+        if not rec_type or not branch_id or not name or not minutes_str or not date_str:
+            errors.append(f"แถว {i}: ขาดข้อมูลที่จำเป็น")
+            continue
+        if branch_id not in valid_branches:
+            errors.append(f"แถว {i}: branch_id '{branch_id}' ไม่มีในระบบ")
+            continue
+        if org_id and org_id not in valid_orgs:
+            errors.append(f"แถว {i}: org_id '{org_id}' ไม่มีในระบบ")
+            continue
+
+        minutes = int(minutes_str)
+        pc_str = (row.get("participant_count") or "").strip()
+        mpp_str = (row.get("minutes_per_person") or "").strip()
+
+        fields = {
+            "type": rec_type,
+            "branch_id": branch_id,
+            "name": name,
+            "org_id": org_id or None,
+            "minutes": minutes,
+            "participant_count": int(pc_str) if pc_str else None,
+            "minutes_per_person": int(mpp_str) if mpp_str else None,
+            "session_morning": (row.get("session_morning") or "").strip().lower() in ("true", "1", "yes"),
+            "session_afternoon": (row.get("session_afternoon") or "").strip().lower() in ("true", "1", "yes"),
+            "session_evening": (row.get("session_evening") or "").strip().lower() in ("true", "1", "yes"),
+            "gender_male": int((row.get("gender_male") or "0").strip() or "0"),
+            "gender_female": int((row.get("gender_female") or "0").strip() or "0"),
+            "gender_unspecified": int((row.get("gender_unspecified") or "0").strip() or "0"),
+            "date": date_str,
+            "status": (row.get("status") or "pending").strip(),
+            "submitted_by": (row.get("submitted_by") or "").strip() or None,
+            "submitted_phone": (row.get("submitted_phone") or "").strip() or None,
+        }
+
+        # Upsert
+        existing = None
+        if org_id:
+            stmt = select(Record).where(
+                Record.branch_id == branch_id, Record.org_id == org_id,
+                Record.name == name, Record.date == date_str,
+            )
+            result = await db.execute(stmt)
+            existing = result.scalar_one_or_none()
+
+        if existing:
+            for k, v in fields.items():
+                setattr(existing, k, v)
+            updated += 1
+        else:
+            db.add(Record(**fields))
+            created += 1
+
+    await db.commit()
+    return {
+        "created": created,
+        "updated": updated,
+        "errors": errors,
+        "message": f"นำเข้าสำเร็จ: สร้างใหม่ {created}, อัพเดท {updated}" + (f", ข้อผิดพลาด {len(errors)} แถว" if errors else ""),
+    }
 
 
 @router.post("/records", response_model=RecordResponse, status_code=201)

@@ -102,6 +102,11 @@
         <div style="margin-bottom:0.5rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
             <a id="add-bulk-link" href="/record.html" class="btn-approve" style="text-decoration:none; display:inline-block;">+ บันทึกแบบกลุ่ม</a>
             <a id="export-bulk-link" href="/api/records/export?record_type=bulk" class="btn-approve" style="text-decoration:none; display:inline-block;">Export CSV</a>
+            <label class="btn-approve" style="cursor:pointer; display:inline-block;">
+                Import CSV
+                <input type="file" id="import-bulk-file" accept=".csv" style="display:none" onchange="importRecords(this, 'bulk')">
+            </label>
+            <span id="import-bulk-status" style="font-size:0.85rem; color:#666;"></span>
         </div>
         <table id="bulk-record-table">
             <thead>
@@ -119,6 +124,11 @@
         <div style="margin-bottom:0.5rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
             <a id="add-ind-link" href="/record.html#ind" class="btn-approve" style="text-decoration:none; display:inline-block;">+ บันทึกรายคน</a>
             <a id="export-ind-link" href="/api/records/export?record_type=individual" class="btn-approve" style="text-decoration:none; display:inline-block;">Export CSV</a>
+            <label class="btn-approve" style="cursor:pointer; display:inline-block;">
+                Import CSV
+                <input type="file" id="import-ind-file" accept=".csv" style="display:none" onchange="importRecords(this, 'individual')">
+            </label>
+            <span id="import-ind-status" style="font-size:0.85rem; color:#666;"></span>
         </div>
         <table id="ind-record-table">
             <thead>
