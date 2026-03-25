@@ -9,15 +9,15 @@
 <body>
 
 <header>
-    <h1>สาขา Admin</h1>
-    <p><a href="/">Dashboard</a> | <a href="/register.html">ลงทะเบียน</a> | <a href="/record.html">บันทึก</a></p>
+    <h1 id="admin-title">Admin</h1>
+    <p><a href="/">Dashboard</a> | <a href="/register.html">ลงทะเบียน</a> | <a href="/record.html">บันทึก</a> | <a href="/admin.html">Admin กลาง</a></p>
 </header>
 
 <main>
-    <section>
+    <section id="section-branch-select">
         <label for="branch-select">เลือกสาขา:</label>
-        <select id="branch-select" onchange="loadPending()">
-            <option value="">-- เลือก --</option>
+        <select id="branch-select">
+            <option value="">-- ทุกสาขา --</option>
         </select>
     </section>
 
@@ -34,7 +34,7 @@
         <p id="pending-empty" style="display:none">ไม่มีรายการรออนุมัติ</p>
     </section>
 
-    <section>
+    <section id="section-branches">
         <h2>สาขา</h2>
         <div style="margin-bottom:0.5rem; display:flex; gap:0.5rem; align-items:center;">
             <a href="/api/branches/export" class="btn-approve" style="text-decoration:none; display:inline-block;">Export CSV</a>
@@ -54,8 +54,8 @@
         </table>
     </section>
 
-    <section>
-        <h2>องค์กร</h2>
+    <section id="section-orgs">
+        <h2 id="org-section-title">องค์กร</h2>
         <div style="margin-bottom:0.5rem; display:flex; gap:0.5rem; align-items:center;">
             <a href="/api/organizations/export" class="btn-approve" style="text-decoration:none; display:inline-block;">Export CSV</a>
             <label class="btn-approve" style="cursor:pointer; display:inline-block;">

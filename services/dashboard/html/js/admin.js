@@ -1,4 +1,5 @@
 const FMT = new Intl.NumberFormat('th-TH');
+let branchMode = false; // true = admin สาขา, false = admin กลาง
 
 async function loadBranches() {
     try {
@@ -17,7 +18,7 @@ async function loadBranches() {
 }
 
 async function loadPending() {
-    const branchId = document.getElementById('branch-select').value;
+    const branchId = branchMode ? getBranchContext() : document.getElementById('branch-select').value;
     if (!branchId) return;
 
     try {
@@ -77,7 +78,11 @@ async function reject(id) {
 async function loadOrganizations() {
     try {
         const res = await fetch('/api/organizations');
-        const data = await res.json();
+        let data = await res.json();
+        if (branchMode) {
+            const bid = getBranchContext();
+            data = data.filter(o => o.branch_id === bid);
+        }
         const tbody = document.querySelector('#org-table tbody');
         tbody.innerHTML = '';
         data.forEach(o => {
@@ -87,7 +92,7 @@ async function loadOrganizations() {
                     <td>${o.name}</td>
                     <td>${o.org_type || '-'}</td>
                     <td>${o.province || '-'}</td>
-                    <td>${o.branch_id}</td>
+                    <td>${o.branch_id || '-'}</td>
                     <td>${FMT.format(o.total_minutes)}</td>
                     <td>${FMT.format(o.total_records)}</td>
                 </tr>`;
@@ -270,9 +275,40 @@ async function loadParticipants() {
 }
 
 
-loadBranches();
-loadBranchTable();
-loadOrganizations();
-initBranchSelector('branch-select', loadPending);
-initBranchSelector('participant-branch-filter', loadParticipants);
-loadParticipants();
+// Detect branch mode
+const contextBranch = getBranchContext();
+branchMode = !!contextBranch;
+
+if (branchMode) {
+    // Admin สาขา — ซ่อนส่วนที่ไม่จำเป็น ล็อคสาขา
+    document.getElementById('admin-title').textContent = `Admin สาขา ${contextBranch}`;
+    document.getElementById('section-branches').style.display = 'none';
+    document.getElementById('section-branch-select').style.display = 'none';
+    document.getElementById('org-section-title').textContent = `องค์กรในสาขา ${contextBranch}`;
+
+    // ล็อคสาขาในฟอร์มเพิ่มองค์กร
+    const orgBranchSel = document.getElementById('org-branch');
+    if (orgBranchSel) {
+        orgBranchSel.innerHTML = `<option value="${contextBranch}" selected>${contextBranch}</option>`;
+        orgBranchSel.disabled = true;
+    }
+
+    // โหลดข้อมูลเฉพาะสาขา
+    loadPending();
+    loadOrganizations();
+    initBranchSelector('participant-branch-filter', loadParticipants);
+} else {
+    // Admin กลาง — แสดงทุกอย่าง
+    document.getElementById('admin-title').textContent = 'Admin กลาง';
+    loadBranches();
+    loadBranchTable();
+    loadOrganizations();
+    initBranchSelector('branch-select', (bid) => {
+        if (bid) {
+            // เปลี่ยนเป็น branch mode
+            window.location.href = `/admin.html?branch=${bid}`;
+        }
+    });
+    initBranchSelector('participant-branch-filter', loadParticipants);
+    loadParticipants();
+}
