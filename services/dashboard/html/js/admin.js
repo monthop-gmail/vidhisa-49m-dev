@@ -238,7 +238,7 @@ async function importOrgs(input) {
 
 async function loadParticipants() {
     try {
-        const branchId = document.getElementById('participant-branch-filter').value;
+        const branchId = branchMode ? getBranchContext() : '';
         const url = branchId ? `/api/participants?branch_id=${branchId}` : '/api/participants';
         const res = await fetch(url);
         const data = await res.json();
@@ -279,39 +279,56 @@ async function loadParticipants() {
 const contextBranch = getBranchContext();
 branchMode = !!contextBranch;
 
-if (branchMode) {
-    // Admin สาขา — ซ่อนส่วนที่ไม่จำเป็น ล็อคสาขา
-    document.getElementById('admin-title').textContent = `Admin สาขา ${contextBranch}`;
-    document.getElementById('section-branches').style.display = 'none';
-    document.getElementById('org-section-title').textContent = `องค์กรในสาขา ${contextBranch}`;
+// Init branch selector (no auto-redirect on init)
+async function initAdmin() {
+    const res = await fetch('/api/branches');
+    const branches = await res.json();
+    const sel = document.getElementById('branch-select');
+    branches.forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b.id;
+        opt.textContent = `${b.id} — ${b.name}`;
+        sel.appendChild(opt);
+    });
 
-    // ล็อคสาขาในฟอร์มเพิ่มองค์กร
-    const orgBranchSel = document.getElementById('org-branch');
-    if (orgBranchSel) {
-        orgBranchSel.innerHTML = `<option value="${contextBranch}" selected>${contextBranch}</option>`;
-        orgBranchSel.disabled = true;
+    // Set saved value without triggering change
+    if (contextBranch && sel.querySelector(`option[value="${contextBranch}"]`)) {
+        sel.value = contextBranch;
     }
 
-    // โหลดข้อมูลเฉพาะสาขา
-    loadPending();
-    loadOrganizations();
-    initBranchSelector('branch-select', onBranchChange);
-    initBranchSelector('participant-branch-filter', loadParticipants);
-} else {
-    // Admin กลาง — แสดงทุกอย่าง
-    document.getElementById('admin-title').textContent = 'Admin กลาง';
-    loadBranches();
-    loadBranchTable();
-    loadOrganizations();
-    initBranchSelector('branch-select', onBranchChange);
-    initBranchSelector('participant-branch-filter', loadParticipants);
-    loadParticipants();
-}
+    // On change → navigate
+    sel.addEventListener('change', () => {
+        const bid = sel.value;
+        setBranchContext(bid);
+        if (bid) {
+            window.location.href = `/admin.html?branch=${bid}`;
+        } else {
+            window.location.href = '/admin.html';
+        }
+    });
 
-function onBranchChange(bid) {
-    if (bid) {
-        window.location.href = `/admin.html?branch=${bid}`;
+    // Apply mode
+    if (branchMode) {
+        document.getElementById('admin-title').textContent = `Admin สาขา ${contextBranch}`;
+        document.getElementById('section-branches').style.display = 'none';
+        document.getElementById('org-section-title').textContent = `องค์กรในสาขา ${contextBranch}`;
+
+        const orgBranchSel = document.getElementById('org-branch');
+        if (orgBranchSel) {
+            orgBranchSel.innerHTML = `<option value="${contextBranch}" selected>${contextBranch}</option>`;
+            orgBranchSel.disabled = true;
+        }
+
+        loadPending();
+        loadOrganizations();
+        loadParticipants();
     } else {
-        window.location.href = '/admin.html';
+        document.getElementById('admin-title').textContent = 'Admin กลาง';
+        loadBranches();
+        loadBranchTable();
+        loadOrganizations();
+        loadParticipants();
     }
 }
+
+initAdmin();

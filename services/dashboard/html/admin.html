@@ -10,18 +10,16 @@
 
 <header>
     <h1 id="admin-title">Admin</h1>
-    <p>
-        <a href="/">Dashboard</a> | <a href="/register.html">ลงทะเบียน</a> | <a href="/record.html">บันทึก</a> | <a href="/admin.html">Admin กลาง</a>
-        <span style="margin-left:1rem;">
-            <label for="branch-select" style="font-weight:normal; opacity:0.9;">สาขา:</label>
-            <select id="branch-select" style="padding:0.2rem 0.5rem; font-size:0.9rem;">
-                <option value="">-- ทุกสาขา --</option>
-            </select>
-        </span>
-    </p>
+    <p><a href="/">Dashboard</a> | <a href="/register.html">ลงทะเบียน</a> | <a href="/record.html">บันทึก</a> | <a href="/admin.html">Admin กลาง</a></p>
 </header>
 
 <main>
+    <section>
+        <label for="branch-select">สาขา:</label>
+        <select id="branch-select">
+            <option value="">-- ทุกสาขา (Admin กลาง) --</option>
+        </select>
+    </section>
 
     <section>
         <h2>รายการรออนุมัติ</h2>
@@ -98,14 +96,7 @@
     </section>
 
     <section>
-        <h2>ผู้เข้าร่วมรายคน</h2>
-        <div style="margin-bottom:0.5rem;">
-            <label>กรองตามสาขา:</label>
-            <select id="participant-branch-filter" onchange="loadParticipants()">
-                <option value="">-- ทั้งหมด --</option>
-            </select>
-            <span id="participant-count" style="font-size:0.85rem; color:#666; margin-left:0.5rem;"></span>
-        </div>
+        <h2>ผู้เข้าร่วมรายคน <span id="participant-count" style="font-size:0.85rem; color:#666; font-weight:normal;"></span></h2>
         <table id="participant-table">
             <thead>
                 <tr>
