@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ลงทะเบียน — วิทิสา 49M</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+.tab-bar { display:flex; gap:0; margin-bottom:1rem; }
+.tab-bar button { flex:1; padding:0.7rem; border:1px solid #ccc; background:#f5f5f5; cursor:pointer; font-size:1rem; }
+.tab-bar button.active { background:#1a237e; color:#fff; border-color:#1a237e; }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+.form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:0.5rem; }
+.form-grid label { font-size:0.85rem; }
+.form-grid input, .form-grid select { width:100%; padding:0.4rem; font-size:0.95rem; border:1px solid #ccc; border-radius:4px; }
+.form-row { margin-top:0.5rem; }
+.msg { padding:0.5rem; border-radius:4px; margin-top:0.5rem; font-size:0.9rem; }
+.msg-ok { background:#e8f5e9; color:#2e7d32; }
+.msg-err { background:#ffebee; color:#c62828; }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>ลงทะเบียน</h1>
+    <p><a href="/">Dashboard</a> | <a href="/admin.html">Admin</a> | <a href="/record.html">บันทึก</a></p>
+</header>
+
+<main>
+    <div class="tab-bar">
+        <button class="active" onclick="switchTab('org')">แบบกลุ่ม (องค์กร)</button>
+        <button onclick="switchTab('individual')">แบบรายคน</button>
+    </div>
+
+    <!-- แบบกลุ่ม -->
+    <section id="tab-org" class="tab-content active">
+        <h2>ลงทะเบียนองค์กร / หน่วยงาน</h2>
+        <div class="form-grid">
+            <div><label>รหัสองค์กร *</label><input id="r-org-id" placeholder="ORG016"></div>
+            <div><label>ชื่อหน่วยงาน *</label><input id="r-org-name" placeholder="โรงเรียน..."></div>
+            <div><label>ประเภท</label><select id="r-org-type">
+                <option value="">-- เลือก --</option>
+                <option value="โรงเรียน">โรงเรียน</option>
+                <option value="มหาวิทยาลัย">มหาวิทยาลัย</option>
+                <option value="วัด">วัด</option>
+                <option value="หน่วยงาน">หน่วยงาน</option>
+                <option value="ชุมชน">ชุมชน</option>
+            </select></div>
+            <div><label>สาขาที่ประสานงาน *</label><select id="r-org-branch"><option value="">-- เลือก --</option></select></div>
+            <div><label>ตำบล</label><input id="r-org-subdistrict"></div>
+            <div><label>อำเภอ</label><input id="r-org-district"></div>
+            <div><label>จังหวัด</label><input id="r-org-province"></div>
+            <div><label>Email (เกียรติบัตร)</label><input id="r-org-email" type="email"></div>
+            <div><label>จำนวนผู้เข้าร่วมสูงสุด</label><input id="r-org-max" type="number" min="1"></div>
+            <div><label>จำนวนเพศชาย</label><input id="r-org-male" type="number" min="0" value="0"></div>
+            <div><label>จำนวนเพศหญิง</label><input id="r-org-female" type="number" min="0" value="0"></div>
+            <div><label>จำนวนไม่ระบุเพศ</label><input id="r-org-unspec" type="number" min="0" value="0"></div>
+            <div><label>ชื่อผู้ประสานงาน</label><input id="r-org-cname"></div>
+            <div><label>เบอร์ติดต่อ</label><input id="r-org-cphone"></div>
+            <div><label>Line ID</label><input id="r-org-cline"></div>
+            <div><label>วันที่สมัคร</label><input id="r-org-enroll" type="date"></div>
+            <div><label>เข้าร่วมถึงวันที่</label><input id="r-org-until" type="date"></div>
+        </div>
+        <div class="form-row">
+            <button class="btn-approve" onclick="registerOrg()">ลงทะเบียนองค์กร</button>
+            <span id="r-org-msg"></span>
+        </div>
+    </section>
+
+    <!-- แบบรายคน -->
+    <section id="tab-individual" class="tab-content">
+        <h2>ลงทะเบียนรายบุคคล</h2>
+        <div class="form-grid">
+            <div><label>สาขา *</label><select id="r-p-branch"><option value="">-- เลือก --</option></select></div>
+            <div><label>คำนำหน้า</label><select id="r-p-prefix">
+                <option value="">-- เลือก --</option>
+                <option value="นาย">นาย</option>
+                <option value="นาง">นาง</option>
+                <option value="นางสาว">นางสาว</option>
+                <option value="เด็กชาย">เด็กชาย</option>
+                <option value="เด็กหญิง">เด็กหญิง</option>
+            </select></div>
+            <div><label>ชื่อ *</label><input id="r-p-fname"></div>
+            <div><label>นามสกุล *</label><input id="r-p-lname"></div>
+            <div><label>เพศ</label><select id="r-p-gender">
+                <option value="">-- เลือก --</option>
+                <option value="ชาย">ชาย</option>
+                <option value="หญิง">หญิง</option>
+                <option value="ไม่ระบุ">ไม่ระบุ</option>
+            </select></div>
+            <div><label>อายุ</label><input id="r-p-age" type="number" min="1"></div>
+            <div><label>ตำบล</label><input id="r-p-subdistrict"></div>
+            <div><label>อำเภอ</label><input id="r-p-district"></div>
+            <div><label>จังหวัด</label><input id="r-p-province"></div>
+            <div><label>เบอร์ติดต่อ</label><input id="r-p-phone"></div>
+            <div><label>Line ID</label><input id="r-p-line"></div>
+            <div><label>วันที่สมัคร</label><input id="r-p-enroll" type="date"></div>
+        </div>
+        <div class="form-row" style="margin-top:0.5rem">
+            <label><input type="checkbox" id="r-p-privacy"> ยอมรับนโยบายความเป็นส่วนตัว</label>
+        </div>
+        <div class="form-row">
+            <button class="btn-approve" onclick="registerParticipant()">ลงทะเบียน</button>
+            <span id="r-p-msg"></span>
+        </div>
+    </section>
+</main>
+
+<script>
+const API = '/api';
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-bar button').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    event.target.classList.add('active');
+}
+
+function showMsg(id, text, ok) {
+    const el = document.getElementById(id);
+    el.innerHTML = `<span class="msg ${ok ? 'msg-ok' : 'msg-err'}">${text}</span>`;
+    setTimeout(() => el.innerHTML = '', 5000);
+}
+
+async function loadBranches() {
+    const res = await fetch(API + '/branches');
+    const branches = await res.json();
+    ['r-org-branch', 'r-p-branch'].forEach(id => {
+        const sel = document.getElementById(id);
+        branches.forEach(b => {
+            const opt = document.createElement('option');
+            opt.value = b.id;
+            opt.textContent = `${b.id} — ${b.name}`;
+            sel.appendChild(opt);
+        });
+    });
+}
+
+async function registerOrg() {
+    const body = {
+        id: document.getElementById('r-org-id').value.trim(),
+        name: document.getElementById('r-org-name').value.trim(),
+        org_type: document.getElementById('r-org-type').value,
+        branch_id: document.getElementById('r-org-branch').value || null,
+        sub_district: document.getElementById('r-org-subdistrict').value.trim() || null,
+        district: document.getElementById('r-org-district').value.trim() || null,
+        province: document.getElementById('r-org-province').value.trim() || null,
+        email: document.getElementById('r-org-email').value.trim() || null,
+        max_participants: parseInt(document.getElementById('r-org-max').value) || null,
+        gender_male: parseInt(document.getElementById('r-org-male').value) || 0,
+        gender_female: parseInt(document.getElementById('r-org-female').value) || 0,
+        gender_unspecified: parseInt(document.getElementById('r-org-unspec').value) || 0,
+        contact_name: document.getElementById('r-org-cname').value.trim() || null,
+        contact_phone: document.getElementById('r-org-cphone').value.trim() || null,
+        contact_line_id: document.getElementById('r-org-cline').value.trim() || null,
+        enrolled_date: document.getElementById('r-org-enroll').value || null,
+        enrolled_until: document.getElementById('r-org-until').value || null,
+    };
+    if (!body.id || !body.name) return showMsg('r-org-msg', 'กรุณากรอกรหัสและชื่อ', false);
+
+    const res = await fetch(API + '/organizations', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (res.ok) showMsg('r-org-msg', data.message, true);
+    else showMsg('r-org-msg', data.detail?.message || 'เกิดข้อผิดพลาด', false);
+}
+
+async function registerParticipant() {
+    const body = {
+        branch_id: document.getElementById('r-p-branch').value,
+        prefix: document.getElementById('r-p-prefix').value || null,
+        first_name: document.getElementById('r-p-fname').value.trim(),
+        last_name: document.getElementById('r-p-lname').value.trim(),
+        gender: document.getElementById('r-p-gender').value || null,
+        age: parseInt(document.getElementById('r-p-age').value) || null,
+        sub_district: document.getElementById('r-p-subdistrict').value.trim() || null,
+        district: document.getElementById('r-p-district').value.trim() || null,
+        province: document.getElementById('r-p-province').value.trim() || null,
+        phone: document.getElementById('r-p-phone').value.trim() || null,
+        line_id: document.getElementById('r-p-line').value.trim() || null,
+        enrolled_date: document.getElementById('r-p-enroll').value || null,
+        privacy_accepted: document.getElementById('r-p-privacy').checked,
+    };
+    if (!body.branch_id || !body.first_name || !body.last_name)
+        return showMsg('r-p-msg', 'กรุณากรอกสาขา ชื่อ นามสกุล', false);
+    if (!body.privacy_accepted)
+        return showMsg('r-p-msg', 'กรุณายอมรับนโยบายความเป็นส่วนตัว', false);
+
+    const res = await fetch(API + '/participants', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (res.ok) showMsg('r-p-msg', data.message, true);
+    else showMsg('r-p-msg', data.detail?.message || 'เกิดข้อผิดพลาด', false);
+}
+
+loadBranches();
+</script>
+</body>
+</html>

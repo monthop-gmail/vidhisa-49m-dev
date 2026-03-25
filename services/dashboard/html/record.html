@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>บันทึก — วิทิสา 49M</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+.tab-bar { display:flex; gap:0; margin-bottom:1rem; }
+.tab-bar button { flex:1; padding:0.7rem; border:1px solid #ccc; background:#f5f5f5; cursor:pointer; font-size:1rem; }
+.tab-bar button.active { background:#1a237e; color:#fff; border-color:#1a237e; }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+.form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:0.5rem; }
+.form-grid label { font-size:0.85rem; }
+.form-grid input, .form-grid select { width:100%; padding:0.4rem; font-size:0.95rem; border:1px solid #ccc; border-radius:4px; }
+.session-checks { display:flex; gap:1.5rem; margin-top:0.5rem; }
+.session-checks label { font-weight:normal; font-size:0.95rem; }
+.form-row { margin-top:0.5rem; }
+.msg { padding:0.5rem; border-radius:4px; margin-top:0.5rem; font-size:0.9rem; }
+.msg-ok { background:#e8f5e9; color:#2e7d32; }
+.msg-err { background:#ffebee; color:#c62828; }
+.info-box { background:#e3f2fd; padding:0.5rem 0.8rem; border-radius:4px; font-size:0.85rem; color:#1565c0; margin-bottom:0.5rem; }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>บันทึกการปฏิบัติ</h1>
+    <p><a href="/">Dashboard</a> | <a href="/admin.html">Admin</a> | <a href="/register.html">ลงทะเบียน</a></p>
+</header>
+
+<main>
+    <div class="tab-bar">
+        <button class="active" onclick="switchTab('bulk')">แบบกลุ่ม (องค์กร)</button>
+        <button onclick="switchTab('ind')">แบบรายคน</button>
+    </div>
+
+    <!-- แบบกลุ่ม -->
+    <section id="tab-bulk" class="tab-content active">
+        <h2>บันทึกแบบกลุ่ม</h2>
+        <div class="info-box">สาขาเป็นผู้บันทึก — นาทีเป็นขององค์กร | บันทึกซ้ำวันเดิม = อัพเดต</div>
+        <div class="form-grid">
+            <div><label>1. เลือกสาขา *</label><select id="b-branch" onchange="loadOrgs()"><option value="">-- เลือก --</option></select></div>
+            <div><label>2. เลือกหน่วยงาน *</label><select id="b-org"><option value="">-- เลือกสาขาก่อน --</option></select></div>
+            <div><label>3. วันที่ปฏิบัติ *</label><input id="b-date" type="date"></div>
+        </div>
+
+        <h3 style="margin-top:0.8rem">รอบที่ปฏิบัติ</h3>
+        <div class="session-checks">
+            <label><input type="checkbox" id="b-morning" checked> เช้า 5 นาที</label>
+            <label><input type="checkbox" id="b-afternoon"> กลางวัน 5 นาที</label>
+            <label><input type="checkbox" id="b-evening"> เย็น 5 นาที</label>
+        </div>
+
+        <h3 style="margin-top:0.8rem">จำนวนผู้ปฏิบัติ (แยกเพศ)</h3>
+        <div class="form-grid">
+            <div><label>เพศชาย</label><input id="b-male" type="number" min="0" value="0" onchange="calcTotal()"></div>
+            <div><label>เพศหญิง</label><input id="b-female" type="number" min="0" value="0" onchange="calcTotal()"></div>
+            <div><label>ไม่ระบุเพศ</label><input id="b-unspec" type="number" min="0" value="0" onchange="calcTotal()"></div>
+            <div><label>รวมจำนวนคน</label><input id="b-total" type="number" readonly style="background:#f0f0f0"></div>
+            <div><label>นาทีรวม</label><input id="b-minutes" type="number" readonly style="background:#f0f0f0; font-weight:bold"></div>
+        </div>
+
+        <div class="form-grid" style="margin-top:0.5rem">
+            <div><label>ชื่อผู้บันทึก</label><input id="b-submitter"></div>
+            <div><label>เบอร์ติดต่อ</label><input id="b-phone"></div>
+        </div>
+
+        <div class="form-row">
+            <button class="btn-approve" onclick="submitBulk()">บันทึก</button>
+            <span id="b-msg"></span>
+        </div>
+    </section>
+
+    <!-- แบบรายคน -->
+    <section id="tab-ind" class="tab-content">
+        <h2>บันทึกแบบรายคน</h2>
+        <div class="info-box">เลือกสาขา → เลือกชื่อ → เลือกวันที่ → ติ๊กรอบที่ปฏิบัติ | บันทึกซ้ำวัน = อัพเดต</div>
+        <div class="form-grid">
+            <div><label>1. เลือกสาขา *</label><select id="i-branch" onchange="loadParticipants()"><option value="">-- เลือก --</option></select></div>
+            <div><label>2. เลือกผู้ปฏิบัติ *</label><select id="i-participant"><option value="">-- เลือกสาขาก่อน --</option></select></div>
+            <div><label>3. วันที่ปฏิบัติ *</label><input id="i-date" type="date"></div>
+        </div>
+
+        <h3 style="margin-top:0.8rem">รอบที่ปฏิบัติ (เลือกอย่างน้อย 1)</h3>
+        <div class="session-checks">
+            <label><input type="checkbox" id="i-morning" checked> เช้า 5 นาที</label>
+            <label><input type="checkbox" id="i-afternoon"> กลางวัน 5 นาที</label>
+            <label><input type="checkbox" id="i-evening"> เย็น 5 นาที</label>
+        </div>
+        <div style="margin-top:0.3rem; font-size:0.9rem;">
+            นาทีรวม: <strong id="i-minutes">5</strong> นาที
+        </div>
+
+        <div class="form-row">
+            <button class="btn-approve" onclick="submitIndividual()">บันทึก</button>
+            <span id="i-msg"></span>
+        </div>
+    </section>
+</main>
+
+<script>
+const API = '/api';
+let allOrgs = [];
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-bar button').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    event.target.classList.add('active');
+}
+
+function showMsg(id, text, ok) {
+    const el = document.getElementById(id);
+    el.innerHTML = `<span class="msg ${ok ? 'msg-ok' : 'msg-err'}">${text}</span>`;
+    setTimeout(() => el.innerHTML = '', 5000);
+}
+
+function calcTotal() {
+    const m = parseInt(document.getElementById('b-male').value) || 0;
+    const f = parseInt(document.getElementById('b-female').value) || 0;
+    const u = parseInt(document.getElementById('b-unspec').value) || 0;
+    const total = m + f + u;
+    document.getElementById('b-total').value = total;
+    const sessions = [document.getElementById('b-morning'), document.getElementById('b-afternoon'), document.getElementById('b-evening')]
+        .filter(cb => cb.checked).length;
+    document.getElementById('b-minutes').value = total * sessions * 5;
+}
+
+function calcIndMinutes() {
+    const sessions = [document.getElementById('i-morning'), document.getElementById('i-afternoon'), document.getElementById('i-evening')]
+        .filter(cb => cb.checked).length;
+    document.getElementById('i-minutes').textContent = sessions * 5;
+}
+
+async function loadBranches() {
+    const res = await fetch(API + '/branches');
+    const branches = await res.json();
+    ['b-branch', 'i-branch'].forEach(id => {
+        const sel = document.getElementById(id);
+        branches.forEach(b => {
+            const opt = document.createElement('option');
+            opt.value = b.id;
+            opt.textContent = `${b.id} — ${b.name}`;
+            sel.appendChild(opt);
+        });
+    });
+}
+
+async function loadOrgs() {
+    const branchId = document.getElementById('b-branch').value;
+    const sel = document.getElementById('b-org');
+    sel.innerHTML = '<option value="">-- เลือก --</option>';
+    if (!branchId) return;
+
+    if (!allOrgs.length) {
+        const res = await fetch(API + '/organizations');
+        allOrgs = await res.json();
+    }
+    const filtered = allOrgs.filter(o => o.branch_id === branchId && o.id !== 'ORG-PLJ');
+    filtered.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.id;
+        opt.textContent = `${o.id} — ${o.name}`;
+        sel.appendChild(opt);
+    });
+}
+
+async function loadParticipants() {
+    const branchId = document.getElementById('i-branch').value;
+    const sel = document.getElementById('i-participant');
+    sel.innerHTML = '<option value="">-- เลือก --</option>';
+    if (!branchId) return;
+
+    const res = await fetch(API + '/participants?branch_id=' + branchId);
+    const list = await res.json();
+    list.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = `${p.prefix || ''}${p.first_name} ${p.last_name}`;
+        opt.dataset.name = `${p.first_name} ${p.last_name}`;
+        sel.appendChild(opt);
+    });
+}
+
+async function submitBulk() {
+    const branchId = document.getElementById('b-branch').value;
+    const orgId = document.getElementById('b-org').value;
+    const dt = document.getElementById('b-date').value;
+    if (!branchId || !orgId || !dt) return showMsg('b-msg', 'กรุณาเลือกสาขา หน่วยงาน วันที่', false);
+
+    const m = parseInt(document.getElementById('b-male').value) || 0;
+    const f = parseInt(document.getElementById('b-female').value) || 0;
+    const u = parseInt(document.getElementById('b-unspec').value) || 0;
+    const total = m + f + u;
+    if (total === 0) return showMsg('b-msg', 'กรุณาระบุจำนวนผู้ปฏิบัติ', false);
+
+    const morning = document.getElementById('b-morning').checked;
+    const afternoon = document.getElementById('b-afternoon').checked;
+    const evening = document.getElementById('b-evening').checked;
+    if (!morning && !afternoon && !evening) return showMsg('b-msg', 'กรุณาเลือกรอบอย่างน้อย 1', false);
+
+    const sessions = [morning, afternoon, evening].filter(Boolean).length;
+    const orgName = document.getElementById('b-org').selectedOptions[0]?.textContent?.split(' — ')[1] || '';
+
+    const body = {
+        type: 'bulk', branch_id: branchId, name: orgName, org_id: orgId,
+        minutes: total * sessions * 5, participant_count: total, minutes_per_person: sessions * 5,
+        session_morning: morning, session_afternoon: afternoon, session_evening: evening,
+        gender_male: m, gender_female: f, gender_unspecified: u,
+        date: dt,
+        submitted_by: document.getElementById('b-submitter').value.trim() || null,
+        submitted_phone: document.getElementById('b-phone').value.trim() || null,
+    };
+
+    const res = await fetch(API + '/records', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (res.ok) showMsg('b-msg', data.message, true);
+    else showMsg('b-msg', data.detail?.message || JSON.stringify(data.detail), false);
+}
+
+async function submitIndividual() {
+    const branchId = document.getElementById('i-branch').value;
+    const pSel = document.getElementById('i-participant');
+    const participantId = pSel.value;
+    const dt = document.getElementById('i-date').value;
+    if (!branchId || !participantId || !dt) return showMsg('i-msg', 'กรุณาเลือกสาขา ผู้ปฏิบัติ วันที่', false);
+
+    const morning = document.getElementById('i-morning').checked;
+    const afternoon = document.getElementById('i-afternoon').checked;
+    const evening = document.getElementById('i-evening').checked;
+    if (!morning && !afternoon && !evening) return showMsg('i-msg', 'กรุณาเลือกรอบอย่างน้อย 1', false);
+
+    const sessions = [morning, afternoon, evening].filter(Boolean).length;
+    const name = pSel.selectedOptions[0]?.dataset?.name || '';
+
+    const body = {
+        type: 'individual', branch_id: branchId, name: name,
+        participant_id: parseInt(participantId),
+        minutes: sessions * 5,
+        session_morning: morning, session_afternoon: afternoon, session_evening: evening,
+        date: dt,
+    };
+
+    const res = await fetch(API + '/records', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (res.ok) showMsg('i-msg', data.message, true);
+    else showMsg('i-msg', data.detail?.message || JSON.stringify(data.detail), false);
+}
+
+// Recalculate on checkbox change
+['b-morning','b-afternoon','b-evening'].forEach(id =>
+    document.getElementById(id).addEventListener('change', calcTotal));
+['i-morning','i-afternoon','i-evening'].forEach(id =>
+    document.getElementById(id).addEventListener('change', calcIndMinutes));
+
+// Set today as default date
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('b-date').value = today;
+document.getElementById('i-date').value = today;
+
+loadBranches();
+calcTotal();
+</script>
+</body>
+</html>
