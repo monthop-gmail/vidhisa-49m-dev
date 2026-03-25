@@ -10,16 +10,18 @@
 
 <header>
     <h1 id="admin-title">Admin</h1>
-    <p><a href="/">Dashboard</a> | <a href="/register.html">ลงทะเบียน</a> | <a href="/record.html">บันทึก</a> | <a href="/admin.html">Admin กลาง</a></p>
+    <p>
+        <a href="/">Dashboard</a> | <a href="/register.html">ลงทะเบียน</a> | <a href="/record.html">บันทึก</a> | <a href="/admin.html">Admin กลาง</a>
+        <span style="margin-left:1rem;">
+            <label for="branch-select" style="font-weight:normal; opacity:0.9;">สาขา:</label>
+            <select id="branch-select" style="padding:0.2rem 0.5rem; font-size:0.9rem;">
+                <option value="">-- ทุกสาขา --</option>
+            </select>
+        </span>
+    </p>
 </header>
 
 <main>
-    <section id="section-branch-select">
-        <label for="branch-select">เลือกสาขา:</label>
-        <select id="branch-select">
-            <option value="">-- ทุกสาขา --</option>
-        </select>
-    </section>
 
     <section>
         <h2>รายการรออนุมัติ</h2>

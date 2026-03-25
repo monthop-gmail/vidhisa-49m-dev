@@ -283,7 +283,6 @@ if (branchMode) {
     // Admin สาขา — ซ่อนส่วนที่ไม่จำเป็น ล็อคสาขา
     document.getElementById('admin-title').textContent = `Admin สาขา ${contextBranch}`;
     document.getElementById('section-branches').style.display = 'none';
-    document.getElementById('section-branch-select').style.display = 'none';
     document.getElementById('org-section-title').textContent = `องค์กรในสาขา ${contextBranch}`;
 
     // ล็อคสาขาในฟอร์มเพิ่มองค์กร
@@ -296,6 +295,7 @@ if (branchMode) {
     // โหลดข้อมูลเฉพาะสาขา
     loadPending();
     loadOrganizations();
+    initBranchSelector('branch-select', onBranchChange);
     initBranchSelector('participant-branch-filter', loadParticipants);
 } else {
     // Admin กลาง — แสดงทุกอย่าง
@@ -303,12 +303,15 @@ if (branchMode) {
     loadBranches();
     loadBranchTable();
     loadOrganizations();
-    initBranchSelector('branch-select', (bid) => {
-        if (bid) {
-            // เปลี่ยนเป็น branch mode
-            window.location.href = `/admin.html?branch=${bid}`;
-        }
-    });
+    initBranchSelector('branch-select', onBranchChange);
     initBranchSelector('participant-branch-filter', loadParticipants);
     loadParticipants();
+}
+
+function onBranchChange(bid) {
+    if (bid) {
+        window.location.href = `/admin.html?branch=${bid}`;
+    } else {
+        window.location.href = '/admin.html';
+    }
 }
