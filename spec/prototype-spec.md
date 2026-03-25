@@ -32,8 +32,11 @@
 | **Database** | PostgreSQL 16 + schema + seed data | ✅ เสร็จ |
 | **Anti-fraud** | Rule-based validation (session/daily/cooldown/bulk) | ✅ เสร็จ |
 | **สาขา Admin** | หน้าตรวจสอบ/อนุมัติยอด | ✅ เสร็จ |
-| **องค์กร CRUD** | CRUD + Import/Export CSV องค์กร | ✅ เสร็จ |
+| **องค์กร CRUD** | CRUD + Import/Export CSV องค์กร (รวม sub_district, district, email, max_participants, gender, contact, enrolled) | ✅ เสร็จ |
 | **สาขา CRUD** | CRUD + Import/Export CSV สาขา | ✅ เสร็จ |
+| **ผู้เข้าร่วม CRUD** | CRUD + Import/Export CSV ผู้เข้าร่วมรายบุคคล (participants) | ✅ เสร็จ |
+| **บันทึก List/Export/Import** | GET /api/records, CSV export/import (upsert by branch+org+name+date) | ✅ เสร็จ |
+| **Records 9 ฟิลด์** | แทน session booleans ด้วย morning/afternoon/evening × male/female/unspecified (9 ฟิลด์ int) | ✅ เสร็จ |
 | **SSE Real-time** | Server-Sent Events — Dashboard refresh อัตโนมัติ | ✅ เสร็จ |
 | **Adminer** | Web UI จัดการ DB โดยตรง (port 8081) | ✅ เสร็จ |
 
@@ -42,6 +45,8 @@
 | งาน | รายละเอียด | สถานะ |
 |-----|-----------|-------|
 | **เชื่อม UI ↔ API จริง** | Dashboard เรียก API จริงจาก DB | ✅ เสร็จ |
+| **หน้าลงทะเบียน** | register.html — ลงทะเบียนผู้เข้าร่วม + องค์กร (?branch=B001) | ✅ เสร็จ |
+| **หน้าบันทึกผล** | record.html — บันทึกนาทีสมาธิรายสาขา (?branch=B001) | ✅ เสร็จ |
 | **Integration Test** | 65 test cases ครอบคลุมทุก endpoint + anti-fraud + CRUD + import/export | ✅ เสร็จ |
 | **Load Test** | จำลอง concurrent users ระดับหมื่น-แสน | ⬜ รอดำเนินการ |
 | **DB Diagram** | ER diagram + กฎการนับนาที + Business Rules | ✅ เสร็จ |

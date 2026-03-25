@@ -24,6 +24,8 @@
 | Service       | Port     | รายละเอียด                                                                            |
 | ------------- | -------- | ------------------------------------------------------------------------------------- |
 | **Dashboard** | `8080`   | หน้า Dashboard หลัก — ตัวเลขสะสม, Progress Bar, Projection, แผนที่, Leaderboard, Feed |
+| **ลงทะเบียน** | `8080`   | register.html — ลงทะเบียนผู้เข้าร่วม + องค์กร (?branch=B001)                         |
+| **บันทึกผล**  | `8080`   | record.html — บันทึกนาทีสมาธิรายสาขา (?branch=B001)                                  |
 | **API**       | `8000`   | FastAPI + Swagger UI (`/docs`) — ทุก endpoint ตาม [API Spec](spec/api-spec.md)        |
 | **Adminer**   | `8081`   | Web UI จัดการ DB — ดู/แก้ข้อมูลได้โดยตรง                                              |
 | **DB**        | internal | PostgreSQL 16 — ฐานข้อมูลหลัก                                                         |
@@ -38,6 +40,8 @@ docker compose up -d
 เปิดดู:
 
 - Dashboard: http://localhost:8080
+- ลงทะเบียน: http://localhost:8080/register.html?branch=B001
+- บันทึกผล: http://localhost:8080/record.html?branch=B001
 - API Docs: http://localhost:8000/docs
 - Adminer: http://localhost:8081 (server: `vidhisa-db`, user: `vidhisa`, pass: `changeme`, db: `vidhisa49m`)
 
@@ -122,7 +126,7 @@ vidhisa-49m-dev/
     ├── api/               # FastAPI + anti-fraud
     │   └── tests/         # Integration test (65 cases)
     ├── db/                # PostgreSQL 16 + schema + seed data
-    ├── dashboard/         # nginx + static HTML/JS (Leaflet map)
+    ├── dashboard/         # nginx + static HTML/JS (Leaflet map, register, record)
     ├── adminer/           # Adminer — Web DB management
     └── tunnels/           # Cloudflare Tunnels (placeholder)
 ```

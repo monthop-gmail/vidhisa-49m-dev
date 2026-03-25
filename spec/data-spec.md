@@ -39,28 +39,71 @@
 | `name` | string | ชื่อองค์กร |
 | `org_type` | string | ประเภท: สถาบันพลังจิตตานุภาพ, โรงเรียน, มหาวิทยาลัย, วัด, หน่วยงาน, ชุมชน |
 | `branch_id` | FK → branches (optional) | สาขาที่สังกัด — เฉพาะ ORG-PLJ, องค์กรภายนอก = NULL |
+| `sub_district` | string | ตำบล/แขวง |
+| `district` | string | อำเภอ/เขต |
 | `province` | string | จังหวัด |
+| `email` | string | อีเมลองค์กร |
+| `max_participants` | integer | จำนวนผู้เข้าร่วมสูงสุด |
+| `gender_male` | integer | จำนวนเพศชาย |
+| `gender_female` | integer | จำนวนเพศหญิง |
+| `gender_unspecified` | integer | จำนวนไม่ระบุเพศ |
+| `contact_name` | string | ชื่อผู้ประสานงาน |
+| `contact_phone` | string | เบอร์โทรผู้ประสานงาน |
+| `contact_line_id` | string | LINE ID ผู้ประสานงาน |
+| `enrolled_date` | date | วันที่สมัคร |
+| `enrolled_until` | date | วันที่สิ้นสุดการสมัคร |
 | `latitude` | double | ละติจูด |
 | `longitude` | double | ลองจิจูด |
-| `contact` | string | ข้อมูลติดต่อ |
+| `contact` | string | ข้อมูลติดต่อ (เดิม) |
 
 > **กฎ:** เฉพาะ ORG-PLJ (สถาบันพลังจิตตานุภาพ) ที่มี `branch_id` — องค์กรภายนอก **ไม่สังกัดสาขา** (`branch_id = NULL`)
 
-### 4. records — บันทึกการปฏิบัติ
+### 4. participants — ผู้เข้าร่วมรายบุคคล
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | PK | รหัสบันทึก |
+| `id` | PK (SERIAL) | รหัสอัตโนมัติ |
+| `branch_id` | FK → branches | สาขาที่สังกัด |
+| `prefix` | string | คำนำหน้า เช่น นาย, นาง |
+| `first_name` | string | ชื่อ |
+| `last_name` | string | นามสกุล |
+| `gender` | string | เพศ: male, female, unspecified |
+| `age` | integer | อายุ |
+| `sub_district` | string | ตำบล/แขวง |
+| `district` | string | อำเภอ/เขต |
+| `province` | string | จังหวัด |
+| `phone` | string | เบอร์โทร |
+| `line_id` | string | LINE ID |
+| `enrolled_date` | date | วันที่ลงทะเบียน |
+| `privacy_accepted` | boolean | ยอมรับนโยบายข้อมูลส่วนบุคคล |
+| `created_at` | timestamp | |
+
+### 5. records — บันทึกการปฏิบัติ
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | PK (SERIAL) | รหัสบันทึก |
 | `type` | enum | `individual` / `bulk` |
 | `branch_id` | FK → branches | สาขาที่ดูแล |
 | `org_id` | FK → organizations | องค์กรเจ้าของนาที |
+| `participant_id` | FK → participants | ผู้เข้าร่วม (individual) |
 | `name` | string | ชื่อผู้บันทึก / ชื่อองค์กร |
 | `minutes` | integer | นาทีรวม |
 | `participant_count` | integer | จำนวนคน (bulk only) |
 | `minutes_per_person` | integer | นาทีต่อคน (bulk only) |
+| `morning_male` | integer | จำนวนชาย รอบเช้า |
+| `morning_female` | integer | จำนวนหญิง รอบเช้า |
+| `morning_unspecified` | integer | จำนวนไม่ระบุ รอบเช้า |
+| `afternoon_male` | integer | จำนวนชาย รอบกลางวัน |
+| `afternoon_female` | integer | จำนวนหญิง รอบกลางวัน |
+| `afternoon_unspecified` | integer | จำนวนไม่ระบุ รอบกลางวัน |
+| `evening_male` | integer | จำนวนชาย รอบเย็น |
+| `evening_female` | integer | จำนวนหญิง รอบเย็น |
+| `evening_unspecified` | integer | จำนวนไม่ระบุ รอบเย็น |
 | `date` | date | วันที่ปฏิบัติ |
 | `photo_url` | string | URL รูปหลักฐาน (optional) |
 | `submitted_by` | string | ผู้ส่ง |
+| `submitted_phone` | string | เบอร์โทรผู้ส่ง |
 | `status` | enum | `pending` / `approved` / `rejected` |
 | `approved_by` | string | ผู้อนุมัติ |
 | `flags` | array | เช่น `["daily_limit_reached"]` |
@@ -69,7 +112,9 @@
 | `created_at` | timestamp | |
 | `updated_at` | timestamp | |
 
-### 5. daily_stats — สรุปรายวัน (Materialized / Cache)
+> **Upsert:** POST /api/records — ถ้า `branch_id + org_id + name + date` ซ้ำ → อัพเดตแทนสร้างใหม่
+
+### 6. daily_stats — สรุปรายวัน (Materialized / Cache)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -79,7 +124,7 @@
 | `total_branches` | integer | จำนวนสาขาที่บันทึก |
 | `cumulative_minutes` | bigint | ยอดสะสมถึงวันนี้ |
 
-### 6. province_stats — สรุปรายจังหวัด (Materialized / Cache)
+### 7. province_stats — สรุปรายจังหวัด (Materialized / Cache)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -97,7 +142,10 @@
 branch_groups (1) ──── (N) branches (1) ──── (N) organizations (optional, เฉพาะ ORG-PLJ)
                             │ 1                        │ 1
                             │                          │
-                            │ N                        │ N
+                            ├──── (N) participants     │
+                            │           │ 1            │
+                            │           │              │
+                            │ N         │ N            │ N
                             └───────── records ────────┘
 ```
 

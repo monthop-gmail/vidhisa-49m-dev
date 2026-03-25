@@ -12,20 +12,63 @@
 
 ## 1. บันทึกผล (Records)
 
-### POST /api/records — บันทึกยอดนาที
+### GET /api/records — รายการบันทึก
+
+**Query:** `?branch_id=B001&record_type=bulk&status=pending`
+
+```json
+[
+  {
+    "id": 1, "type": "bulk", "branch_id": "B001",
+    "org_id": "ORG001", "participant_id": null,
+    "name": "โรงเรียนสาธิต มศว", "minutes": 2500,
+    "participant_count": 500,
+    "morning_male": 100, "morning_female": 150, "morning_unspecified": 0,
+    "afternoon_male": 80, "afternoon_female": 120, "afternoon_unspecified": 0,
+    "evening_male": 20, "evening_female": 30, "evening_unspecified": 0,
+    "date": "2026-05-15", "status": "pending",
+    "submitted_by": "ครูสมใจ"
+  }
+]
+```
+
+### GET /api/records/export — ดาวน์โหลด CSV (UTF-8 BOM)
+
+**Query:** `?branch_id=B001&record_type=bulk`
+
+### POST /api/records/import — อัพโหลด CSV (upsert)
+
+**Request:** `multipart/form-data` — field `file` (CSV)
+
+**Required headers:** `type`, `branch_id`, `name`, `minutes`, `date`
+
+**Upsert:** ถ้า `branch_id + org_id + name + date` ซ้ำ → อัพเดตแทนสร้างใหม่
+
+```json
+{ "created": 5, "updated": 2, "errors": [], "message": "นำเข้าสำเร็จ: สร้างใหม่ 5, อัพเดท 2" }
+```
+
+### POST /api/records — บันทึกยอดนาที (upsert)
+
+> **Upsert:** ถ้า `branch_id + org_id + name + date` ตรงกับรายการที่มีอยู่ → อัพเดตแทนสร้างใหม่
 
 **กรณีองค์กร/โรงเรียน (Bulk)**
 ```json
 {
   "type": "bulk",
   "branch_id": "B001",
-  "org_name": "โรงเรียนสาธิต มศว",
+  "org_id": "ORG001",
+  "name": "โรงเรียนสาธิต มศว",
   "participant_count": 500,
   "minutes_per_person": 5,
-  "total_minutes": 2500,
+  "minutes": 2500,
+  "morning_male": 100, "morning_female": 150, "morning_unspecified": 0,
+  "afternoon_male": 80, "afternoon_female": 120, "afternoon_unspecified": 0,
+  "evening_male": 20, "evening_female": 30, "evening_unspecified": 0,
   "date": "2026-05-15",
   "photo_url": "https://...",
-  "submitted_by": "ครูสมใจ"
+  "submitted_by": "ครูสมใจ",
+  "submitted_phone": "081-xxx-xxxx"
 }
 ```
 
@@ -34,8 +77,12 @@
 {
   "type": "individual",
   "branch_id": "B001",
+  "participant_id": 42,
   "name": "สมชาย",
   "minutes": 15,
+  "morning_male": 1, "morning_female": 0, "morning_unspecified": 0,
+  "afternoon_male": 1, "afternoon_female": 0, "afternoon_unspecified": 0,
+  "evening_male": 1, "evening_female": 0, "evening_unspecified": 0,
   "date": "2026-05-15"
 }
 ```
@@ -43,11 +90,13 @@
 **Response: 201 Created**
 ```json
 {
-  "id": "R00001",
+  "id": 1,
   "status": "pending",
   "message": "บันทึกสำเร็จ รอสาขาตรวจสอบ"
 }
 ```
+
+> ถ้า upsert สำเร็จ message จะเป็น `"อัพเดตบันทึกสำเร็จ รอสาขาตรวจสอบ"`
 
 **Validation Rules (Anti-fraud) — วิทิสาสมาธิ: ครั้งละ 5 นาที, 3 ครั้ง/วัน:**
 - `minutes` ต่อครั้ง: ไม่เกิน **5 นาที** (individual)
@@ -259,7 +308,17 @@
   "id": "ORG016", "name": "โรงเรียนทดสอบ",
   "org_type": "โรงเรียน",
   "branch_id": null,
-  "province": "กรุงเทพมหานคร"
+  "sub_district": "คลองเตย",
+  "district": "คลองเตย",
+  "province": "กรุงเทพมหานคร",
+  "email": "test@school.ac.th",
+  "max_participants": 500,
+  "gender_male": 200, "gender_female": 280, "gender_unspecified": 20,
+  "contact_name": "ครูสมใจ",
+  "contact_phone": "081-xxx-xxxx",
+  "contact_line_id": "@teacher",
+  "enrolled_date": "2026-05-01",
+  "enrolled_until": "2026-07-31"
 }
 ```
 
@@ -301,7 +360,64 @@
 
 ---
 
-## 9. Real-time (SSE)
+## 9. ผู้เข้าร่วม (Participants)
+
+### GET /api/participants — รายการผู้เข้าร่วมรายบุคคล
+
+**Query:** `?branch_id=B001`
+
+```json
+[
+  {
+    "id": 1, "branch_id": "B001",
+    "prefix": "นาย", "first_name": "สมชาย", "last_name": "ใจดี",
+    "gender": "male", "age": 35,
+    "sub_district": "คลองเตย", "district": "คลองเตย", "province": "กรุงเทพมหานคร",
+    "phone": "081-xxx-xxxx", "line_id": "@somchai",
+    "enrolled_date": "2026-05-01", "privacy_accepted": true
+  }
+]
+```
+
+### GET /api/participants/{id} — ดูรายละเอียดผู้เข้าร่วม
+
+### POST /api/participants — ลงทะเบียนผู้เข้าร่วมใหม่
+
+```json
+{
+  "branch_id": "B001",
+  "prefix": "นาย", "first_name": "สมชาย", "last_name": "ใจดี",
+  "gender": "male", "age": 35,
+  "sub_district": "คลองเตย", "district": "คลองเตย", "province": "กรุงเทพมหานคร",
+  "phone": "081-xxx-xxxx", "line_id": "@somchai",
+  "enrolled_date": "2026-05-01", "privacy_accepted": true
+}
+```
+
+**Response: 201 Created**
+```json
+{ "id": 1, "name": "สมชาย ใจดี", "message": "ลงทะเบียนสำเร็จ" }
+```
+
+### PUT /api/participants/{id} — แก้ไขข้อมูลผู้เข้าร่วม
+
+### GET /api/participants/export — ดาวน์โหลด CSV (UTF-8 BOM)
+
+**Query:** `?branch_id=B001`
+
+### POST /api/participants/import — อัพโหลด CSV
+
+**Request:** `multipart/form-data` — field `file` (CSV)
+
+**Required headers:** `branch_id`, `first_name`, `last_name`
+
+```json
+{ "created": 10, "updated": 0, "errors": [], "message": "นำเข้าสำเร็จ: สร้างใหม่ 10" }
+```
+
+---
+
+## 10. Real-time (SSE)
 
 ### GET /api/sse — Server-Sent Events stream
 
@@ -320,7 +436,7 @@ data: approved
 
 ---
 
-## 10. แผนที่ (Markers)
+## 11. แผนที่ (Markers)
 
 ### GET /api/markers — จุดบนแผนที่ (สาขา + องค์กร)
 

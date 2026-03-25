@@ -13,31 +13,57 @@
          │ 1
          │
          │ ∞
-┌────────┴────────┐         ┌──────────────────┐
-│    branches     │ 1     ∞ │  organizations   │
-│─────────────────│─────────│──────────────────│
-│ PK id           │         │ PK id            │
-│    name         │         │    name          │
-│ FK group_id ────┘         │    org_type      │
-│    province     │         │ FK branch_id ────┘
-│    province_code│         │    province      │
-│    latitude     │         │    latitude      │
-│    longitude    │         │    longitude     │
-│    admin_name   │         │    contact       │
-│    contact      │         └────────┬─────────┘
-└────────┬────────┘                  │ 1
-         │ 1                         │
-         │                           │
-         │ ∞                         │ ∞
-┌────────┴───────────────────────────┴─────────┐
-│                   records                     │
-│───────────────────────────────────────────────│
-│ PK id (SERIAL)                                │
-│    type (individual | bulk)                   │
-│ FK branch_id  → branches.id                   │
-│ FK org_id     → organizations.id              │
-│    name, minutes, date, status ...            │
-└───────────────────────────────────────────────┘
+┌────────┴────────┐         ┌──────────────────────┐
+│    branches     │ 1     ∞ │    organizations     │
+│─────────────────│─────────│──────────────────────│
+│ PK id           │         │ PK id                │
+│    name         │         │    name              │
+│ FK group_id ────┘         │    org_type          │
+│    province     │         │ FK branch_id ────────┘
+│    province_code│         │    sub_district      │
+│    latitude     │         │    district          │
+│    longitude    │         │    province          │
+│    admin_name   │         │    email             │
+│    contact      │         │    max_participants  │
+│                 │         │    gender_male/f/u   │
+│                 │         │    contact_name      │
+│                 │         │    contact_phone     │
+│                 │         │    contact_line_id   │
+│                 │         │    enrolled_date     │
+│                 │         │    enrolled_until    │
+│                 │         └──────────┬───────────┘
+│                 │                    │ 1
+├────────────────────┐                │
+│ 1                  │                │
+│      ┌─────────────┴──────┐        │
+│      │   participants     │        │
+│      │────────────────────│        │
+│      │ PK id (SERIAL)     │        │
+│      │ FK branch_id ──────┘        │
+│      │    prefix          │        │
+│      │    first_name      │        │
+│      │    last_name       │        │
+│      │    gender, age     │        │
+│      │    phone, line_id  │        │
+│      │    enrolled_date   │        │
+│      │    privacy_accepted│        │
+│      └─────────┬──────────┘        │
+│                │ 1                  │
+│ ∞              │ ∞                  │ ∞
+├────────────────┴────────────────────┘
+│                   records
+│───────────────────────────────────────────────
+│ PK id (SERIAL)
+│    type (individual | bulk)
+│ FK branch_id      → branches.id
+│ FK org_id         → organizations.id
+│ FK participant_id → participants.id
+│    name, minutes, date, status
+│    morning_male/female/unspecified
+│    afternoon_male/female/unspecified
+│    evening_male/female/unspecified
+│    submitted_by, submitted_phone
+└───────────────────────────────────────────────
 
 ┌─────────────────┐    ┌──────────────────┐
 │   daily_stats   │    │  province_stats   │
@@ -55,8 +81,10 @@
 |-------------|--------|---------|
 | branch_groups → branches | 1:∞ | กลุ่มสาขา (เช่น ภาคกลาง) มีหลายสาขา |
 | branches → organizations | 1:∞ (optional) | เฉพาะ ORG-PLJ เชื่อมสาขา, องค์กรภายนอกไม่สังกัดสาขา (branch_id = NULL) |
+| branches → participants | 1:∞ | ผู้เข้าร่วมลงทะเบียนผ่านสาขา |
 | branches → records | 1:∞ | record ส่งผ่านสาขา |
 | organizations → records | 1:∞ | record เป็นขององค์กร |
+| participants → records | 1:∞ | record อ้างอิงผู้เข้าร่วม (individual) |
 
 ## กฎการนับนาที (Business Rules)
 
@@ -117,10 +145,40 @@
 | name | VARCHAR(200) | ชื่อองค์กร |
 | org_type | VARCHAR(50) | ประเภท: สถาบันพลังจิตตานุภาพ, โรงเรียน, มหาวิทยาลัย, วัด, หน่วยงาน, ชุมชน |
 | branch_id | VARCHAR(10) FK | สาขาที่สังกัด → branches.id |
+| sub_district | VARCHAR(100) | ตำบล/แขวง |
+| district | VARCHAR(100) | อำเภอ/เขต |
 | province | VARCHAR(100) | จังหวัด |
+| email | VARCHAR(200) | อีเมลองค์กร |
+| max_participants | INTEGER | จำนวนผู้เข้าร่วมสูงสุด |
+| gender_male | INTEGER | จำนวนเพศชาย |
+| gender_female | INTEGER | จำนวนเพศหญิง |
+| gender_unspecified | INTEGER | จำนวนไม่ระบุเพศ |
+| contact_name | VARCHAR(200) | ชื่อผู้ประสานงาน |
+| contact_phone | VARCHAR(50) | เบอร์โทรผู้ประสานงาน |
+| contact_line_id | VARCHAR(100) | LINE ID ผู้ประสานงาน |
+| enrolled_date | DATE | วันที่สมัคร |
+| enrolled_until | DATE | วันที่สิ้นสุดการสมัคร |
 | latitude | DOUBLE | ละติจูด |
 | longitude | DOUBLE | ลองจิจูด |
-| contact | VARCHAR(200) | ข้อมูลติดต่อ |
+| contact | VARCHAR(200) | ข้อมูลติดต่อ (เดิม) |
+
+### participants — ผู้เข้าร่วมรายบุคคล
+| คอลัมน์ | ชนิด | คำอธิบาย |
+|---------|------|---------|
+| id | SERIAL PK | รหัสอัตโนมัติ |
+| branch_id | VARCHAR(10) FK | สาขาที่สังกัด → branches.id |
+| prefix | VARCHAR(50) | คำนำหน้า |
+| first_name | VARCHAR(100) | ชื่อ |
+| last_name | VARCHAR(100) | นามสกุล |
+| gender | VARCHAR(20) | เพศ: male, female, unspecified |
+| age | INTEGER | อายุ |
+| sub_district | VARCHAR(100) | ตำบล/แขวง |
+| district | VARCHAR(100) | อำเภอ/เขต |
+| province | VARCHAR(100) | จังหวัด |
+| phone | VARCHAR(50) | เบอร์โทร |
+| line_id | VARCHAR(100) | LINE ID |
+| enrolled_date | DATE | วันที่ลงทะเบียน |
+| privacy_accepted | BOOLEAN | ยอมรับนโยบายข้อมูลส่วนบุคคล |
 
 ### records — บันทึกนาทีสมาธิ
 | คอลัมน์ | ชนิด | คำอธิบาย |
@@ -129,13 +187,27 @@
 | type | VARCHAR(20) | individual หรือ bulk |
 | branch_id | VARCHAR(10) FK | สาขาที่ส่ง → branches.id |
 | org_id | VARCHAR(10) FK | องค์กรเจ้าของนาที → organizations.id |
+| participant_id | INTEGER FK | ผู้เข้าร่วม → participants.id |
 | name | VARCHAR(200) | ชื่อผู้บันทึก/กลุ่ม |
 | minutes | INTEGER | จำนวนนาที (> 0) |
 | participant_count | INTEGER | จำนวนผู้เข้าร่วม (bulk) |
 | minutes_per_person | INTEGER | นาทีต่อคน (bulk) |
+| morning_male | INTEGER | จำนวนชาย รอบเช้า |
+| morning_female | INTEGER | จำนวนหญิง รอบเช้า |
+| morning_unspecified | INTEGER | จำนวนไม่ระบุ รอบเช้า |
+| afternoon_male | INTEGER | จำนวนชาย รอบกลางวัน |
+| afternoon_female | INTEGER | จำนวนหญิง รอบกลางวัน |
+| afternoon_unspecified | INTEGER | จำนวนไม่ระบุ รอบกลางวัน |
+| evening_male | INTEGER | จำนวนชาย รอบเย็น |
+| evening_female | INTEGER | จำนวนหญิง รอบเย็น |
+| evening_unspecified | INTEGER | จำนวนไม่ระบุ รอบเย็น |
 | date | DATE | วันที่ปฏิบัติ |
+| submitted_by | VARCHAR(200) | ผู้ส่ง |
+| submitted_phone | VARCHAR(50) | เบอร์โทรผู้ส่ง |
 | status | VARCHAR(20) | pending → approved / rejected |
 | flags | JSONB | ธง anti-fraud |
+
+> **Upsert:** ถ้า `branch_id + org_id + name + date` ซ้ำ → อัพเดตแทนสร้างใหม่
 
 ### daily_stats / province_stats — สถิติสรุป (cache)
 ตารางสรุปสำหรับ dashboard ไม่มี FK เชื่อมโยง
