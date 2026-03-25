@@ -47,7 +47,7 @@ docker compose up -d
 
 ## Testing
 
-Integration test ทดสอบกับ API + DB จริง (ไม่ใช่ mock) — 65 cases ครอบคลุมทุก endpoint
+Integration test ทดสอบกับ API + DB จริง (ไม่ใช่ mock) — 94 cases ครอบคลุมทุก endpoint
 
 ```bash
 # ต้อง docker compose up -d ก่อน
@@ -69,6 +69,8 @@ python3 -m pytest tests/ -v
 | `test_branches.py`      | 14    | CRUD, import/export CSV, duplicate, stats      |
 | `test_sse.py`           | 6     | pub/sub events, subscribe/unsubscribe          |
 | `test_markers.py`       | 2     | map markers (branch + org)                     |
+| `test_participants.py`  | 14    | CRUD, import/export CSV, filter branch         |
+| `test_records_extended.py` | 15 | list+filter, export, import, upsert, 9 fields  |
 
 ## Production Deployment
 
@@ -124,7 +126,7 @@ vidhisa-49m-dev/
 │   └── prototype-spec.md
 └── services/              # Modular Docker Compose
     ├── api/               # FastAPI + anti-fraud
-    │   └── tests/         # Integration test (65 cases)
+    │   └── tests/         # Integration test (94 cases)
     ├── db/                # PostgreSQL 16 + schema + seed data
     ├── dashboard/         # nginx + static HTML/JS (Leaflet map, register, record)
     ├── adminer/           # Adminer — Web DB management

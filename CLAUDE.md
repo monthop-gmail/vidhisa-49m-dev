@@ -46,7 +46,7 @@ services/
     app/config.py            # ค่าคงที่: target, deadline, anti-fraud limits
     app/anti_fraud.py        # Validation rules
     app/routers/             # Endpoint ทั้งหมด
-    tests/                   # Integration test (65 cases, ทดสอบกับ DB จริง)
+    tests/                   # Integration test (94 cases, ทดสอบกับ DB จริง)
   db/init/                   # SQL schema (01-schema.sql) + seed (02-seed.sql)
   dashboard/html/            # Static HTML/JS/CSS (nginx)
   adminer/                   # Adminer — Web DB management
@@ -71,14 +71,14 @@ spec/
 | สาขา (branch)            | สาขาสถาบันพลังจิตตานุภาพ ~305 แห่ง                              |
 | กลุ่มสาขา (branch_group) | กลุ่มรวมสาขา ~30 กลุ่ม จัดตามภูมิภาค                            |
 | ORG-PLJ                  | สถาบันพลังจิตตานุภาพ — องค์กรพิเศษที่เชื่อมกับสาขา              |
-| องค์กรภายนอก             | โรงเรียน/วัด/มหาวิทยาลัย — **ไม่สังกัดสาขา** (branch_id = NULL) |
+| องค์กรภายนอก             | โรงเรียน/วัด/มหาวิทยาลัย — **ต้องลงทะเบียนกับสาขา** |
 
 ## กฎสำคัญ
 
 ### Data Model
 
-- องค์กรภายนอก **ไม่สังกัดสาขา** — `branch_id = NULL` เสมอ
-- เฉพาะ ORG-PLJ ที่มี `branch_id`
+- องค์กรภายนอก **ต้องลงทะเบียนกับสาขา** — สาขาเป็นผู้บันทึกให้
+- นาทีเป็นขององค์กรภายนอก — **ไม่นับเข้ารายสาขา**
 
 ### การนับนาที (Business Rules)
 
@@ -91,7 +91,7 @@ spec/
 - `MAX_SESSION_MINUTES = 5` — วิทิสาสมาธิครั้งละ 5 นาที
 - `MAX_DAILY_MINUTES = 15` — 3 ครั้ง/วัน
 - `MAX_BULK_MINUTES_PER_PERSON = 5`
-- `COOLDOWN_SECONDS = 0` — ยังไม่ยืนยัน, ปิดไว้ก่อน
+- `COOLDOWN_SECONDS = 0` — ✅ ยืนยันไม่ใช้
 
 ## การทดสอบ
 
@@ -101,7 +101,7 @@ docker compose exec vidhisa-api python3 -m pytest tests/ -v
 ```
 
 - ใช้ integration test กับ DB จริง — **ห้ามใช้ mock**
-- 65 test cases ครอบคลุมทุก endpoint
+- 94 test cases ครอบคลุมทุก endpoint
 
 ## แนวทางการพัฒนา
 
