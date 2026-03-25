@@ -2,6 +2,7 @@
 
 import csv
 import io
+from datetime import date as date_type
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
@@ -177,7 +178,7 @@ async def import_records(
             "evening_male": int((row.get("evening_male") or "0").strip() or "0"),
             "evening_female": int((row.get("evening_female") or "0").strip() or "0"),
             "evening_unspecified": int((row.get("evening_unspecified") or "0").strip() or "0"),
-            "date": date_str,
+            "date": date_type.fromisoformat(date_str),
             "status": (row.get("status") or "pending").strip(),
             "submitted_by": (row.get("submitted_by") or "").strip() or None,
             "submitted_phone": (row.get("submitted_phone") or "").strip() or None,
