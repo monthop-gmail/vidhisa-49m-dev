@@ -39,11 +39,12 @@ docker compose up -d
 
 เปิดดู:
 
-- Dashboard: http://localhost:8080
-- ลงทะเบียน: http://localhost:8080/register.html?branch=B001
-- บันทึกผล: http://localhost:8080/record.html?branch=B001
-- API Docs: http://localhost:8000/docs
-- Adminer: http://localhost:8081 (server: `vidhisa-db`, user: `vidhisa`, pass: `changeme`, db: `vidhisa49m`)
+- Dashboard: http://34.15.162.243:8080
+- ลงทะเบียน: http://34.15.162.243:8080/register.html?branch=B001
+- บันทึกผล: http://34.15.162.243:8080/record.html?branch=B001
+- Admin: http://34.15.162.243:8080/admin.html
+- API Docs: http://34.15.162.243:8000/docs
+- Adminer: http://34.15.162.243:8081 (server: `vidhisa-db`, user: `vidhisa`, db: `vidhisa49m`)
 
 ## Testing
 
