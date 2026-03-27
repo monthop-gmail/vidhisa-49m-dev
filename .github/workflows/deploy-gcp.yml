@@ -62,4 +62,4 @@ jobs:
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_VM_SSH_KEY }}
           script: |
-            make deploy-prod
+            cd /root/vidhisa-49m-dev && make deploy-prod
