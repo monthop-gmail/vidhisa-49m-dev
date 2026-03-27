@@ -1,0 +1,29 @@
+name: Rebuild DB on GCP VM
+
+# กดรัน manual — ลบ DB เก่า สร้าง schema + seed ใหม่
+# ⚠️ ข้อมูลทั้งหมดจะถูกลบ! ใช้เฉพาะเมื่อ schema เปลี่ยน
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rebuild:
+    name: Rebuild DB
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH and rebuild DB
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.GCP_VM_HOST }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_VM_SSH_KEY }}
+          script: |
+            cd /root/vidhisa-49m-dev
+            git pull origin main
+            make rebuild-db
+
+            echo "=== Health Check ==="
+            sleep 5
+            curl -sf http://localhost:8000/api/healthz && echo " ✅ API OK" || echo " ❌ API FAILED"
+            curl -sf http://localhost:8000/api/records | head -c 100 && echo " ✅ Records OK" || echo " ❌ Records FAILED"
+            curl -sf http://localhost:8000/api/participants | head -c 100 && echo " ✅ Participants OK" || echo " ❌ Participants FAILED"
