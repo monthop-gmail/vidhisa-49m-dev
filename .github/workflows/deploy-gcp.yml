@@ -1,12 +1,9 @@
 name: Deploy to GCP VM
 
-# ยังไม่ใช้งาน — กด Run manually เมื่อพร้อม
-# ต้องตั้ง secrets ใน GitHub repo ก่อน:
-#   - GCP_VM_HOST (IP ของ VM จาก OpenTofu output)
-#   - GCP_VM_USER (เช่น ubuntu)
-#   - GCP_VM_SSH_KEY (SSH private key สำหรับเข้า VM)
-
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       environment:
@@ -59,29 +56,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: SSH and deploy
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.GCP_VM_HOST }}
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_VM_SSH_KEY }}
           script: |
-            cd ~/vidhisa-49m-dev || {
-              git clone https://github.com/monthop-gmail/vidhisa-49m-dev.git ~/vidhisa-49m-dev
-              cd ~/vidhisa-49m-dev
-              cp .env.example .env
-              echo "⚠️ อย่าลืมแก้ POSTGRES_PASSWORD ใน .env"
-            }
-
-            echo "=== Git Pull ==="
-            git pull origin main
-
-            echo "=== Rebuild & Restart ==="
-            docker compose -f docker-compose.yml -f docker-compose.prd.yml up -d --build --remove-orphans
-
-            echo "=== Health Check ==="
-            sleep 5
-            curl -sf http://localhost:8000/api/healthz && echo " ✅ API OK" || echo " ❌ API FAILED"
-            curl -sf -o /dev/null -w "Dashboard: %{http_code}" http://localhost:8080 && echo " ✅" || echo " ❌"
-
-            echo "=== Services ==="
-            docker compose ps
+            make deploy-prod
