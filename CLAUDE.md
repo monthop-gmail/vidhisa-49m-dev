@@ -46,7 +46,7 @@ services/
     app/config.py            # ค่าคงที่: target, deadline, anti-fraud limits
     app/anti_fraud.py        # Validation rules
     app/routers/             # Endpoint ทั้งหมด
-    tests/                   # Integration test (94 cases, ทดสอบกับ DB จริง)
+    tests/                   # Integration test (101 cases, ทดสอบกับ DB จริง)
   db/init/                   # 01-schema.sql → 02-branches.sql → 03-seed.sql
   dashboard/html/            # Static HTML/JS/CSS (nginx)
   adminer/                   # Adminer — Web DB management
@@ -101,7 +101,7 @@ docker compose exec vidhisa-api python3 -m pytest tests/ -v
 ```
 
 - ใช้ integration test กับ DB จริง — **ห้ามใช้ mock**
-- 98 test cases ครอบคลุมทุก endpoint
+- 101 test cases ครอบคลุมทุก endpoint
 
 ## แนวทางการพัฒนา
 

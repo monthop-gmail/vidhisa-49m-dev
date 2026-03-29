@@ -48,7 +48,7 @@ docker compose up -d
 
 ## Testing
 
-Integration test ทดสอบกับ API + DB จริง (ไม่ใช่ mock) — 98 cases ครอบคลุมทุก endpoint
+Integration test ทดสอบกับ API + DB จริง (ไม่ใช่ mock) — 101 cases ครอบคลุมทุก endpoint
 
 ```bash
 # ต้อง docker compose up -d ก่อน
@@ -127,7 +127,7 @@ vidhisa-49m-dev/
 │   └── prototype-spec.md
 └── services/              # Modular Docker Compose
     ├── api/               # FastAPI + anti-fraud
-    │   └── tests/         # Integration test (98 cases)
+    │   └── tests/         # Integration test (101 cases)
     ├── db/                # PostgreSQL 16 + schema + seed data
     ├── dashboard/         # nginx + static HTML/JS (Leaflet map, register, record)
     ├── adminer/           # Adminer — Web DB management
