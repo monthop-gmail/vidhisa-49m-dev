@@ -278,6 +278,7 @@ class OrganizationDetail(BaseModel):
     contact_line_id: str | None = None
     enrolled_date: date | None = None
     enrolled_until: date | None = None
+    status: str = "pending"
     latitude: float | None
     longitude: float | None
     contact: str | None
