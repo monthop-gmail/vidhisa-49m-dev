@@ -7,6 +7,21 @@ def _uid():
     return f"pytest-{uuid.uuid4().hex[:8]}"
 
 
+def _create_org(client, branch_id="B005"):
+    oid = f"OT{uuid.uuid4().hex[:6]}"
+    r = client.post("/api/organizations", json={"id": oid, "name": f"Test-{oid}", "branch_id": branch_id})
+    assert r.status_code == 201
+    return oid
+
+
+def _create_participant(client, branch_id="B005"):
+    r = client.post("/api/participants", json={
+        "branch_id": branch_id, "first_name": _uid(), "last_name": "Test", "privacy_accepted": True,
+    })
+    assert r.status_code == 201
+    return r.json()["id"]
+
+
 class TestRecordsList:
     def test_list_all(self, client):
         r = client.get("/api/records")
@@ -86,11 +101,12 @@ class TestRecordsImport:
 
 class TestRecordsUpsert:
     def test_upsert_create_then_update(self, client):
+        oid = _create_org(client)
         name = _uid()
         # Create
         r = client.post("/api/records", json={
             "type": "bulk", "branch_id": "B005", "name": name,
-            "org_id": "ORG006", "minutes": 100, "participant_count": 20,
+            "org_id": oid, "minutes": 100, "participant_count": 20,
             "morning_male": 10, "morning_female": 10,
             "date": "2026-06-01",
         })
@@ -101,21 +117,22 @@ class TestRecordsUpsert:
         # Upsert (same org+name+date)
         r = client.post("/api/records", json={
             "type": "bulk", "branch_id": "B005", "name": name,
-            "org_id": "ORG006", "minutes": 200, "participant_count": 40,
+            "org_id": oid, "minutes": 200, "participant_count": 40,
             "morning_male": 20, "morning_female": 20,
             "date": "2026-06-01",
         })
         assert r.status_code == 201
-        assert r.json()["id"] == first_id  # same record updated
+        assert r.json()["id"] == first_id
         assert "อัพเดต" in r.json()["message"]
 
 
 class TestRecords9Fields:
     def test_bulk_9_fields(self, client):
+        oid = _create_org(client)
         name = _uid()
         r = client.post("/api/records", json={
             "type": "bulk", "branch_id": "B005", "name": name,
-            "minutes": 500, "participant_count": 100,
+            "org_id": oid, "minutes": 500, "participant_count": 100,
             "morning_male": 30, "morning_female": 40, "morning_unspecified": 10,
             "afternoon_male": 20, "afternoon_female": 25, "afternoon_unspecified": 5,
             "evening_male": 10, "evening_female": 15, "evening_unspecified": 5,
@@ -133,10 +150,11 @@ class TestRecords9Fields:
         assert rec["evening_unspecified"] == 5
 
     def test_individual_session_fields(self, client):
+        pid = _create_participant(client)
         name = _uid()
         r = client.post("/api/records", json={
             "type": "individual", "branch_id": "B005", "name": name,
-            "minutes": 5,
+            "participant_id": pid, "minutes": 5,
             "morning_male": 1,
             "date": "2026-06-03",
         })

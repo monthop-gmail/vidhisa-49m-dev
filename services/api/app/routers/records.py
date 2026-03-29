@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.anti_fraud import validate_record
 from app.database import get_db
 from app.events import publish
-from app.models import Branch, Organization, Record
+from app.models import Branch, Organization, Participant, Record
 from app.schemas import (
     ApproveRequest,
     RecordCreate,
@@ -217,6 +217,28 @@ async def create_record(data: RecordCreate, db: AsyncSession = Depends(get_db)):
 
     Validates against anti-fraud rules and publishes an event on success.
     """
+    # Validate: bulk ต้องมี org_id, individual ต้องมี participant_id
+    if data.type == "bulk":
+        if not data.org_id:
+            raise HTTPException(status_code=422, detail={
+                "error": "MISSING_ORG", "message": "บันทึกแบบกลุ่มต้องระบุ org_id (องค์กรต้องลงทะเบียนก่อน)"
+            })
+        org_check = await db.execute(select(Organization).where(Organization.id == data.org_id))
+        if not org_check.scalar_one_or_none():
+            raise HTTPException(status_code=422, detail={
+                "error": "ORG_NOT_FOUND", "message": f"ไม่พบองค์กร '{data.org_id}' ในระบบ กรุณาลงทะเบียนก่อน"
+            })
+    elif data.type == "individual":
+        if not data.participant_id:
+            raise HTTPException(status_code=422, detail={
+                "error": "MISSING_PARTICIPANT", "message": "บันทึกรายคนต้องระบุ participant_id (ต้องลงทะเบียนก่อน)"
+            })
+        p_check = await db.execute(select(Participant).where(Participant.id == data.participant_id))
+        if not p_check.scalar_one_or_none():
+            raise HTTPException(status_code=422, detail={
+                "error": "PARTICIPANT_NOT_FOUND", "message": f"ไม่พบผู้เข้าร่วม id={data.participant_id} ในระบบ กรุณาลงทะเบียนก่อน"
+            })
+
     flags = await validate_record(data, db)
 
     # Upsert: ถ้า branch_id + org_id + name + date ซ้ำ → อัพเดตแทน
