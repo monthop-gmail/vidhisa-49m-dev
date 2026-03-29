@@ -8,6 +8,7 @@ from app.routers import (
     branch,
     branches,
     feed,
+    ggs,
     leaderboard,
     markers,
     organizations,
@@ -52,6 +53,7 @@ app.include_router(branches.router, prefix="/api")
 app.include_router(markers.router, prefix="/api")
 app.include_router(organizations.router, prefix="/api")
 app.include_router(participants.router, prefix="/api")
+app.include_router(ggs.router, prefix="/api")
 app.include_router(sse.router, prefix="/api")
 
 
