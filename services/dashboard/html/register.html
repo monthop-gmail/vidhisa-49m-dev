@@ -28,6 +28,11 @@
 </header>
 
 <main>
+    <section>
+        <label for="reg-branch">สาขา:</label>
+        <select id="reg-branch"><option value="">-- เลือกสาขา --</option></select>
+    </section>
+
     <div class="tab-bar">
         <button class="active" onclick="switchTab('org')">แบบกลุ่ม (องค์กร)</button>
         <button onclick="switchTab('individual')">แบบรายคน</button>
@@ -47,7 +52,7 @@
                 <option value="หน่วยงาน">หน่วยงาน</option>
                 <option value="ชุมชน">ชุมชน</option>
             </select></div>
-            <div><label>สาขาที่ประสานงาน *</label><select id="r-org-branch"><option value="">-- เลือก --</option></select></div>
+            <input type="hidden" id="r-org-branch">
             <div><label>ตำบล</label><input id="r-org-subdistrict"></div>
             <div><label>อำเภอ</label><input id="r-org-district"></div>
             <div><label>จังหวัด</label><input id="r-org-province"></div>
@@ -72,7 +77,7 @@
     <section id="tab-individual" class="tab-content">
         <h2>ลงทะเบียนรายบุคคล</h2>
         <div class="form-grid">
-            <div><label>สาขา *</label><select id="r-p-branch"><option value="">-- เลือก --</option></select></div>
+            <input type="hidden" id="r-p-branch">
             <div><label>คำนำหน้า</label><select id="r-p-prefix">
                 <option value="">-- เลือก --</option>
                 <option value="นาย">นาย</option>
@@ -183,9 +188,11 @@ async function registerParticipant() {
     else showMsg('r-p-msg', data.detail?.message || 'เกิดข้อผิดพลาด', false);
 }
 
-// Init both branch selectors with shared context
-initBranchSelector('r-org-branch');
-initBranchSelector('r-p-branch');
+// Single branch selector → sync to hidden fields in both tabs
+initBranchSelector('reg-branch', (branchId) => {
+    document.getElementById('r-org-branch').value = branchId;
+    document.getElementById('r-p-branch').value = branchId;
+});
 
 // Auto-switch tab from URL hash
 if (window.location.hash === '#individual') {
