@@ -7,6 +7,69 @@ let participantOffset = 0;
 let bulkRecordOffset = 0;
 let indRecordOffset = 0;
 
+// === Toggle checkbox ===
+function toggleCb(headerCb, cbClass) {
+    document.querySelectorAll('.' + cbClass).forEach(c => c.checked = headerCb.checked);
+}
+
+function getCheckedIds(cbClass) {
+    return [...document.querySelectorAll('.' + cbClass + ':checked')].map(c => c.value);
+}
+
+// === Pending Organizations ===
+async function loadPendingOrgs() {
+    try {
+        const res = await fetch('/api/organizations');
+        let data = await res.json();
+        data = data.filter(o => o.status === 'pending' || !o.status);
+        if (branchMode) data = data.filter(o => o.branch_id === getBranchContext());
+        const tbody = document.querySelector('#pending-org-table tbody');
+        const empty = document.getElementById('pending-org-empty');
+        const count = document.getElementById('pending-org-count');
+        const btn = document.getElementById('btn-approve-org');
+        tbody.innerHTML = '';
+        count.textContent = `(${data.length})`;
+        if (data.length === 0) { empty.style.display = 'block'; if (btn) btn.style.display = 'none'; return; }
+        empty.style.display = 'none';
+        if (btn) btn.style.display = 'inline-block';
+        data.forEach(o => {
+            tbody.innerHTML += `<tr>
+                <td><input type="checkbox" class="pending-org-cb" value="${o.id}"></td>
+                <td>${o.id}</td><td>${o.name}</td><td>${o.org_type || '-'}</td><td>${o.branch_id || '-'}</td>
+                <td><button class="btn-approve" onclick="approveOne('org','${o.id}')">อนุมัติ</button>
+                <button class="btn-reject" onclick="rejectOne('org','${o.id}')">ปฏิเสธ</button></td></tr>`;
+        });
+    } catch (e) { console.error('pending org error:', e); }
+}
+
+// === Pending Participants ===
+async function loadPendingParticipants() {
+    try {
+        const bid = branchMode ? getBranchContext() : '';
+        const url = bid ? `/api/participants?branch_id=${bid}&limit=200` : '/api/participants?limit=200';
+        const res = await fetch(url);
+        let data = await res.json();
+        data = data.filter(p => p.status === 'pending' || !p.status);
+        const tbody = document.querySelector('#pending-p-table tbody');
+        const empty = document.getElementById('pending-p-empty');
+        const count = document.getElementById('pending-p-count');
+        const btn = document.getElementById('btn-approve-p');
+        tbody.innerHTML = '';
+        count.textContent = `(${data.length})`;
+        if (data.length === 0) { empty.style.display = 'block'; if (btn) btn.style.display = 'none'; return; }
+        empty.style.display = 'none';
+        if (btn) btn.style.display = 'inline-block';
+        data.forEach(p => {
+            tbody.innerHTML += `<tr>
+                <td><input type="checkbox" class="pending-p-cb" value="${p.id}"></td>
+                <td>${p.id}</td><td>${p.first_name}</td><td>${p.last_name}</td><td>${p.branch_id}</td>
+                <td><button class="btn-approve" onclick="approveOne('participant',${p.id})">อนุมัติ</button>
+                <button class="btn-reject" onclick="rejectOne('participant',${p.id})">ปฏิเสธ</button></td></tr>`;
+        });
+    } catch (e) { console.error('pending participant error:', e); }
+}
+
+// === Pending Records ===
 async function loadPending() {
     const branchId = branchMode ? getBranchContext() : document.getElementById('branch-select').value;
     if (!branchId) return;
@@ -17,79 +80,71 @@ async function loadPending() {
         const tbody = document.querySelector('#pending-table tbody');
         const empty = document.getElementById('pending-empty');
         const count = document.getElementById('pending-count');
-        const btnAll = document.getElementById('btn-approve-all');
-        const headerCb = document.getElementById('select-all-header');
+        const btn = document.getElementById('btn-approve-all');
         tbody.innerHTML = '';
-
-        count.textContent = `(${data.length} รายการ)`;
-
-        if (data.length === 0) {
-            empty.style.display = 'block';
-            if (btnAll) btnAll.style.display = 'none';
-            return;
-        }
+        count.textContent = `(${data.length})`;
+        if (data.length === 0) { empty.style.display = 'block'; if (btn) btn.style.display = 'none'; return; }
         empty.style.display = 'none';
-        if (btnAll) btnAll.style.display = 'inline-block';
-        if (headerCb) headerCb.checked = false;
-
+        if (btn) btn.style.display = 'inline-block';
         data.forEach(r => {
             const flags = (r.flags || []).map(f => `<span class="flag-badge">${f}</span>`).join(' ');
             tbody.innerHTML += `<tr>
-                <td><input type="checkbox" class="pending-cb" value="${r.id}"></td>
+                <td><input type="checkbox" class="pending-rec-cb" value="${r.id}"></td>
                 <td>${r.id}</td><td>${r.type}</td><td>${r.name}</td><td>${r.minutes}</td>
                 <td>${r.date}</td><td>${flags}</td>
-                <td><button class="btn-approve" onclick="approve(${r.id})">อนุมัติ</button>
-                <button class="btn-reject" onclick="reject(${r.id})">ปฏิเสธ</button></td></tr>`;
+                <td><button class="btn-approve" onclick="approveOne('record',${r.id})">อนุมัติ</button>
+                <button class="btn-reject" onclick="rejectOne('record',${r.id})">ปฏิเสธ</button></td></tr>`;
         });
     } catch (e) { console.error('pending error:', e); }
 }
 
-function toggleSelectAll(cb) {
-    document.querySelectorAll('.pending-cb').forEach(c => c.checked = cb.checked);
-    const headerCb = document.getElementById('select-all-header');
-    if (headerCb && headerCb !== cb) headerCb.checked = cb.checked;
+// === Approve / Reject single ===
+const API_MAP = {
+    org: { approve: id => `/api/organizations/${id}/approve`, reject: id => `/api/organizations/${id}/reject` },
+    participant: { approve: id => `/api/participants/${id}/approve`, reject: id => `/api/participants/${id}/reject` },
+    record: { approve: id => `/api/records/${id}/approve`, reject: id => `/api/records/${id}/reject` },
+};
+
+async function approveOne(type, id) {
+    const body = type === 'record' ? JSON.stringify({approved_by: 'สาขา Admin'}) : '{}';
+    await fetch(API_MAP[type].approve(id), { method: 'PATCH', headers: {'Content-Type': 'application/json'}, body });
+    refreshPending();
 }
 
-function getSelectedIds() {
-    return [...document.querySelectorAll('.pending-cb:checked')].map(c => parseInt(c.value));
+async function rejectOne(type, id) {
+    const reason = type === 'record' ? prompt('เหตุผลที่ปฏิเสธ:') : prompt('เหตุผล:');
+    if (reason === null) return;
+    const body = type === 'record' ? JSON.stringify({reason}) : '{}';
+    await fetch(API_MAP[type].reject(id), { method: 'PATCH', headers: {'Content-Type': 'application/json'}, body });
+    refreshPending();
 }
 
-async function approveAll() {
-    const ids = getSelectedIds();
-    if (ids.length === 0) { alert('กรุณาเลือกรายการที่ต้องการอนุมัติ'); return; }
+// === Approve selected batch ===
+async function approveAllType(type) {
+    const cbClass = type === 'org' ? 'pending-org-cb' : type === 'participant' ? 'pending-p-cb' : 'pending-rec-cb';
+    const ids = getCheckedIds(cbClass);
+    if (ids.length === 0) { alert('กรุณาเลือกรายการ'); return; }
     if (!confirm(`อนุมัติ ${ids.length} รายการ?`)) return;
 
     let success = 0;
     for (const id of ids) {
         try {
-            const res = await fetch(`/api/records/${id}/approve`, {
-                method: 'PATCH', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({approved_by: 'สาขา Admin'})
-            });
+            const body = type === 'record' ? JSON.stringify({approved_by: 'สาขา Admin'}) : '{}';
+            const res = await fetch(API_MAP[type].approve(id), { method: 'PATCH', headers: {'Content-Type': 'application/json'}, body });
             if (res.ok) success++;
-        } catch (e) { console.error(`approve ${id} error:`, e); }
+        } catch (e) { console.error(`approve ${type} ${id} error:`, e); }
     }
-    alert(`อนุมัติสำเร็จ ${success}/${ids.length} รายการ`);
+    alert(`อนุมัติสำเร็จ ${success}/${ids.length}`);
+    refreshPending();
+}
+
+function refreshPending() {
+    loadPendingOrgs();
+    loadPendingParticipants();
     loadPending();
 }
 
-async function approve(id) {
-    await fetch(`/api/records/${id}/approve`, {
-        method: 'PATCH', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({approved_by: 'สาขา Admin'})
-    });
-    loadPending();
-}
-
-async function reject(id) {
-    const reason = prompt('เหตุผลที่ปฏิเสธ:');
-    if (!reason) return;
-    await fetch(`/api/records/${id}/reject`, {
-        method: 'PATCH', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({reason})
-    });
-    loadPending();
-}
+// approve/reject ใช้ approveOne/rejectOne แทน
 
 async function loadOrganizations() {
     try {
@@ -337,6 +392,8 @@ async function initAdmin() {
         document.getElementById('section-branches').style.display = 'none';
         document.getElementById('org-section-title').textContent = `องค์กรในสาขา ${contextBranch}`;
 
+        loadPendingOrgs();
+        loadPendingParticipants();
         loadPending();
         loadOrganizations();
         loadParticipants();
@@ -345,6 +402,8 @@ async function initAdmin() {
     } else {
         // Admin กลาง — แสดงสรุป ไม่โหลดข้อมูลหนัก
         document.getElementById('admin-title').textContent = 'Admin กลาง';
+        loadPendingOrgs();
+        loadPendingParticipants();
         loadBranchTable();
         loadOrganizations();
 

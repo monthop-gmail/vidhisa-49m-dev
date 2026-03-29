@@ -22,23 +22,48 @@
     </section>
 
     <section>
-        <h2>รายการรออนุมัติ <span id="pending-count" style="font-size:0.85rem; color:#666; font-weight:normal;"></span></h2>
-        <div style="margin-bottom:0.5rem; display:flex; gap:0.5rem; align-items:center;">
-            <button class="btn-approve" onclick="approveAll()" id="btn-approve-all" style="display:none;">อนุมัติทั้งหมด</button>
-            <label style="font-weight:normal; font-size:0.9rem;" id="label-select-all" style="display:none;">
-                <input type="checkbox" id="select-all-pending" onchange="toggleSelectAll(this)"> เลือกทั้งหมด
-            </label>
-        </div>
+        <h2>องค์กรรออนุมัติ <span id="pending-org-count" style="font-size:0.85rem; color:#666; font-weight:normal;"></span></h2>
+        <table id="pending-org-table">
+            <thead>
+                <tr>
+                    <th><input type="checkbox" onchange="toggleCb(this, 'pending-org-cb')"></th>
+                    <th>รหัส</th><th>ชื่อ</th><th>ประเภท</th><th>สาขา</th><th>จัดการ</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <p id="pending-org-empty" style="display:none; color:#999;">ไม่มีองค์กรรออนุมัติ</p>
+        <button class="btn-approve" onclick="approveAllType('org')" id="btn-approve-org" style="display:none; margin-top:0.3rem;">อนุมัติองค์กรที่เลือก</button>
+    </section>
+
+    <section>
+        <h2>ผู้เข้าร่วมรออนุมัติ <span id="pending-p-count" style="font-size:0.85rem; color:#666; font-weight:normal;"></span></h2>
+        <table id="pending-p-table">
+            <thead>
+                <tr>
+                    <th><input type="checkbox" onchange="toggleCb(this, 'pending-p-cb')"></th>
+                    <th>ID</th><th>ชื่อ</th><th>นามสกุล</th><th>สาขา</th><th>จัดการ</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <p id="pending-p-empty" style="display:none; color:#999;">ไม่มีผู้เข้าร่วมรออนุมัติ</p>
+        <button class="btn-approve" onclick="approveAllType('participant')" id="btn-approve-p" style="display:none; margin-top:0.3rem;">อนุมัติผู้เข้าร่วมที่เลือก</button>
+    </section>
+
+    <section>
+        <h2>บันทึกรออนุมัติ <span id="pending-count" style="font-size:0.85rem; color:#666; font-weight:normal;"></span></h2>
         <table id="pending-table">
             <thead>
                 <tr>
-                    <th><input type="checkbox" id="select-all-header" onchange="toggleSelectAll(this)"></th>
+                    <th><input type="checkbox" onchange="toggleCb(this, 'pending-rec-cb')"></th>
                     <th>ID</th><th>ประเภท</th><th>ชื่อ</th><th>นาที</th><th>วันที่</th><th>Flags</th><th>จัดการ</th>
                 </tr>
             </thead>
             <tbody></tbody>
         </table>
-        <p id="pending-empty" style="display:none">ไม่มีรายการรออนุมัติ</p>
+        <p id="pending-empty" style="display:none">ไม่มีบันทึกรออนุมัติ</p>
+        <button class="btn-approve" onclick="approveAllType('record')" id="btn-approve-all" style="display:none; margin-top:0.3rem;">อนุมัติบันทึกที่เลือก</button>
     </section>
 
     <section id="section-branches">
