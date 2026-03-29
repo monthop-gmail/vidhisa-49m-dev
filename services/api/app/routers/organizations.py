@@ -44,17 +44,12 @@ EXPORT_FIELDS = [
 ]
 
 
-@router.get("/organizations", response_model=list[OrganizationListItem])
+@router.get("/organizations")
 async def list_organizations(db: AsyncSession = Depends(get_db)):
     """List all organizations with their statistics."""
     stmt = (
         select(
-            Organization.id, Organization.name, Organization.org_type,
-            Organization.branch_id, Organization.sub_district, Organization.district,
-            Organization.province, Organization.email, Organization.max_participants,
-            Organization.enrolled_date, Organization.enrolled_until,
-            Organization.latitude, Organization.longitude, Organization.contact,
-            Organization.status,
+            Organization,
             func.coalesce(func.sum(Record.minutes), 0).label("total_minutes"),
             func.count(Record.id).label("total_records"),
         )
@@ -62,27 +57,22 @@ async def list_organizations(db: AsyncSession = Depends(get_db)):
             Record,
             (Record.org_id == Organization.id) & (Record.status == "approved"),
         )
-        .group_by(
-            Organization.id, Organization.name, Organization.org_type,
-            Organization.branch_id, Organization.sub_district, Organization.district,
-            Organization.province, Organization.email, Organization.max_participants,
-            Organization.enrolled_date, Organization.enrolled_until,
-            Organization.latitude, Organization.longitude, Organization.contact,
-            Organization.status,
-        )
+        .group_by(Organization.id)
         .order_by(Organization.name)
     )
 
     result = await db.execute(stmt)
     return [
         {
-            "id": r.id, "name": r.name, "org_type": r.org_type,
-            "branch_id": r.branch_id, "sub_district": r.sub_district,
-            "district": r.district, "province": r.province,
-            "email": r.email, "max_participants": r.max_participants,
-            "enrolled_date": r.enrolled_date, "enrolled_until": r.enrolled_until,
-            "latitude": r.latitude, "longitude": r.longitude,
-            "contact": r.contact, "status": r.status,
+            "id": r.Organization.id, "name": r.Organization.name,
+            "org_type": r.Organization.org_type, "branch_id": r.Organization.branch_id,
+            "sub_district": r.Organization.sub_district, "district": r.Organization.district,
+            "province": r.Organization.province, "email": r.Organization.email,
+            "max_participants": r.Organization.max_participants,
+            "enrolled_date": r.Organization.enrolled_date,
+            "enrolled_until": r.Organization.enrolled_until,
+            "latitude": r.Organization.latitude, "longitude": r.Organization.longitude,
+            "contact": r.Organization.contact, "status": r.Organization.status,
             "total_minutes": r.total_minutes, "total_records": r.total_records,
         }
         for r in result.all()
@@ -242,7 +232,7 @@ async def get_organization(org_id: str, db: AsyncSession = Depends(get_db)):
         "contact_line_id": org.contact_line_id,
         "enrolled_date": org.enrolled_date, "enrolled_until": org.enrolled_until,
         "latitude": org.latitude, "longitude": org.longitude,
-        "contact": org.contact,
+        "contact": org.contact, "status": org.status,
         "total_minutes": stats[0], "total_records": stats[1],
     }
 
