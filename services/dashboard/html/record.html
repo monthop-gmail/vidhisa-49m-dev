@@ -124,7 +124,6 @@
 <script src="/js/branch-context.js"></script>
 <script>
 const API = '/api';
-let allOrgs = [];
 
 function switchTab(tab) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -176,15 +175,18 @@ async function loadOrgs() {
     sel.innerHTML = '<option value="">-- เลือก --</option>';
     if (!branchId) return;
 
-    if (!allOrgs.length) {
-        const res = await fetch(API + '/organizations');
-        allOrgs = await res.json();
-    }
-    const filtered = allOrgs.filter(o => o.branch_id === branchId && o.id !== 'ORG-PLJ');
+    // ดึงใหม่ทุกครั้ง filter จาก API ตาม branch_id
+    const res = await fetch(API + '/organizations');
+    const orgs = await res.json();
+    const filtered = orgs.filter(o => o.branch_id === branchId);
+    // ลบซ้ำ (เผื่อ PLJ + external อยู่สาขาเดียวกัน)
+    const seen = new Set();
     filtered.forEach(o => {
+        if (seen.has(o.id)) return;
+        seen.add(o.id);
         const opt = document.createElement('option');
         opt.value = o.id;
-        opt.textContent = `${o.id} — ${o.name}`;
+        opt.textContent = `${o.name}`;
         sel.appendChild(opt);
     });
 }
@@ -197,7 +199,11 @@ async function loadParticipants() {
 
     const res = await fetch(API + '/participants?branch_id=' + branchId);
     const list = await res.json();
+    // ลบซ้ำตาม id
+    const seen = new Set();
     list.forEach(p => {
+        if (seen.has(p.id)) return;
+        seen.add(p.id);
         const opt = document.createElement('option');
         opt.value = p.id;
         opt.textContent = `${p.prefix || ''}${p.first_name} ${p.last_name}`;
