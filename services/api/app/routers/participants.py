@@ -142,7 +142,26 @@ async def get_participant(participant_id: int, db: AsyncSession = Depends(get_db
 
 @router.post("/participants", status_code=201)
 async def create_participant(data: ParticipantCreate, db: AsyncSession = Depends(get_db)):
-    """Register a new individual participant."""
+    """Register a new individual participant. 1 คน = 1 สาขา (ชื่อ+นามสกุลซ้ำไม่ได้)."""
+    # Check duplicate: ชื่อ+นามสกุลเดียวกัน ไม่ว่าสาขาไหน
+    dup_stmt = select(Participant).where(
+        Participant.first_name == data.first_name,
+        Participant.last_name == data.last_name,
+    )
+    dup_result = await db.execute(dup_stmt)
+    existing = dup_result.scalar_one_or_none()
+    if existing:
+        if existing.branch_id == data.branch_id:
+            raise HTTPException(status_code=409, detail={
+                "error": "DUPLICATE",
+                "message": f"'{data.first_name} {data.last_name}' ลงทะเบียนในสาขา {data.branch_id} แล้ว",
+            })
+        else:
+            raise HTTPException(status_code=409, detail={
+                "error": "ALREADY_REGISTERED",
+                "message": f"'{data.first_name} {data.last_name}' ลงทะเบียนในสาขา {existing.branch_id} แล้ว (1 คน 1 สาขา) — ใช้ API ย้ายสาขาแทน",
+            })
+
     p = Participant(
         branch_id=data.branch_id,
         prefix=data.prefix,
@@ -187,3 +206,32 @@ async def update_participant(participant_id: int, data: ParticipantCreate, db: A
     p.privacy_accepted = data.privacy_accepted
     await db.commit()
     return {"id": p.id, "name": f"{p.first_name} {p.last_name}", "message": "อัพเดทสำเร็จ"}
+
+
+@router.patch("/participants/{participant_id}/transfer")
+async def transfer_participant(participant_id: int, data: dict, db: AsyncSession = Depends(get_db)):
+    """Transfer participant to a different branch."""
+    new_branch = (data.get("branch_id") or "").strip()
+    if not new_branch:
+        raise HTTPException(status_code=400, detail={"error": "MISSING_BRANCH", "message": "กรุณาระบุ branch_id ใหม่"})
+
+    # Check branch exists
+    branch_check = await db.execute(select(Branch).where(Branch.id == new_branch))
+    if not branch_check.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail={"error": "BRANCH_NOT_FOUND", "message": f"ไม่พบสาขา '{new_branch}'"})
+
+    result = await db.execute(select(Participant).where(Participant.id == participant_id))
+    p = result.scalar_one_or_none()
+    if not p:
+        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบผู้เข้าร่วม"})
+
+    old_branch = p.branch_id
+    p.branch_id = new_branch
+    await db.commit()
+    return {
+        "id": p.id,
+        "name": f"{p.first_name} {p.last_name}",
+        "old_branch": old_branch,
+        "new_branch": new_branch,
+        "message": f"ย้ายจากสาขา {old_branch} → {new_branch} สำเร็จ",
+    }
