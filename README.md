@@ -64,14 +64,16 @@ python3 -m pytest tests/ -v
 | `test_projection.py`    | 2     | ค่าคาดการณ์ + สูตรคำนวณ                        |
 | `test_leaderboard.py`   | 2     | branch ranking, org ranking                    |
 | `test_feed.py`          | 2     | feed + default limit                           |
-| `test_records.py`       | 11    | CRUD, anti-fraud 5 กรณี, approve/reject, 404   |
+| `test_records.py`       | 15    | CRUD, anti-fraud, approve/reject, 404, registration check |
 | `test_branch.py`        | 2     | pending list, empty branch                     |
 | `test_organizations.py` | 16    | CRUD, import/export CSV, duplicate, markers    |
 | `test_branches.py`      | 14    | CRUD, import/export CSV, duplicate, stats      |
 | `test_sse.py`           | 6     | pub/sub events, subscribe/unsubscribe          |
 | `test_markers.py`       | 2     | map markers (branch + org)                     |
-| `test_participants.py`  | 14    | CRUD, import/export CSV, filter branch         |
+| `test_participants.py`  | 17    | CRUD, import/export CSV, filter, duplicate, transfer |
 | `test_records_extended.py` | 15 | list+filter, export, import, upsert, 9 fields  |
+| `test_admin_flow.py`   | 12    | approve flow: org/participant/record pending→approved→record |
+| `test_edge_cases.py`   | 13    | transfer, pagination, re-approve, upsert+approved, GGS |
 
 ## Production Deployment
 
