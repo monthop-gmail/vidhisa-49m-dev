@@ -347,6 +347,7 @@ class ParticipantResponse(BaseModel):
     line_id: str | None
     enrolled_date: date | None
     privacy_accepted: bool
+    status: str = "pending"
 
     model_config = {"from_attributes": True}
 

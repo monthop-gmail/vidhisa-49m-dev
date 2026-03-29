@@ -75,10 +75,11 @@ class Organization(Base):
     latitude = Column(Float)
     longitude = Column(Float)
     contact = Column(String(200))
+    status = Column(String(20), nullable=False, default="pending")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self) -> str:
-        return f"<Organization(id='{self.id}', name='{self.name}')>"
+        return f"<Organization(id='{self.id}', name='{self.name}', status='{self.status}')>"
 
 
 class Participant(Base):
@@ -100,10 +101,11 @@ class Participant(Base):
     line_id = Column(String(100))
     enrolled_date = Column(Date)
     privacy_accepted = Column(Boolean, default=False)
+    status = Column(String(20), nullable=False, default="pending")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self) -> str:
-        return f"<Participant(id={self.id}, name='{self.first_name} {self.last_name}')>"
+        return f"<Participant(id={self.id}, name='{self.first_name} {self.last_name}', status='{self.status}')>"
 
 
 class Record(Base):

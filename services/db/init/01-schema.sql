@@ -46,6 +46,8 @@ CREATE TABLE organizations (
     latitude            DOUBLE PRECISION,
     longitude           DOUBLE PRECISION,
     contact             VARCHAR(200),
+    status              VARCHAR(20) NOT NULL DEFAULT 'pending'
+                        CHECK (status IN ('pending', 'approved', 'rejected')),
     created_at          TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -64,6 +66,8 @@ CREATE TABLE participants (
     line_id             VARCHAR(100),
     enrolled_date       DATE,
     privacy_accepted    BOOLEAN DEFAULT FALSE,
+    status              VARCHAR(20) NOT NULL DEFAULT 'pending'
+                        CHECK (status IN ('pending', 'approved', 'rejected')),
     created_at          TIMESTAMPTZ DEFAULT NOW()
 );
 

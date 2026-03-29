@@ -318,3 +318,27 @@ async def update_organization(
     org.contact = data.contact
     await db.commit()
     return {"id": org.id, "name": org.name, "message": "อัพเดทองค์กรสำเร็จ"}
+
+
+@router.patch("/organizations/{org_id}/approve")
+async def approve_organization(org_id: str, db: AsyncSession = Depends(get_db)):
+    """Approve a pending organization."""
+    result = await db.execute(select(Organization).where(Organization.id == org_id))
+    org = result.scalar_one_or_none()
+    if not org:
+        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบองค์กร"})
+    org.status = "approved"
+    await db.commit()
+    return {"id": org.id, "status": "approved"}
+
+
+@router.patch("/organizations/{org_id}/reject")
+async def reject_organization(org_id: str, db: AsyncSession = Depends(get_db)):
+    """Reject a pending organization."""
+    result = await db.execute(select(Organization).where(Organization.id == org_id))
+    org = result.scalar_one_or_none()
+    if not org:
+        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบองค์กร"})
+    org.status = "rejected"
+    await db.commit()
+    return {"id": org.id, "status": "rejected"}

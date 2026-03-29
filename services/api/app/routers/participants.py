@@ -235,3 +235,27 @@ async def transfer_participant(participant_id: int, data: dict, db: AsyncSession
         "new_branch": new_branch,
         "message": f"ย้ายจากสาขา {old_branch} → {new_branch} สำเร็จ",
     }
+
+
+@router.patch("/participants/{participant_id}/approve")
+async def approve_participant(participant_id: int, db: AsyncSession = Depends(get_db)):
+    """Approve a pending participant."""
+    result = await db.execute(select(Participant).where(Participant.id == participant_id))
+    p = result.scalar_one_or_none()
+    if not p:
+        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบผู้เข้าร่วม"})
+    p.status = "approved"
+    await db.commit()
+    return {"id": p.id, "status": "approved"}
+
+
+@router.patch("/participants/{participant_id}/reject")
+async def reject_participant(participant_id: int, db: AsyncSession = Depends(get_db)):
+    """Reject a pending participant."""
+    result = await db.execute(select(Participant).where(Participant.id == participant_id))
+    p = result.scalar_one_or_none()
+    if not p:
+        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบผู้เข้าร่วม"})
+    p.status = "rejected"
+    await db.commit()
+    return {"id": p.id, "status": "rejected"}
