@@ -121,7 +121,7 @@ def test_import_csv_create(client):
 
 
 def test_import_csv_update(client):
-    csv_content = "id,name,org_type,branch_id,province,latitude,longitude,contact\nORG-PLJ,สถาบันพลังจิตตานุภาพ (ทดสอบ),สถาบันพลังจิตตานุภาพ,B001,,,,\n"
+    csv_content = "id,name,org_type,branch_id,province,latitude,longitude,contact\nPLJ-B001,สถาบันพลังจิตตานุภาพ (ทดสอบ),สถาบันพลังจิตตานุภาพ,B001,,,,\n"
     r = client.post("/api/organizations/import", files={"file": ("orgs.csv", csv_content, "text/csv")})
     assert r.status_code == 200
     data = r.json()
