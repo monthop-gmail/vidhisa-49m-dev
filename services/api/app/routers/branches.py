@@ -59,7 +59,7 @@ async def list_branches(db: AsyncSession = Depends(get_db)):
             Branch.admin_name,
             Branch.contact,
         )
-        .order_by(Branch.name)
+        .order_by(Branch.id)
     )
 
     result = await db.execute(stmt)
