@@ -24,12 +24,15 @@ EXPORT_FIELDS = [
 @router.get("/participants", response_model=list[ParticipantResponse])
 async def list_participants(
     branch_id: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
     db: AsyncSession = Depends(get_db),
 ):
-    """List participants, optionally filtered by branch."""
+    """List participants, optionally filtered by branch, with pagination."""
     stmt = select(Participant).order_by(Participant.first_name)
     if branch_id:
         stmt = stmt.where(Participant.branch_id == branch_id)
+    stmt = stmt.limit(limit).offset(offset)
     result = await db.execute(stmt)
     return result.scalars().all()
 

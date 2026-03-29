@@ -1,9 +1,11 @@
 const FMT = new Intl.NumberFormat('th-TH');
-let branchMode = false; // true = admin สาขา, false = admin กลาง
+const PAGE_SIZE = 50;
+let branchMode = false;
 
-async function loadBranches() {
-    // kept for branch table
-}
+// Pagination state
+let participantOffset = 0;
+let bulkRecordOffset = 0;
+let indRecordOffset = 0;
 
 async function loadPending() {
     const branchId = branchMode ? getBranchContext() : document.getElementById('branch-select').value;
@@ -16,37 +18,23 @@ async function loadPending() {
         const empty = document.getElementById('pending-empty');
         tbody.innerHTML = '';
 
-        if (data.length === 0) {
-            empty.style.display = 'block';
-            return;
-        }
+        if (data.length === 0) { empty.style.display = 'block'; return; }
         empty.style.display = 'none';
 
         data.forEach(r => {
             const flags = (r.flags || []).map(f => `<span class="flag-badge">${f}</span>`).join(' ');
-            tbody.innerHTML += `
-                <tr>
-                    <td>${r.id}</td>
-                    <td>${r.type}</td>
-                    <td>${r.name}</td>
-                    <td>${r.minutes}</td>
-                    <td>${r.date}</td>
-                    <td>${flags}</td>
-                    <td>
-                        <button class="btn-approve" onclick="approve(${r.id})">อนุมัติ</button>
-                        <button class="btn-reject" onclick="reject(${r.id})">ปฏิเสธ</button>
-                    </td>
-                </tr>`;
+            tbody.innerHTML += `<tr>
+                <td>${r.id}</td><td>${r.type}</td><td>${r.name}</td><td>${r.minutes}</td>
+                <td>${r.date}</td><td>${flags}</td>
+                <td><button class="btn-approve" onclick="approve(${r.id})">อนุมัติ</button>
+                <button class="btn-reject" onclick="reject(${r.id})">ปฏิเสธ</button></td></tr>`;
         });
-    } catch (e) {
-        console.error('pending error:', e);
-    }
+    } catch (e) { console.error('pending error:', e); }
 }
 
 async function approve(id) {
     await fetch(`/api/records/${id}/approve`, {
-        method: 'PATCH',
-        headers: {'Content-Type': 'application/json'},
+        method: 'PATCH', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({approved_by: 'สาขา Admin'})
     });
     loadPending();
@@ -56,8 +44,7 @@ async function reject(id) {
     const reason = prompt('เหตุผลที่ปฏิเสธ:');
     if (!reason) return;
     await fetch(`/api/records/${id}/reject`, {
-        method: 'PATCH',
-        headers: {'Content-Type': 'application/json'},
+        method: 'PATCH', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({reason})
     });
     loadPending();
@@ -68,28 +55,18 @@ async function loadOrganizations() {
         const res = await fetch('/api/organizations');
         let data = await res.json();
         if (branchMode) {
-            const bid = getBranchContext();
-            data = data.filter(o => o.branch_id === bid);
+            data = data.filter(o => o.branch_id === getBranchContext());
         }
         const tbody = document.querySelector('#org-table tbody');
         tbody.innerHTML = '';
         data.forEach(o => {
-            tbody.innerHTML += `
-                <tr>
-                    <td>${o.id}</td>
-                    <td>${o.name}</td>
-                    <td>${o.org_type || '-'}</td>
-                    <td>${o.province || '-'}</td>
-                    <td>${o.branch_id || '-'}</td>
-                    <td>${FMT.format(o.total_minutes)}</td>
-                    <td>${FMT.format(o.total_records)}</td>
-                </tr>`;
+            tbody.innerHTML += `<tr>
+                <td>${o.id}</td><td>${o.name}</td><td>${o.org_type || '-'}</td>
+                <td>${o.province || '-'}</td><td>${o.branch_id || '-'}</td>
+                <td>${FMT.format(o.total_minutes)}</td><td>${FMT.format(o.total_records)}</td></tr>`;
         });
-    } catch (e) {
-        console.error('org error:', e);
-    }
+    } catch (e) { console.error('org error:', e); }
 }
-
 
 async function loadBranchTable() {
     try {
@@ -98,138 +75,199 @@ async function loadBranchTable() {
         const tbody = document.querySelector('#branch-table tbody');
         tbody.innerHTML = '';
         data.forEach(b => {
-            tbody.innerHTML += `
-                <tr>
-                    <td>${b.id}</td>
-                    <td>${b.name}</td>
-                    <td>${b.group_id || '-'}</td>
-                    <td>${b.province}</td>
-                    <td>${b.admin_name || '-'}</td>
-                    <td>${FMT.format(b.total_minutes)}</td>
-                    <td>${FMT.format(b.total_records)}</td>
-                </tr>`;
+            tbody.innerHTML += `<tr>
+                <td>${b.id}</td><td>${b.name}</td><td>${b.group_id || '-'}</td>
+                <td>${b.province}</td><td>${b.admin_name || '-'}</td>
+                <td>${FMT.format(b.total_minutes)}</td><td>${FMT.format(b.total_records)}</td></tr>`;
         });
-    } catch (e) {
-        console.error('branch table error:', e);
-    }
+    } catch (e) { console.error('branch table error:', e); }
 }
 
-async function importBranches(input) {
-    const file = input.files[0];
-    if (!file) return;
-
-    const status = document.getElementById('import-branch-status');
-    status.textContent = 'กำลังนำเข้า...';
-    status.style.color = '#666';
-
+async function loadParticipants(append) {
     try {
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await fetch('/api/branches/import', {
-            method: 'POST',
-            body: formData,
-        });
-        const data = await res.json();
-        if (res.ok) {
-            status.textContent = data.message;
-            status.style.color = '#43a047';
-            if (data.errors.length > 0) {
-                status.textContent += ' | ' + data.errors.join(', ');
-                status.style.color = '#e65100';
-            }
-            loadBranchTable();
-        } else {
-            status.textContent = data.detail?.message || 'เกิดข้อผิดพลาด';
-            status.style.color = '#e53935';
-        }
-    } catch (e) {
-        console.error('import branches error:', e);
-        status.textContent = 'เกิดข้อผิดพลาด';
-        status.style.color = '#e53935';
-    }
-    input.value = '';
-}
-
-async function importOrgs(input) {
-    const file = input.files[0];
-    if (!file) return;
-
-    const status = document.getElementById('import-status');
-    status.textContent = 'กำลังนำเข้า...';
-    status.style.color = '#666';
-
-    try {
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await fetch('/api/organizations/import', {
-            method: 'POST',
-            body: formData,
-        });
-        const data = await res.json();
-        if (res.ok) {
-            status.textContent = data.message;
-            status.style.color = '#43a047';
-            if (data.errors.length > 0) {
-                status.textContent += ' | ' + data.errors.join(', ');
-                status.style.color = '#e65100';
-            }
-            loadOrganizations();
-        } else {
-            status.textContent = data.detail?.message || 'เกิดข้อผิดพลาด';
-            status.style.color = '#e53935';
-        }
-    } catch (e) {
-        console.error('import error:', e);
-        status.textContent = 'เกิดข้อผิดพลาด';
-        status.style.color = '#e53935';
-    }
-    input.value = '';
-}
-
-async function loadParticipants() {
-    try {
+        if (!append) participantOffset = 0;
         const branchId = branchMode ? getBranchContext() : '';
-        const url = branchId ? `/api/participants?branch_id=${branchId}` : '/api/participants';
+        const url = branchId
+            ? `/api/participants?branch_id=${branchId}&limit=${PAGE_SIZE}&offset=${participantOffset}`
+            : `/api/participants?limit=${PAGE_SIZE}&offset=${participantOffset}`;
         const res = await fetch(url);
         const data = await res.json();
         const tbody = document.querySelector('#participant-table tbody');
         const empty = document.getElementById('participant-empty');
         const count = document.getElementById('participant-count');
-        tbody.innerHTML = '';
+        const moreBtn = document.getElementById('participant-more');
 
-        count.textContent = `(${data.length} คน)`;
+        if (!append) tbody.innerHTML = '';
+        count.textContent = '';
 
-        if (data.length === 0) {
+        if (data.length === 0 && participantOffset === 0) {
             empty.style.display = 'block';
+            if (moreBtn) moreBtn.style.display = 'none';
             return;
         }
         empty.style.display = 'none';
 
         data.forEach(p => {
-            tbody.innerHTML += `
-                <tr>
-                    <td>${p.id}</td>
-                    <td>${p.prefix || '-'}</td>
-                    <td>${p.first_name}</td>
-                    <td>${p.last_name}</td>
-                    <td>${p.gender || '-'}</td>
-                    <td>${p.age || '-'}</td>
-                    <td>${p.province || '-'}</td>
-                    <td>${p.branch_id}</td>
-                    <td>${p.enrolled_date || '-'}</td>
-                </tr>`;
+            tbody.innerHTML += `<tr>
+                <td>${p.id}</td><td>${p.prefix || '-'}</td><td>${p.first_name}</td>
+                <td>${p.last_name}</td><td>${p.gender || '-'}</td><td>${p.age || '-'}</td>
+                <td>${p.province || '-'}</td><td>${p.branch_id}</td><td>${p.enrolled_date || '-'}</td></tr>`;
         });
-    } catch (e) {
-        console.error('participants error:', e);
-    }
+
+        participantOffset += data.length;
+        if (moreBtn) moreBtn.style.display = data.length >= PAGE_SIZE ? 'inline-block' : 'none';
+    } catch (e) { console.error('participants error:', e); }
 }
 
+async function loadBulkRecords(append) {
+    try {
+        if (!append) bulkRecordOffset = 0;
+        const bid = branchMode ? getBranchContext() : '';
+        const url = bid
+            ? `/api/records?record_type=bulk&branch_id=${bid}&limit=${PAGE_SIZE}&offset=${bulkRecordOffset}`
+            : `/api/records?record_type=bulk&limit=${PAGE_SIZE}&offset=${bulkRecordOffset}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const tbody = document.querySelector('#bulk-record-table tbody');
+        const empty = document.getElementById('bulk-record-empty');
+        const count = document.getElementById('bulk-record-count');
+        const moreBtn = document.getElementById('bulk-record-more');
+
+        if (!append) tbody.innerHTML = '';
+        count.textContent = '';
+
+        if (data.length === 0 && bulkRecordOffset === 0) { empty.style.display = 'block'; if (moreBtn) moreBtn.style.display = 'none'; return; }
+        empty.style.display = 'none';
+
+        data.forEach(r => {
+            const ms = (r.morning_male||0)+(r.morning_female||0)+(r.morning_unspecified||0);
+            const as = (r.afternoon_male||0)+(r.afternoon_female||0)+(r.afternoon_unspecified||0);
+            const es = (r.evening_male||0)+(r.evening_female||0)+(r.evening_unspecified||0);
+            tbody.innerHTML += `<tr>
+                <td>${r.id}</td><td>${r.name}</td><td>${FMT.format(r.minutes)}</td>
+                <td>${ms || '-'}</td><td>${as || '-'}</td><td>${es || '-'}</td>
+                <td>${r.date}</td><td>${r.status}</td></tr>`;
+        });
+
+        bulkRecordOffset += data.length;
+        if (moreBtn) moreBtn.style.display = data.length >= PAGE_SIZE ? 'inline-block' : 'none';
+    } catch (e) { console.error('bulk records error:', e); }
+}
+
+async function loadIndRecords(append) {
+    try {
+        if (!append) indRecordOffset = 0;
+        const bid = branchMode ? getBranchContext() : '';
+        const url = bid
+            ? `/api/records?record_type=individual&branch_id=${bid}&limit=${PAGE_SIZE}&offset=${indRecordOffset}`
+            : `/api/records?record_type=individual&limit=${PAGE_SIZE}&offset=${indRecordOffset}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const tbody = document.querySelector('#ind-record-table tbody');
+        const empty = document.getElementById('ind-record-empty');
+        const count = document.getElementById('ind-record-count');
+        const moreBtn = document.getElementById('ind-record-more');
+
+        if (!append) tbody.innerHTML = '';
+        count.textContent = '';
+
+        if (data.length === 0 && indRecordOffset === 0) { empty.style.display = 'block'; if (moreBtn) moreBtn.style.display = 'none'; return; }
+        empty.style.display = 'none';
+
+        data.forEach(r => {
+            const ms = (r.morning_male||0)+(r.morning_female||0)+(r.morning_unspecified||0);
+            const as = (r.afternoon_male||0)+(r.afternoon_female||0)+(r.afternoon_unspecified||0);
+            const es = (r.evening_male||0)+(r.evening_female||0)+(r.evening_unspecified||0);
+            tbody.innerHTML += `<tr>
+                <td>${r.id}</td><td>${r.name}</td><td>${FMT.format(r.minutes)}</td>
+                <td>${ms ? '✓' : ''}</td><td>${as ? '✓' : ''}</td><td>${es ? '✓' : ''}</td>
+                <td>${r.date}</td><td>${r.status}</td></tr>`;
+        });
+
+        indRecordOffset += data.length;
+        if (moreBtn) moreBtn.style.display = data.length >= PAGE_SIZE ? 'inline-block' : 'none';
+    } catch (e) { console.error('ind records error:', e); }
+}
+
+async function importBranches(input) {
+    const file = input.files[0]; if (!file) return;
+    const status = document.getElementById('import-branch-status');
+    status.textContent = 'กำลังนำเข้า...'; status.style.color = '#666';
+    try {
+        const fd = new FormData(); fd.append('file', file);
+        const res = await fetch('/api/branches/import', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (res.ok) { status.textContent = data.message; status.style.color = '#43a047'; loadBranchTable(); }
+        else { status.textContent = data.detail?.message || 'เกิดข้อผิดพลาด'; status.style.color = '#e53935'; }
+    } catch (e) { status.textContent = 'เกิดข้อผิดพลาด'; status.style.color = '#e53935'; }
+    input.value = '';
+}
+
+async function importOrgs(input) {
+    const file = input.files[0]; if (!file) return;
+    const status = document.getElementById('import-status');
+    status.textContent = 'กำลังนำเข้า...'; status.style.color = '#666';
+    try {
+        const fd = new FormData(); fd.append('file', file);
+        const res = await fetch('/api/organizations/import', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (res.ok) { status.textContent = data.message; status.style.color = '#43a047'; loadOrganizations(); }
+        else { status.textContent = data.detail?.message || 'เกิดข้อผิดพลาด'; status.style.color = '#e53935'; }
+    } catch (e) { status.textContent = 'เกิดข้อผิดพลาด'; status.style.color = '#e53935'; }
+    input.value = '';
+}
+
+async function importRecords(input, type) {
+    const file = input.files[0]; if (!file) return;
+    const statusId = type === 'bulk' ? 'import-bulk-status' : 'import-ind-status';
+    const status = document.getElementById(statusId);
+    status.textContent = 'กำลังนำเข้า...'; status.style.color = '#666';
+    try {
+        const fd = new FormData(); fd.append('file', file);
+        const res = await fetch('/api/records/import', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (res.ok) { status.textContent = data.message; status.style.color = '#43a047'; loadBulkRecords(); loadIndRecords(); }
+        else { status.textContent = data.detail?.message || 'เกิดข้อผิดพลาด'; status.style.color = '#e53935'; }
+    } catch (e) { status.textContent = 'เกิดข้อผิดพลาด'; status.style.color = '#e53935'; }
+    input.value = '';
+}
+
+async function importParticipants(input) {
+    const file = input.files[0]; if (!file) return;
+    const status = document.getElementById('import-participant-status');
+    status.textContent = 'กำลังนำเข้า...'; status.style.color = '#666';
+    try {
+        const fd = new FormData(); fd.append('file', file);
+        const res = await fetch('/api/participants/import', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (res.ok) { status.textContent = data.message; status.style.color = '#43a047'; loadParticipants(); }
+        else { status.textContent = data.detail?.message || 'เกิดข้อผิดพลาด'; status.style.color = '#e53935'; }
+    } catch (e) { status.textContent = 'เกิดข้อผิดพลาด'; status.style.color = '#e53935'; }
+    input.value = '';
+}
+
+function updateLinks() {
+    const bid = branchMode ? getBranchContext() : '';
+    const el = (id) => document.getElementById(id);
+
+    if (el('export-participant-link')) el('export-participant-link').href = bid ? `/api/participants/export?branch_id=${bid}` : '/api/participants/export';
+    if (el('add-org-link')) el('add-org-link').href = bid ? `/register.html?branch=${bid}` : '/register.html';
+    if (el('add-participant-link')) el('add-participant-link').href = bid ? `/register.html?branch=${bid}#individual` : '/register.html#individual';
+    if (el('add-bulk-link')) el('add-bulk-link').href = bid ? `/record.html?branch=${bid}` : '/record.html';
+    if (el('add-ind-link')) el('add-ind-link').href = bid ? `/record.html?branch=${bid}#ind` : '/record.html#ind';
+    if (el('export-bulk-link')) el('export-bulk-link').href = bid ? `/api/records/export?record_type=bulk&branch_id=${bid}` : '/api/records/export?record_type=bulk';
+    if (el('export-ind-link')) el('export-ind-link').href = bid ? `/api/records/export?record_type=individual&branch_id=${bid}` : '/api/records/export?record_type=individual';
+}
+
+function showSummaryMessage(sectionId, message) {
+    const tbody = document.querySelector(`#${sectionId} tbody`);
+    if (tbody) tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#999; padding:1rem;">${message}</td></tr>`;
+}
 
 // Detect branch mode
 const contextBranch = getBranchContext();
 branchMode = !!contextBranch;
 
-// Init branch selector (no auto-redirect on init)
 async function initAdmin() {
     const res = await fetch('/api/branches');
     const branches = await res.json();
@@ -241,193 +279,41 @@ async function initAdmin() {
         sel.appendChild(opt);
     });
 
-    // Set saved value without triggering change
     if (contextBranch && sel.querySelector(`option[value="${contextBranch}"]`)) {
         sel.value = contextBranch;
     }
 
-    // On change → navigate
     sel.addEventListener('change', () => {
         const bid = sel.value;
         setBranchContext(bid);
-        if (bid) {
-            window.location.href = `/admin.html?branch=${bid}`;
-        } else {
-            window.location.href = '/admin.html';
-        }
+        if (bid) window.location.href = `/admin.html?branch=${bid}`;
+        else window.location.href = '/admin.html';
     });
 
-    // Apply mode
     if (branchMode) {
+        // Admin สาขา — โหลดข้อมูลเฉพาะสาขา + pagination
         document.getElementById('admin-title').textContent = `Admin สาขา ${contextBranch}`;
         document.getElementById('section-branches').style.display = 'none';
         document.getElementById('org-section-title').textContent = `องค์กรในสาขา ${contextBranch}`;
-
-        const orgBranchSel = document.getElementById('org-branch');
-        if (orgBranchSel) {
-            orgBranchSel.innerHTML = `<option value="${contextBranch}" selected>${contextBranch}</option>`;
-            orgBranchSel.disabled = true;
-        }
 
         loadPending();
         loadOrganizations();
         loadParticipants();
         loadBulkRecords();
         loadIndRecords();
-        updateLinks();
     } else {
+        // Admin กลาง — แสดงสรุป ไม่โหลดข้อมูลหนัก
         document.getElementById('admin-title').textContent = 'Admin กลาง';
-        loadBranches();
         loadBranchTable();
         loadOrganizations();
-        loadParticipants();
-        loadBulkRecords();
-        loadIndRecords();
-        updateLinks();
+
+        // ไม่โหลด participants/records ทั้งหมด — แสดงข้อความแทน
+        showSummaryMessage('participant-table', 'เลือกสาขาด้านบนเพื่อดูรายชื่อ');
+        showSummaryMessage('bulk-record-table', 'เลือกสาขาด้านบนเพื่อดูบันทึก');
+        showSummaryMessage('ind-record-table', 'เลือกสาขาด้านบนเพื่อดูบันทึก');
     }
-}
 
-async function loadBulkRecords() {
-    try {
-        const bid = branchMode ? getBranchContext() : '';
-        const url = bid ? `/api/records?record_type=bulk&branch_id=${bid}` : '/api/records?record_type=bulk';
-        const res = await fetch(url);
-        const data = await res.json();
-        const tbody = document.querySelector('#bulk-record-table tbody');
-        const empty = document.getElementById('bulk-record-empty');
-        const count = document.getElementById('bulk-record-count');
-        tbody.innerHTML = '';
-        count.textContent = `(${data.length} รายการ)`;
-        if (data.length === 0) { empty.style.display = 'block'; return; }
-        empty.style.display = 'none';
-        data.forEach(r => {
-            const ms = (r.morning_male||0)+(r.morning_female||0)+(r.morning_unspecified||0);
-            const as = (r.afternoon_male||0)+(r.afternoon_female||0)+(r.afternoon_unspecified||0);
-            const es = (r.evening_male||0)+(r.evening_female||0)+(r.evening_unspecified||0);
-            tbody.innerHTML += `<tr>
-                <td>${r.id}</td><td>${r.name}</td><td>${FMT.format(r.minutes)}</td>
-                <td>${ms || '-'}</td><td>${as || '-'}</td><td>${es || '-'}</td>
-                <td>${r.date}</td><td>${r.status}</td></tr>`;
-        });
-    } catch (e) { console.error('bulk records error:', e); }
-}
-
-async function loadIndRecords() {
-    try {
-        const bid = branchMode ? getBranchContext() : '';
-        const url = bid ? `/api/records?record_type=individual&branch_id=${bid}` : '/api/records?record_type=individual';
-        const res = await fetch(url);
-        const data = await res.json();
-        const tbody = document.querySelector('#ind-record-table tbody');
-        const empty = document.getElementById('ind-record-empty');
-        const count = document.getElementById('ind-record-count');
-        tbody.innerHTML = '';
-        count.textContent = `(${data.length} รายการ)`;
-        if (data.length === 0) { empty.style.display = 'block'; return; }
-        empty.style.display = 'none';
-        data.forEach(r => {
-            const ms = (r.morning_male||0)+(r.morning_female||0)+(r.morning_unspecified||0);
-            const as = (r.afternoon_male||0)+(r.afternoon_female||0)+(r.afternoon_unspecified||0);
-            const es = (r.evening_male||0)+(r.evening_female||0)+(r.evening_unspecified||0);
-            tbody.innerHTML += `<tr>
-                <td>${r.id}</td><td>${r.name}</td><td>${FMT.format(r.minutes)}</td>
-                <td>${ms ? '✓' : ''}</td><td>${as ? '✓' : ''}</td><td>${es ? '✓' : ''}</td>
-                <td>${r.date}</td><td>${r.status}</td></tr>`;
-        });
-    } catch (e) { console.error('ind records error:', e); }
-}
-
-async function importRecords(input, type) {
-    const file = input.files[0];
-    if (!file) return;
-
-    const statusId = type === 'bulk' ? 'import-bulk-status' : 'import-ind-status';
-    const status = document.getElementById(statusId);
-    status.textContent = 'กำลังนำเข้า...';
-    status.style.color = '#666';
-
-    try {
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await fetch('/api/records/import', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (res.ok) {
-            status.textContent = data.message;
-            status.style.color = '#43a047';
-            if (data.errors && data.errors.length > 0) {
-                status.textContent += ' | ' + data.errors.slice(0, 3).join(', ');
-                status.style.color = '#e65100';
-            }
-            loadBulkRecords();
-            loadIndRecords();
-        } else {
-            status.textContent = data.detail?.message || 'เกิดข้อผิดพลาด';
-            status.style.color = '#e53935';
-        }
-    } catch (e) {
-        console.error('import records error:', e);
-        status.textContent = 'เกิดข้อผิดพลาด';
-        status.style.color = '#e53935';
-    }
-    input.value = '';
-}
-
-async function importParticipants(input) {
-    const file = input.files[0];
-    if (!file) return;
-
-    const status = document.getElementById('import-participant-status');
-    status.textContent = 'กำลังนำเข้า...';
-    status.style.color = '#666';
-
-    try {
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await fetch('/api/participants/import', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (res.ok) {
-            status.textContent = data.message;
-            status.style.color = '#43a047';
-            if (data.errors.length > 0) {
-                status.textContent += ' | ' + data.errors.join(', ');
-                status.style.color = '#e65100';
-            }
-            loadParticipants();
-        } else {
-            status.textContent = data.detail?.message || 'เกิดข้อผิดพลาด';
-            status.style.color = '#e53935';
-        }
-    } catch (e) {
-        console.error('import participants error:', e);
-        status.textContent = 'เกิดข้อผิดพลาด';
-        status.style.color = '#e53935';
-    }
-    input.value = '';
-}
-
-function updateLinks() {
-    const bid = branchMode ? getBranchContext() : '';
-
-    const exportLink = document.getElementById('export-participant-link');
-    if (exportLink) exportLink.href = bid ? `/api/participants/export?branch_id=${bid}` : '/api/participants/export';
-
-    const addOrgLink = document.getElementById('add-org-link');
-    if (addOrgLink) addOrgLink.href = bid ? `/register.html?branch=${bid}` : '/register.html';
-
-    const addPLink = document.getElementById('add-participant-link');
-    if (addPLink) addPLink.href = bid ? `/register.html?branch=${bid}#individual` : '/register.html#individual';
-
-    const addBulkLink = document.getElementById('add-bulk-link');
-    if (addBulkLink) addBulkLink.href = bid ? `/record.html?branch=${bid}` : '/record.html';
-
-    const addIndLink = document.getElementById('add-ind-link');
-    if (addIndLink) addIndLink.href = bid ? `/record.html?branch=${bid}#ind` : '/record.html#ind';
-
-    const exportBulk = document.getElementById('export-bulk-link');
-    if (exportBulk) exportBulk.href = bid ? `/api/records/export?record_type=bulk&branch_id=${bid}` : '/api/records/export?record_type=bulk';
-
-    const exportInd = document.getElementById('export-ind-link');
-    if (exportInd) exportInd.href = bid ? `/api/records/export?record_type=individual&branch_id=${bid}` : '/api/records/export?record_type=individual';
+    updateLinks();
 }
 
 initAdmin();

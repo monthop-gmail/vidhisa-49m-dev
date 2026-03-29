@@ -46,9 +46,11 @@ async def list_records(
     branch_id: str | None = None,
     record_type: str | None = None,
     status: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
     db: AsyncSession = Depends(get_db),
 ):
-    """List records with optional filters."""
+    """List records with optional filters and pagination."""
     stmt = select(Record).order_by(Record.date.desc(), Record.id.desc())
     if branch_id:
         stmt = stmt.where(Record.branch_id == branch_id)
@@ -56,6 +58,7 @@ async def list_records(
         stmt = stmt.where(Record.type == record_type)
     if status:
         stmt = stmt.where(Record.status == status)
+    stmt = stmt.limit(limit).offset(offset)
     result = await db.execute(stmt)
     records = result.scalars().all()
     return [
