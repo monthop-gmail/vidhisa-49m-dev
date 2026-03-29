@@ -47,7 +47,7 @@ services/
     app/anti_fraud.py        # Validation rules
     app/routers/             # Endpoint ทั้งหมด
     tests/                   # Integration test (94 cases, ทดสอบกับ DB จริง)
-  db/init/                   # SQL schema (01-schema.sql) + seed (02-seed.sql)
+  db/init/                   # 01-schema.sql → 02-branches.sql → 03-seed.sql
   dashboard/html/            # Static HTML/JS/CSS (nginx)
   adminer/                   # Adminer — Web DB management
   tunnels/                   # Cloudflare Tunnel (placeholder)
@@ -101,7 +101,7 @@ docker compose exec vidhisa-api python3 -m pytest tests/ -v
 ```
 
 - ใช้ integration test กับ DB จริง — **ห้ามใช้ mock**
-- 94 test cases ครอบคลุมทุก endpoint
+- 98 test cases ครอบคลุมทุก endpoint
 
 ## แนวทางการพัฒนา
 
