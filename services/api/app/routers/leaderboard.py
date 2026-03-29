@@ -50,7 +50,7 @@ async def get_leaderboard(
             .join(Record, Record.branch_id == Branch.id)
             .where(
                 Record.status == "approved",
-                Record.org_id == "ORG-PLJ",
+                Record.org_id.like("PLJ-%"),
             )
             .group_by(Branch.id, Branch.name)
             .order_by(func.sum(Record.minutes).desc())

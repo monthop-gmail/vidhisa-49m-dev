@@ -11,9 +11,8 @@
 -- PostgreSQL init รันตามลำดับ: 01-schema → 02-branches → 03-seed
 
 -- องค์กร
--- สถาบันพลังจิตตานุภาพ (องค์กรเดียว รวมทุกสาขา)
-INSERT INTO organizations (id, name, org_type, branch_id, province, latitude, longitude) VALUES
-('ORG-PLJ',  'สถาบันพลังจิตตานุภาพ',                  'สถาบันพลังจิตตานุภาพ', 'B001', 'กรุงเทพมหานคร', 13.7563, 100.5018);
+-- สถาบันพลังจิตตานุภาพ — auto-create จาก 04-plj-orgs.sql (1 org ต่อ 1 สาขา = 327 ตัว)
+-- รหัส: PLJ-B000, PLJ-B001, PLJ-B002, ...
 
 -- องค์กรภายนอก (ลงทะเบียนกับสาขา — นาทีเป็นขององค์กร ไม่นับเข้ารายสาขา)
 INSERT INTO organizations (id, name, org_type, branch_id, province, latitude, longitude) VALUES
@@ -59,35 +58,35 @@ SELECT setval('participants_id_seq', 14);
 
 -- bulk: กิจกรรมรวมของสาขา
 INSERT INTO records (type, branch_id, name, org_id, minutes, participant_count, minutes_per_person, date, submitted_by, status) VALUES
-('bulk', 'B001', 'สถาบันพลังจิตตานุภาพ',  'ORG-PLJ', 15000, 3000, 5, '2026-04-01', 'สาขา 1',   'approved'),
-('bulk', 'B002', 'สถาบันพลังจิตตานุภาพ',  'ORG-PLJ', 4500,  900,  5, '2026-04-02', 'สาขา 2',   'approved'),
-('bulk', 'B003', 'สถาบันพลังจิตตานุภาพ',  'ORG-PLJ', 2000,  400,  5, '2026-04-03', 'สาขา 3',   'approved'),
-('bulk', 'B004', 'สถาบันพลังจิตตานุภาพ',  'ORG-PLJ', 9500,  1900, 5, '2026-04-04', 'สาขา 4',   'approved'),
-('bulk', 'B005', 'สถาบันพลังจิตตานุภาพ',  'ORG-PLJ', 1000,  200,  5, '2026-04-05', 'สาขา 5',   'approved'),
-('bulk', 'B006', 'สถาบันพลังจิตตานุภาพ',  'ORG-PLJ', 7000,  1400, 5, '2026-04-06', 'สาขา 6',   'approved'),
-('bulk', 'B007', 'สถาบันพลังจิตตานุภาพ',  'ORG-PLJ', 3000,  600,  5, '2026-04-07', 'สาขา 7',   'approved'),
-('bulk', 'B008', 'สถาบันพลังจิตตานุภาพ',  'ORG-PLJ', 3500,  700,  5, '2026-04-08', 'สาขา 8',   'approved'),
-('bulk', 'B009', 'สถาบันพลังจิตตานุภาพ',  'ORG-PLJ', 1800,  360,  5, '2026-04-09', 'สาขา 9',   'approved'),
-('bulk', 'B010', 'สถาบันพลังจิตตานุภาพ',  'ORG-PLJ', 2200,  440,  5, '2026-04-10', 'สาขา 10',  'approved');
+('bulk', 'B001', 'สถาบันพลังจิตตานุภาพ',  'PLJ-B001', 15000, 3000, 5, '2026-04-01', 'สาขา 1',   'approved'),
+('bulk', 'B002', 'สถาบันพลังจิตตานุภาพ',  'PLJ-B002', 4500,  900,  5, '2026-04-02', 'สาขา 2',   'approved'),
+('bulk', 'B003', 'สถาบันพลังจิตตานุภาพ',  'PLJ-B003', 2000,  400,  5, '2026-04-03', 'สาขา 3',   'approved'),
+('bulk', 'B004', 'สถาบันพลังจิตตานุภาพ',  'PLJ-B004', 9500,  1900, 5, '2026-04-04', 'สาขา 4',   'approved'),
+('bulk', 'B005', 'สถาบันพลังจิตตานุภาพ',  'PLJ-B005', 1000,  200,  5, '2026-04-05', 'สาขา 5',   'approved'),
+('bulk', 'B006', 'สถาบันพลังจิตตานุภาพ',  'PLJ-B006', 7000,  1400, 5, '2026-04-06', 'สาขา 6',   'approved'),
+('bulk', 'B007', 'สถาบันพลังจิตตานุภาพ',  'PLJ-B007', 3000,  600,  5, '2026-04-07', 'สาขา 7',   'approved'),
+('bulk', 'B008', 'สถาบันพลังจิตตานุภาพ',  'PLJ-B008', 3500,  700,  5, '2026-04-08', 'สาขา 8',   'approved'),
+('bulk', 'B009', 'สถาบันพลังจิตตานุภาพ',  'PLJ-B009', 1800,  360,  5, '2026-04-09', 'สาขา 9',   'approved'),
+('bulk', 'B010', 'สถาบันพลังจิตตานุภาพ',  'PLJ-B010', 2200,  440,  5, '2026-04-10', 'สาขา 10',  'approved');
 
 -- individual: นักศึกษาสถาบันฯ — ต้องมี participant_id (ลงทะเบียนก่อน)
 INSERT INTO records (type, branch_id, name, org_id, participant_id, minutes, morning_male, afternoon_male, evening_male, date, submitted_by, status) VALUES
-('individual', 'B001', 'สมชาย ใจดี',        'ORG-PLJ', 1,  15, 1, 1, 1, '2026-04-15', 'สมชาย',    'approved'),
-('individual', 'B001', 'สมหญิง รักสวย',     'ORG-PLJ', 2,  10, 1, 1, 0, '2026-04-15', 'สมหญิง',   'approved'),
-('individual', 'B002', 'วิชัย มานะ',        'ORG-PLJ', 3,   5, 1, 0, 0, '2026-04-15', 'วิชัย',    'approved'),
-('individual', 'B003', 'มาลี สุขใจ',        'ORG-PLJ', 4,  15, 1, 1, 1, '2026-04-16', 'มาลี',     'approved'),
-('individual', 'B004', 'สุนทร ปฏิบัติ',     'ORG-PLJ', 5,  10, 1, 1, 0, '2026-04-16', 'สุนทร',    'approved'),
-('individual', 'B005', 'จิตรา สว่าง',       'ORG-PLJ', 6,   5, 1, 0, 0, '2026-04-16', 'จิตรา',    'approved'),
-('individual', 'B006', 'ประวิทย์ ตั้งใจ',   'ORG-PLJ', 7,  15, 1, 1, 1, '2026-04-17', 'ประวิทย์',  'approved'),
-('individual', 'B007', 'นิตยา เพียร',       'ORG-PLJ', 8,  10, 1, 1, 0, '2026-04-17', 'นิตยา',    'approved'),
-('individual', 'B008', 'พิชัย สงบ',         'ORG-PLJ', 9,   5, 1, 0, 0, '2026-04-17', 'พิชัย',    'approved'),
-('individual', 'B009', 'ศิริ สุข',          'ORG-PLJ', 10, 15, 1, 1, 1, '2026-04-18', 'ศิริ',     'approved'),
-('individual', 'B010', 'วิรัช มั่นคง',      'ORG-PLJ', 11, 10, 1, 1, 0, '2026-04-18', 'วิรัช',    'approved'),
-('individual', 'B001', 'สมชาย ใจดี',        'ORG-PLJ', 1,   5, 1, 0, 0, '2026-04-18', 'สมชาย',    'approved'),
-('individual', 'B001', 'สมหญิง รักสวย',     'ORG-PLJ', 2,  15, 1, 1, 1, '2026-04-19', 'สมหญิง',   'approved'),
-('individual', 'B004', 'สุนทร ปฏิบัติ',     'ORG-PLJ', 5,  10, 1, 1, 0, '2026-04-19', 'สุนทร',    'approved'),
-('individual', 'B006', 'ประวิทย์ ตั้งใจ',   'ORG-PLJ', 7,   5, 1, 0, 0, '2026-04-19', 'ประวิทย์',  'approved'),
-('individual', 'B008', 'พิชัย สงบ',         'ORG-PLJ', 9,  15, 1, 1, 1, '2026-04-20', 'พิชัย',    'approved');
+('individual', 'B001', 'สมชาย ใจดี',        'PLJ-B001', 1,  15, 1, 1, 1, '2026-04-15', 'สมชาย',    'approved'),
+('individual', 'B001', 'สมหญิง รักสวย',     'PLJ-B001', 2,  10, 1, 1, 0, '2026-04-15', 'สมหญิง',   'approved'),
+('individual', 'B002', 'วิชัย มานะ',        'PLJ-B002', 3,   5, 1, 0, 0, '2026-04-15', 'วิชัย',    'approved'),
+('individual', 'B003', 'มาลี สุขใจ',        'PLJ-B003', 4,  15, 1, 1, 1, '2026-04-16', 'มาลี',     'approved'),
+('individual', 'B004', 'สุนทร ปฏิบัติ',     'PLJ-B004', 5,  10, 1, 1, 0, '2026-04-16', 'สุนทร',    'approved'),
+('individual', 'B005', 'จิตรา สว่าง',       'PLJ-B005', 6,   5, 1, 0, 0, '2026-04-16', 'จิตรา',    'approved'),
+('individual', 'B006', 'ประวิทย์ ตั้งใจ',   'PLJ-B006', 7,  15, 1, 1, 1, '2026-04-17', 'ประวิทย์',  'approved'),
+('individual', 'B007', 'นิตยา เพียร',       'PLJ-B007', 8,  10, 1, 1, 0, '2026-04-17', 'นิตยา',    'approved'),
+('individual', 'B008', 'พิชัย สงบ',         'PLJ-B008', 9,   5, 1, 0, 0, '2026-04-17', 'พิชัย',    'approved'),
+('individual', 'B009', 'ศิริ สุข',          'PLJ-B009', 10, 15, 1, 1, 1, '2026-04-18', 'ศิริ',     'approved'),
+('individual', 'B010', 'วิรัช มั่นคง',      'PLJ-B010', 11, 10, 1, 1, 0, '2026-04-18', 'วิรัช',    'approved'),
+('individual', 'B001', 'สมชาย ใจดี',        'PLJ-B001', 1,   5, 1, 0, 0, '2026-04-18', 'สมชาย',    'approved'),
+('individual', 'B001', 'สมหญิง รักสวย',     'PLJ-B001', 2,  15, 1, 1, 1, '2026-04-19', 'สมหญิง',   'approved'),
+('individual', 'B004', 'สุนทร ปฏิบัติ',     'PLJ-B004', 5,  10, 1, 1, 0, '2026-04-19', 'สุนทร',    'approved'),
+('individual', 'B006', 'ประวิทย์ ตั้งใจ',   'PLJ-B006', 7,   5, 1, 0, 0, '2026-04-19', 'ประวิทย์',  'approved'),
+('individual', 'B008', 'พิชัย สงบ',         'PLJ-B008', 9,  15, 1, 1, 1, '2026-04-20', 'พิชัย',    'approved');
 -- สถาบันฯ individual = 155 นาที
 
 -- =============================================
@@ -114,14 +113,14 @@ INSERT INTO records (type, branch_id, name, org_id, minutes, participant_count, 
 -- Pending / Rejected (ตัวอย่าง — ต้องมี participant_id)
 -- =============================================
 INSERT INTO records (type, branch_id, name, org_id, participant_id, minutes, morning_male, date, submitted_by, status) VALUES
-('individual', 'B001', 'ทดสอบ ระบบ',     'ORG-PLJ', 12, 5, 1, '2026-04-20', 'ทดสอบ',   'pending'),
-('individual', 'B002', 'ใหม่ วันนี้',    'ORG-PLJ', 13, 5, 1, '2026-04-20', 'ใหม่',    'pending');
+('individual', 'B001', 'ทดสอบ ระบบ',     'PLJ-B001', 12, 5, 1, '2026-04-20', 'ทดสอบ',   'pending'),
+('individual', 'B002', 'ใหม่ วันนี้',    'PLJ-B002', 13, 5, 1, '2026-04-20', 'ใหม่',    'pending');
 
 INSERT INTO records (type, branch_id, name, org_id, minutes, participant_count, minutes_per_person, date, submitted_by, status) VALUES
 ('bulk', 'B065', 'มหาวิทยาลัยขอนแก่น', 'ORG007', 1500, 300, 5, '2026-04-20', 'ครูทดสอบ', 'pending');
 
 INSERT INTO records (type, branch_id, name, org_id, participant_id, minutes, morning_male, date, submitted_by, status, flags) VALUES
-('individual', 'B001', 'ผิดปกติ นามสกุล', 'ORG-PLJ', 14, 5, 1, '2026-04-20', 'ผิดปกติ', 'rejected', '["daily_limit_reached"]');
+('individual', 'B001', 'ผิดปกติ นามสกุล', 'PLJ-B001', 14, 5, 1, '2026-04-20', 'ผิดปกติ', 'rejected', '["daily_limit_reached"]');
 
 -- =============================================
 -- Pre-computed stats (ตัวอย่าง)
