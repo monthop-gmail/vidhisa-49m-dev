@@ -47,7 +47,7 @@
 | **เชื่อม UI ↔ API จริง** | Dashboard เรียก API จริงจาก DB | ✅ เสร็จ |
 | **หน้าลงทะเบียน** | register.html — ลงทะเบียนผู้เข้าร่วม + องค์กร (?branch=B001) | ✅ เสร็จ |
 | **หน้าบันทึกผล** | record.html — บันทึกนาทีสมาธิรายสาขา (?branch=B001) | ✅ เสร็จ |
-| **Integration Test** | 101 test cases ครอบคลุมทุก endpoint + anti-fraud + CRUD + import/export + participants + upsert | ✅ เสร็จ |
+| **Integration Test** | 126 test cases ครอบคลุมทุก endpoint + anti-fraud + CRUD + import/export + participants + upsert | ✅ เสร็จ |
 | **Load Test** | จำลอง concurrent users ระดับหมื่น-แสน | ⬜ รอดำเนินการ |
 | **DB Diagram** | ER diagram + กฎการนับนาที + Business Rules | ✅ เสร็จ |
 | **Infra** | Docker Compose modular + CF Tunnel | ✅ modular เสร็จ / CF Tunnel placeholder |
