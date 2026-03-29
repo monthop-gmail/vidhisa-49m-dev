@@ -8,23 +8,26 @@ def _uid():
 
 
 def _create_org(client, branch_id="B005"):
-    """Helper: create a test org and return its id."""
+    """Helper: create + approve a test org and return its id."""
     oid = f"OT{uuid.uuid4().hex[:6]}"
     r = client.post("/api/organizations", json={
         "id": oid, "name": f"TestOrg-{oid}", "branch_id": branch_id,
     })
     assert r.status_code == 201
+    client.patch(f"/api/organizations/{oid}/approve")
     return oid
 
 
 def _create_participant(client, branch_id="B005"):
-    """Helper: create a test participant and return its id."""
+    """Helper: create + approve a test participant and return its id."""
     r = client.post("/api/participants", json={
         "branch_id": branch_id, "first_name": _uid(), "last_name": "Test",
         "privacy_accepted": True,
     })
     assert r.status_code == 201
-    return r.json()["id"]
+    pid = r.json()["id"]
+    client.patch(f"/api/participants/{pid}/approve")
+    return pid
 
 
 class TestCreateRecord:

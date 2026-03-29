@@ -227,9 +227,14 @@ async def create_record(data: RecordCreate, db: AsyncSession = Depends(get_db)):
                 "error": "MISSING_ORG", "message": "บันทึกแบบกลุ่มต้องระบุ org_id (องค์กรต้องลงทะเบียนก่อน)"
             })
         org_check = await db.execute(select(Organization).where(Organization.id == data.org_id))
-        if not org_check.scalar_one_or_none():
+        org = org_check.scalar_one_or_none()
+        if not org:
             raise HTTPException(status_code=422, detail={
                 "error": "ORG_NOT_FOUND", "message": f"ไม่พบองค์กร '{data.org_id}' ในระบบ กรุณาลงทะเบียนก่อน"
+            })
+        if org.status != "approved":
+            raise HTTPException(status_code=422, detail={
+                "error": "ORG_NOT_APPROVED", "message": f"องค์กร '{data.org_id}' ยังไม่ได้รับอนุมัติ (สถานะ: {org.status})"
             })
     elif data.type == "individual":
         if not data.participant_id:
@@ -237,9 +242,14 @@ async def create_record(data: RecordCreate, db: AsyncSession = Depends(get_db)):
                 "error": "MISSING_PARTICIPANT", "message": "บันทึกรายคนต้องระบุ participant_id (ต้องลงทะเบียนก่อน)"
             })
         p_check = await db.execute(select(Participant).where(Participant.id == data.participant_id))
-        if not p_check.scalar_one_or_none():
+        p = p_check.scalar_one_or_none()
+        if not p:
             raise HTTPException(status_code=422, detail={
                 "error": "PARTICIPANT_NOT_FOUND", "message": f"ไม่พบผู้เข้าร่วม id={data.participant_id} ในระบบ กรุณาลงทะเบียนก่อน"
+            })
+        if p.status != "approved":
+            raise HTTPException(status_code=422, detail={
+                "error": "PARTICIPANT_NOT_APPROVED", "message": f"ผู้เข้าร่วม id={data.participant_id} ยังไม่ได้รับอนุมัติ (สถานะ: {p.status})"
             })
 
     flags = await validate_record(data, db)

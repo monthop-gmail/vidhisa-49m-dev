@@ -54,6 +54,7 @@ async def list_organizations(db: AsyncSession = Depends(get_db)):
             Organization.province, Organization.email, Organization.max_participants,
             Organization.enrolled_date, Organization.enrolled_until,
             Organization.latitude, Organization.longitude, Organization.contact,
+            Organization.status,
             func.coalesce(func.sum(Record.minutes), 0).label("total_minutes"),
             func.count(Record.id).label("total_records"),
         )
@@ -67,6 +68,7 @@ async def list_organizations(db: AsyncSession = Depends(get_db)):
             Organization.province, Organization.email, Organization.max_participants,
             Organization.enrolled_date, Organization.enrolled_until,
             Organization.latitude, Organization.longitude, Organization.contact,
+            Organization.status,
         )
         .order_by(Organization.name)
     )
@@ -80,7 +82,7 @@ async def list_organizations(db: AsyncSession = Depends(get_db)):
             "email": r.email, "max_participants": r.max_participants,
             "enrolled_date": r.enrolled_date, "enrolled_until": r.enrolled_until,
             "latitude": r.latitude, "longitude": r.longitude,
-            "contact": r.contact,
+            "contact": r.contact, "status": r.status,
             "total_minutes": r.total_minutes, "total_records": r.total_records,
         }
         for r in result.all()

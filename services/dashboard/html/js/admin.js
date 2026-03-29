@@ -159,6 +159,7 @@ async function loadOrganizations() {
             tbody.innerHTML += `<tr>
                 <td>${o.id}</td><td>${o.name}</td><td>${o.org_type || '-'}</td>
                 <td>${o.province || '-'}</td><td>${o.branch_id || '-'}</td>
+                <td>${o.status || '-'}</td>
                 <td>${FMT.format(o.total_minutes)}</td><td>${FMT.format(o.total_records)}</td></tr>`;
         });
     } catch (e) { console.error('org error:', e); }
@@ -207,7 +208,7 @@ async function loadParticipants(append) {
             tbody.innerHTML += `<tr>
                 <td>${p.id}</td><td>${p.prefix || '-'}</td><td>${p.first_name}</td>
                 <td>${p.last_name}</td><td>${p.gender || '-'}</td><td>${p.age || '-'}</td>
-                <td>${p.province || '-'}</td><td>${p.branch_id}</td><td>${p.enrolled_date || '-'}</td></tr>`;
+                <td>${p.province || '-'}</td><td>${p.branch_id}</td><td>${p.status || '-'}</td><td>${p.enrolled_date || '-'}</td></tr>`;
         });
 
         participantOffset += data.length;

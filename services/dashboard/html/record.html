@@ -190,7 +190,7 @@ async function loadOrgs() {
     // ดึงใหม่ทุกครั้ง filter จาก API ตาม branch_id
     const res = await fetch(API + '/organizations');
     const orgs = await res.json();
-    const filtered = orgs.filter(o => o.branch_id === branchId);
+    const filtered = orgs.filter(o => o.branch_id === branchId && o.status === 'approved');
     // ลบซ้ำ (เผื่อ PLJ + external อยู่สาขาเดียวกัน)
     const seen = new Set();
     filtered.forEach(o => {
@@ -209,8 +209,9 @@ async function loadParticipants() {
     sel.innerHTML = '<option value="">-- เลือก --</option>';
     if (!branchId) return;
 
-    const res = await fetch(API + '/participants?branch_id=' + branchId);
-    const list = await res.json();
+    const res = await fetch(API + '/participants?branch_id=' + branchId + '&limit=500');
+    const all = await res.json();
+    const list = all.filter(p => p.status === 'approved');
     // ลบซ้ำตาม id
     const seen = new Set();
     list.forEach(p => {

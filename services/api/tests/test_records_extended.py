@@ -11,6 +11,7 @@ def _create_org(client, branch_id="B005"):
     oid = f"OT{uuid.uuid4().hex[:6]}"
     r = client.post("/api/organizations", json={"id": oid, "name": f"Test-{oid}", "branch_id": branch_id})
     assert r.status_code == 201
+    client.patch(f"/api/organizations/{oid}/approve")
     return oid
 
 
@@ -19,7 +20,9 @@ def _create_participant(client, branch_id="B005"):
         "branch_id": branch_id, "first_name": _uid(), "last_name": "Test", "privacy_accepted": True,
     })
     assert r.status_code == 201
-    return r.json()["id"]
+    pid = r.json()["id"]
+    client.patch(f"/api/participants/{pid}/approve")
+    return pid
 
 
 class TestRecordsList:
