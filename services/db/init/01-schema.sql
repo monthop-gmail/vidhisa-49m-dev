@@ -12,12 +12,16 @@ CREATE TABLE branches (
     id              VARCHAR(10) PRIMARY KEY,
     name            VARCHAR(200) NOT NULL,
     group_id        VARCHAR(10) REFERENCES branch_groups(id),
+    custom_region   VARCHAR(100),
+    sub_district    VARCHAR(100),
+    district        VARCHAR(100),
     province        VARCHAR(100) NOT NULL,
     province_code   VARCHAR(10) NOT NULL,
     latitude        DOUBLE PRECISION,
     longitude       DOUBLE PRECISION,
     admin_name      VARCHAR(200),
     contact         VARCHAR(200),
+    opening_hours   VARCHAR(500),
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 

@@ -34,12 +34,16 @@ class Branch(Base):
     id = Column(String(10), primary_key=True)
     name = Column(String(200), nullable=False)
     group_id = Column(String(10), ForeignKey("branch_groups.id"))
+    custom_region = Column(String(100))
+    sub_district = Column(String(100))
+    district = Column(String(100))
     province = Column(String(100), nullable=False)
     province_code = Column(String(10), nullable=False)
     latitude = Column(Float)
     longitude = Column(Float)
     admin_name = Column(String(200))
     contact = Column(String(200))
+    opening_hours = Column(String(500))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self) -> str:
