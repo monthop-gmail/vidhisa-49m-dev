@@ -16,20 +16,61 @@ async function loadPending() {
         const data = await res.json();
         const tbody = document.querySelector('#pending-table tbody');
         const empty = document.getElementById('pending-empty');
+        const count = document.getElementById('pending-count');
+        const btnAll = document.getElementById('btn-approve-all');
+        const headerCb = document.getElementById('select-all-header');
         tbody.innerHTML = '';
 
-        if (data.length === 0) { empty.style.display = 'block'; return; }
+        count.textContent = `(${data.length} รายการ)`;
+
+        if (data.length === 0) {
+            empty.style.display = 'block';
+            if (btnAll) btnAll.style.display = 'none';
+            return;
+        }
         empty.style.display = 'none';
+        if (btnAll) btnAll.style.display = 'inline-block';
+        if (headerCb) headerCb.checked = false;
 
         data.forEach(r => {
             const flags = (r.flags || []).map(f => `<span class="flag-badge">${f}</span>`).join(' ');
             tbody.innerHTML += `<tr>
+                <td><input type="checkbox" class="pending-cb" value="${r.id}"></td>
                 <td>${r.id}</td><td>${r.type}</td><td>${r.name}</td><td>${r.minutes}</td>
                 <td>${r.date}</td><td>${flags}</td>
                 <td><button class="btn-approve" onclick="approve(${r.id})">อนุมัติ</button>
                 <button class="btn-reject" onclick="reject(${r.id})">ปฏิเสธ</button></td></tr>`;
         });
     } catch (e) { console.error('pending error:', e); }
+}
+
+function toggleSelectAll(cb) {
+    document.querySelectorAll('.pending-cb').forEach(c => c.checked = cb.checked);
+    const headerCb = document.getElementById('select-all-header');
+    if (headerCb && headerCb !== cb) headerCb.checked = cb.checked;
+}
+
+function getSelectedIds() {
+    return [...document.querySelectorAll('.pending-cb:checked')].map(c => parseInt(c.value));
+}
+
+async function approveAll() {
+    const ids = getSelectedIds();
+    if (ids.length === 0) { alert('กรุณาเลือกรายการที่ต้องการอนุมัติ'); return; }
+    if (!confirm(`อนุมัติ ${ids.length} รายการ?`)) return;
+
+    let success = 0;
+    for (const id of ids) {
+        try {
+            const res = await fetch(`/api/records/${id}/approve`, {
+                method: 'PATCH', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({approved_by: 'สาขา Admin'})
+            });
+            if (res.ok) success++;
+        } catch (e) { console.error(`approve ${id} error:`, e); }
+    }
+    alert(`อนุมัติสำเร็จ ${success}/${ids.length} รายการ`);
+    loadPending();
 }
 
 async function approve(id) {

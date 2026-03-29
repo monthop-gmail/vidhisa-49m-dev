@@ -22,10 +22,17 @@
     </section>
 
     <section>
-        <h2>รายการรออนุมัติ</h2>
+        <h2>รายการรออนุมัติ <span id="pending-count" style="font-size:0.85rem; color:#666; font-weight:normal;"></span></h2>
+        <div style="margin-bottom:0.5rem; display:flex; gap:0.5rem; align-items:center;">
+            <button class="btn-approve" onclick="approveAll()" id="btn-approve-all" style="display:none;">อนุมัติทั้งหมด</button>
+            <label style="font-weight:normal; font-size:0.9rem;" id="label-select-all" style="display:none;">
+                <input type="checkbox" id="select-all-pending" onchange="toggleSelectAll(this)"> เลือกทั้งหมด
+            </label>
+        </div>
         <table id="pending-table">
             <thead>
                 <tr>
+                    <th><input type="checkbox" id="select-all-header" onchange="toggleSelectAll(this)"></th>
                     <th>ID</th><th>ประเภท</th><th>ชื่อ</th><th>นาที</th><th>วันที่</th><th>Flags</th><th>จัดการ</th>
                 </tr>
             </thead>
