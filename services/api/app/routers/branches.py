@@ -27,20 +27,12 @@ EXPORT_FIELDS = [
 ]
 
 
-@router.get("/branches", response_model=list[BranchListItem])
+@router.get("/branches")
 async def list_branches(db: AsyncSession = Depends(get_db)):
     """List all branches with their statistics."""
     stmt = (
         select(
-            Branch.id,
-            Branch.name,
-            Branch.group_id,
-            Branch.province,
-            Branch.province_code,
-            Branch.latitude,
-            Branch.longitude,
-            Branch.admin_name,
-            Branch.contact,
+            Branch,
             func.coalesce(func.sum(Record.minutes), 0).label("total_minutes"),
             func.count(Record.id).label("total_records"),
         )
@@ -48,34 +40,21 @@ async def list_branches(db: AsyncSession = Depends(get_db)):
             Record,
             (Record.branch_id == Branch.id) & (Record.status == "approved") & (Record.org_id.like("PLJ-%")),
         )
-        .group_by(
-            Branch.id,
-            Branch.name,
-            Branch.group_id,
-            Branch.province,
-            Branch.province_code,
-            Branch.latitude,
-            Branch.longitude,
-            Branch.admin_name,
-            Branch.contact,
-        )
+        .group_by(Branch.id)
         .order_by(Branch.id)
     )
 
     result = await db.execute(stmt)
     return [
         {
-            "id": r.id,
-            "name": r.name,
-            "group_id": r.group_id,
-            "province": r.province,
-            "province_code": r.province_code,
-            "latitude": r.latitude,
-            "longitude": r.longitude,
-            "admin_name": r.admin_name,
-            "contact": r.contact,
-            "total_minutes": r.total_minutes,
-            "total_records": r.total_records,
+            "id": r.Branch.id, "name": r.Branch.name,
+            "group_id": r.Branch.group_id, "custom_region": r.Branch.custom_region,
+            "sub_district": r.Branch.sub_district, "district": r.Branch.district,
+            "province": r.Branch.province, "province_code": r.Branch.province_code,
+            "latitude": r.Branch.latitude, "longitude": r.Branch.longitude,
+            "admin_name": r.Branch.admin_name, "contact": r.Branch.contact,
+            "opening_hours": r.Branch.opening_hours,
+            "total_minutes": r.total_minutes, "total_records": r.total_records,
         }
         for r in result.all()
     ]

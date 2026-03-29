@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ตรวจสอบข้อมูลสาขา — วิทิสา 49M</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+.summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:0.5rem; margin-bottom:1rem; }
+.summary-card { background:#fff; border-radius:8px; padding:1rem; text-align:center; }
+.summary-card h3 { font-size:0.8rem; color:#666; }
+.summary-card .num { font-size:2rem; font-weight:bold; font-family:monospace; }
+.ok { color:#43a047; }
+.warn { color:#e65100; }
+.bad { color:#e53935; }
+tr.issue { background:#fff3e0; }
+tr.critical { background:#ffebee; }
+.filter-bar { margin-bottom:0.5rem; display:flex; gap:1rem; flex-wrap:wrap; align-items:center; }
+.filter-bar label { font-size:0.9rem; }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>ตรวจสอบข้อมูลสาขา</h1>
+    <p><a href="/">Dashboard</a> | <a href="/admin.html">Admin</a></p>
+</header>
+
+<main>
+    <section>
+        <div class="summary" id="summary"></div>
+    </section>
+
+    <section>
+        <h2>สาขาที่ต้องแก้ไข</h2>
+        <div class="filter-bar">
+            <label><input type="checkbox" id="f-latlng" checked onchange="filterTable()"> Lat/Lng ผิด/ไม่มี</label>
+            <label><input type="checkbox" id="f-group" checked onchange="filterTable()"> ไม่มี group_id</label>
+            <label><input type="checkbox" id="f-region" checked onchange="filterTable()"> ไม่มี custom_region</label>
+            <label><input type="checkbox" id="f-all" onchange="toggleAll(this)"> แสดงทั้งหมด</label>
+        </div>
+        <table id="issue-table">
+            <thead>
+                <tr>
+                    <th>รหัส</th><th>ชื่อสาขา</th><th>กลุ่ม</th><th>ภาค</th><th>จังหวัด</th><th>Lat</th><th>Lng</th><th>ปัญหา</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <p id="no-issues" style="display:none; color:#43a047; font-weight:bold;">✅ ไม่มีปัญหา!</p>
+    </section>
+</main>
+
+<script>
+const TH_LAT_MIN = 5.6, TH_LAT_MAX = 20.5, TH_LNG_MIN = 97.3, TH_LNG_MAX = 105.7;
+let allBranches = [];
+
+function checkBranch(b) {
+    const issues = [];
+    const lat = b.latitude, lng = b.longitude;
+
+    if (!lat || !lng || lat === 0 || lng === 0) {
+        issues.push({type: 'latlng', label: 'ไม่มี Lat/Lng', level: 'warn'});
+    } else if (lat < TH_LAT_MIN || lat > TH_LAT_MAX || lng < TH_LNG_MIN || lng > TH_LNG_MAX) {
+        issues.push({type: 'latlng', label: `Lat/Lng นอกไทย (${lat.toFixed(2)}, ${lng.toFixed(2)})`, level: 'critical'});
+    }
+
+    if (!b.group_id) {
+        issues.push({type: 'group', label: 'ไม่มี group_id', level: 'warn'});
+    }
+
+    if (!b.custom_region) {
+        issues.push({type: 'region', label: 'ไม่มี custom_region', level: 'warn'});
+    }
+
+    return issues;
+}
+
+async function load() {
+    const res = await fetch('/api/branches');
+    allBranches = await res.json();
+
+    let badLatLng = 0, noLatLng = 0, noGroup = 0, noRegion = 0, okCount = 0;
+
+    allBranches.forEach(b => {
+        const issues = checkBranch(b);
+        b._issues = issues;
+        const types = issues.map(i => i.type);
+        if (types.includes('latlng') && issues.find(i => i.level === 'critical')) badLatLng++;
+        else if (types.includes('latlng')) noLatLng++;
+        if (types.includes('group')) noGroup++;
+        if (types.includes('region')) noRegion++;
+        if (issues.length === 0) okCount++;
+    });
+
+    document.getElementById('summary').innerHTML = `
+        <div class="summary-card"><h3>ทั้งหมด</h3><div class="num">${allBranches.length}</div></div>
+        <div class="summary-card"><h3>ข้อมูลครบ</h3><div class="num ok">${okCount}</div></div>
+        <div class="summary-card"><h3>Lat/Lng นอกไทย</h3><div class="num bad">${badLatLng}</div></div>
+        <div class="summary-card"><h3>ไม่มี Lat/Lng</h3><div class="num warn">${noLatLng}</div></div>
+        <div class="summary-card"><h3>ไม่มี group_id</h3><div class="num warn">${noGroup}</div></div>
+        <div class="summary-card"><h3>ไม่มี custom_region</h3><div class="num warn">${noRegion}</div></div>
+    `;
+
+    filterTable();
+}
+
+function filterTable() {
+    const showLatLng = document.getElementById('f-latlng').checked;
+    const showGroup = document.getElementById('f-group').checked;
+    const showRegion = document.getElementById('f-region').checked;
+    const showAll = document.getElementById('f-all').checked;
+
+    const tbody = document.querySelector('#issue-table tbody');
+    const noIssues = document.getElementById('no-issues');
+    tbody.innerHTML = '';
+
+    let count = 0;
+    allBranches.forEach(b => {
+        const issues = b._issues || [];
+        if (!showAll && issues.length === 0) return;
+
+        const types = issues.map(i => i.type);
+        if (!showAll) {
+            const match = (showLatLng && types.includes('latlng')) ||
+                          (showGroup && types.includes('group')) ||
+                          (showRegion && types.includes('region'));
+            if (!match) return;
+        }
+
+        const level = issues.some(i => i.level === 'critical') ? 'critical' : issues.length > 0 ? 'issue' : '';
+        const labels = issues.map(i => `<span style="color:${i.level === 'critical' ? '#e53935' : '#e65100'}; font-size:0.8rem;">${i.label}</span>`).join('<br>');
+
+        tbody.innerHTML += `<tr class="${level}">
+            <td>${b.id}</td>
+            <td>${b.name}</td>
+            <td>${b.group_id || '<span class="warn">-</span>'}</td>
+            <td>${b.custom_region || '<span class="warn">-</span>'}</td>
+            <td>${b.province}</td>
+            <td>${b.latitude || '<span class="warn">-</span>'}</td>
+            <td>${b.longitude || '<span class="warn">-</span>'}</td>
+            <td>${labels || '<span class="ok">✅</span>'}</td>
+        </tr>`;
+        count++;
+    });
+
+    noIssues.style.display = count === 0 ? 'block' : 'none';
+}
+
+function toggleAll(cb) {
+    if (cb.checked) {
+        document.getElementById('f-latlng').checked = false;
+        document.getElementById('f-group').checked = false;
+        document.getElementById('f-region').checked = false;
+    }
+    filterTable();
+}
+
+load();
+</script>
+</body>
+</html>
