@@ -35,7 +35,7 @@
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | PK | รหัสองค์กร เช่น ORG-PLJ, ORG001 |
+| `id` | PK | รหัสองค์กร เช่น PLJ-B001, ORG001 |
 | `name` | string | ชื่อองค์กร |
 | `org_type` | string | ประเภท: สถาบันพลังจิตตานุภาพ, โรงเรียน, มหาวิทยาลัย, วัด, หน่วยงาน, ชุมชน |
 | `branch_id` | FK → branches | สาขาที่ลงทะเบียน — ทุกองค์กรต้องมี |
@@ -139,7 +139,7 @@
 ## ความสัมพันธ์
 
 ```
-branch_groups (1) ──── (N) branches (1) ──── (N) organizations (optional, เฉพาะ ORG-PLJ)
+branch_groups (1) ──── (N) branches (1) ──── (N) organizations (PLJ-Bxxx auto-create + องค์กรภายนอก)
                             │ 1                        │ 1
                             │                          │
                             ├──── (N) participants     │
