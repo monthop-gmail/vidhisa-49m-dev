@@ -378,9 +378,13 @@ async function loadEnrollments() {
 
         data.forEach(e => {
             const statusColor = e.status === 'approved' ? '#43a047' : e.status === 'rejected' ? '#e53935' : '#e65100';
-            const actions = e.status === 'pending'
-                ? `<button class="btn-approve" onclick="approveEnrollment(${e.id})">อนุมัติ</button> <button class="btn-reject" onclick="rejectEnrollment(${e.id})">ปฏิเสธ</button>`
-                : `<span style="color:${statusColor}">${e.status}</span>`;
+            let actions = '';
+            if (e.status === 'pending') {
+                actions = `<button class="btn-approve" onclick="approveEnrollment(${e.id})">อนุมัติ</button> <button class="btn-reject" onclick="rejectEnrollment(${e.id})">ปฏิเสธ</button>`;
+            } else {
+                actions = `<span style="color:${statusColor}">${e.status}</span>`;
+            }
+            actions += ` <button style="font-size:0.75rem; padding:0.1rem 0.4rem; cursor:pointer;" onclick="editBranchNum(${e.id}, '${e.branch_number || ''}')">แก้เลข</button>`;
             tbody.innerHTML += `<tr>
                 <td>${e.id}</td><td>${e.branch_number || '-'}</td><td>${e.branch_name}</td>
                 <td>${e.admin1_name || '-'}<br><small>${e.admin1_email || ''}</small></td>
@@ -429,6 +433,18 @@ async function approveEnrollment(id) {
     } else {
         alert(data.detail?.message || 'เกิดข้อผิดพลาด');
     }
+}
+
+async function editBranchNum(id, current) {
+    const num = prompt(`แก้เลขสาขา (ปัจจุบัน: ${current || 'ว่าง'}):`, current || '');
+    if (num === null) return;
+    const res = await authFetch(`/api/enrollments/${id}/update-branch`, {
+        method: 'PATCH', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({branch_number: num}),
+    });
+    const data = await res.json();
+    if (res.ok) { alert(data.message); loadEnrollments(); loadUsers(); }
+    else alert(data.detail?.message || 'เกิดข้อผิดพลาด');
 }
 
 async function rejectEnrollment(id) {

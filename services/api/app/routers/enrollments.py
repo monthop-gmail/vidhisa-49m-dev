@@ -190,6 +190,46 @@ async def reject_enrollment(
     return {"id": enrollment.id, "status": "rejected"}
 
 
+@router.patch("/enrollments/{enrollment_id}/update-branch")
+async def update_enrollment_branch(
+    enrollment_id: int,
+    data: dict,
+    user=Depends(require_central_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """แก้เลขสาขาของ enrollment + อัพเดท users ที่สร้างไปแล้ว."""
+    new_branch_num = (data.get("branch_number") or "").strip()
+    if not new_branch_num:
+        raise HTTPException(status_code=400, detail={"error": "MISSING", "message": "กรุณาระบุ branch_number"})
+
+    result = await db.execute(select(BranchEnrollment).where(BranchEnrollment.id == enrollment_id))
+    enrollment = result.scalar_one_or_none()
+    if not enrollment:
+        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบรายการ"})
+
+    old_branch_id = f"B{enrollment.branch_number}" if enrollment.branch_number else None
+    new_branch_id = f"B{new_branch_num}"
+
+    enrollment.branch_number = new_branch_num
+
+    # อัพเดท users ที่สร้างจาก enrollment นี้
+    updated_users = 0
+    if old_branch_id:
+        user_result = await db.execute(select(User).where(User.branch_id == old_branch_id, User.role == "branch_admin"))
+        for u in user_result.scalars().all():
+            u.branch_id = new_branch_id
+            updated_users += 1
+
+    await db.commit()
+    return {
+        "id": enrollment.id,
+        "old_branch": old_branch_id,
+        "new_branch": new_branch_id,
+        "users_updated": updated_users,
+        "message": f"เปลี่ยนเลขสาขาจาก {old_branch_id or 'ว่าง'} → {new_branch_id} สำเร็จ (อัพเดท {updated_users} users)",
+    }
+
+
 @router.get("/users")
 async def list_users(user=Depends(require_central_admin), db: AsyncSession = Depends(get_db)):
     """List all users (central admin only)."""
