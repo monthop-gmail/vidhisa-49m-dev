@@ -25,6 +25,37 @@
         </select>
     </section>
 
+    <section id="section-enrollments" style="display:none;">
+        <h2>สาขาขอเข้าร่วมโครงการ <span id="enrollment-count" style="font-size:0.85rem; color:#666; font-weight:normal;"></span></h2>
+        <div style="margin-bottom:0.5rem; display:flex; gap:0.5rem; align-items:center;">
+            <button class="btn-approve" onclick="syncEnrollments()">ดึงข้อมูลจาก Google Sheet</button>
+            <span id="sync-status" style="font-size:0.85rem; color:#666;"></span>
+        </div>
+        <table id="enrollment-table">
+            <thead>
+                <tr>
+                    <th>ID</th><th>เลขสาขา</th><th>ชื่อสาขา</th>
+                    <th>Admin 1</th><th>Admin 2</th><th>Admin 3</th>
+                    <th>สถานะ</th><th>จัดการ</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <p id="enrollment-empty" style="display:none; color:#999;">ไม่มีรายการ</p>
+    </section>
+
+    <section id="section-users" style="display:none;">
+        <h2>ผู้ใช้งานระบบ <span id="user-count" style="font-size:0.85rem; color:#666; font-weight:normal;"></span></h2>
+        <table id="user-table">
+            <thead>
+                <tr>
+                    <th>ID</th><th>Username</th><th>ชื่อ</th><th>Email</th><th>Role</th><th>สาขา</th><th>สถานะ</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </section>
+
     <section>
         <h2>องค์กรรออนุมัติ <span id="pending-org-count" style="font-size:0.85rem; color:#666; font-weight:normal;"></span></h2>
         <table id="pending-org-table">

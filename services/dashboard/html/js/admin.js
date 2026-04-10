@@ -361,6 +361,102 @@ function showSummaryMessage(sectionId, message) {
     if (tbody) tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#999; padding:1rem;">${message}</td></tr>`;
 }
 
+// === Enrollments (central admin only) ===
+async function loadEnrollments() {
+    try {
+        const res = await authFetch('/api/enrollments');
+        if (!res.ok) return;
+        const data = await res.json();
+        const tbody = document.querySelector('#enrollment-table tbody');
+        const empty = document.getElementById('enrollment-empty');
+        const count = document.getElementById('enrollment-count');
+        tbody.innerHTML = '';
+        count.textContent = `(${data.length} สาขา, pending ${data.filter(e => e.status === 'pending').length})`;
+
+        if (data.length === 0) { empty.style.display = 'block'; return; }
+        empty.style.display = 'none';
+
+        data.forEach(e => {
+            const statusColor = e.status === 'approved' ? '#43a047' : e.status === 'rejected' ? '#e53935' : '#e65100';
+            const actions = e.status === 'pending'
+                ? `<button class="btn-approve" onclick="approveEnrollment(${e.id})">อนุมัติ</button> <button class="btn-reject" onclick="rejectEnrollment(${e.id})">ปฏิเสธ</button>`
+                : `<span style="color:${statusColor}">${e.status}</span>`;
+            tbody.innerHTML += `<tr>
+                <td>${e.id}</td><td>${e.branch_number || '-'}</td><td>${e.branch_name}</td>
+                <td>${e.admin1_name || '-'}<br><small>${e.admin1_email || ''}</small></td>
+                <td>${e.admin2_name || '-'}<br><small>${e.admin2_email || ''}</small></td>
+                <td>${e.admin3_name || '-'}<br><small>${e.admin3_email || ''}</small></td>
+                <td style="color:${statusColor}">${e.status}</td>
+                <td>${actions}</td></tr>`;
+        });
+    } catch (e) { console.error('enrollments error:', e); }
+}
+
+async function syncEnrollments() {
+    const status = document.getElementById('sync-status');
+    status.textContent = 'กำลังดึงข้อมูล...';
+    status.style.color = '#666';
+    try {
+        const res = await authFetch('/api/enrollments/sync', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+            status.textContent = data.message;
+            status.style.color = '#43a047';
+            loadEnrollments();
+        } else {
+            status.textContent = data.detail?.message || 'เกิดข้อผิดพลาด';
+            status.style.color = '#e53935';
+        }
+    } catch (e) {
+        status.textContent = 'เกิดข้อผิดพลาด';
+        status.style.color = '#e53935';
+    }
+}
+
+async function approveEnrollment(id) {
+    if (!confirm('อนุมัติสาขานี้? ระบบจะสร้าง user/password ให้ admin สาขา')) return;
+    const res = await authFetch(`/api/enrollments/${id}/approve`, { method: 'PATCH' });
+    const data = await res.json();
+    if (res.ok) {
+        let msg = data.message;
+        if (data._credentials && data._credentials.length > 0) {
+            msg += '\n\nUser/Password ที่สร้าง:\n';
+            data._credentials.forEach(c => { msg += `${c.username} / ${c.password} (${c.name})\n`; });
+        }
+        alert(msg);
+        loadEnrollments();
+        loadUsers();
+    } else {
+        alert(data.detail?.message || 'เกิดข้อผิดพลาด');
+    }
+}
+
+async function rejectEnrollment(id) {
+    if (!confirm('ปฏิเสธสาขานี้?')) return;
+    await authFetch(`/api/enrollments/${id}/reject`, { method: 'PATCH' });
+    loadEnrollments();
+}
+
+// === Users (central admin only) ===
+async function loadUsers() {
+    try {
+        const res = await authFetch('/api/users');
+        if (!res.ok) return;
+        const data = await res.json();
+        const tbody = document.querySelector('#user-table tbody');
+        const count = document.getElementById('user-count');
+        tbody.innerHTML = '';
+        count.textContent = `(${data.length} คน)`;
+
+        data.forEach(u => {
+            tbody.innerHTML += `<tr>
+                <td>${u.id}</td><td>${u.username}</td><td>${u.full_name}</td>
+                <td>${u.email || '-'}</td><td>${u.role}</td>
+                <td>${u.branch_id || '-'}</td><td>${u.status}</td></tr>`;
+        });
+    } catch (e) { console.error('users error:', e); }
+}
+
 // Detect branch mode
 const contextBranch = getBranchContext();
 branchMode = !!contextBranch;
@@ -403,6 +499,10 @@ async function initAdmin() {
     } else {
         // Admin กลาง — แสดงสรุป ไม่โหลดข้อมูลหนัก
         document.getElementById('admin-title').textContent = 'Admin กลาง';
+        document.getElementById('section-enrollments').style.display = 'block';
+        document.getElementById('section-users').style.display = 'block';
+        loadEnrollments();
+        loadUsers();
         loadPendingOrgs();
         loadPendingParticipants();
         loadBranchTable();
@@ -413,6 +513,11 @@ async function initAdmin() {
         showSummaryMessage('bulk-record-table', 'เลือกสาขาด้านบนเพื่อดูบันทึก');
         showSummaryMessage('ind-record-table', 'เลือกสาขาด้านบนเพื่อดูบันทึก');
     }
+
+    // Show username
+    const user = getCurrentUser();
+    const ud = document.getElementById('user-display');
+    if (ud && user.full_name) ud.textContent = `${user.full_name} (${user.role})`;
 
     updateLinks();
 }
