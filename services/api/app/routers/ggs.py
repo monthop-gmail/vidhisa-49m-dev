@@ -170,7 +170,15 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession) -> dict:
 
     created = 0
     updated = 0
+    participants_created = 0
     errors = []
+
+    # Load existing participants for this branch (cache)
+    p_result = await db.execute(select(Participant).where(Participant.branch_id == branch_id))
+    participant_map = {}  # "first last" → participant
+    for p in p_result.scalars().all():
+        key = f"{p.first_name} {p.last_name}"
+        participant_map[key] = p
 
     for i, row in enumerate(rows, start=2):
         raw_name = (row.get("เลือกชื่อผู้ปฏิบัติ") or "").strip()
@@ -198,7 +206,41 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession) -> dict:
             errors.append(f"แถว {i}: ไม่มีรอบที่ปฏิบัติ")
             continue
 
-        # Upsert by branch_id + name + date
+        # Auto-create participant ถ้ายังไม่มี
+        participant = participant_map.get(name)
+        if not participant:
+            # แยกชื่อ-นามสกุล
+            parts = name.split(" ", 1)
+            first_name = parts[0]
+            last_name = parts[1] if len(parts) > 1 else ""
+
+            # เช็คซ้ำข้ามสาขา
+            dup_check = await db.execute(select(Participant).where(
+                Participant.first_name == first_name,
+                Participant.last_name == last_name,
+            ))
+            existing_p = dup_check.scalar_one_or_none()
+            if existing_p and existing_p.branch_id != branch_id:
+                errors.append(f"แถว {i}: '{name}' ลงทะเบียนในสาขา {existing_p.branch_id} แล้ว")
+                continue
+            elif existing_p:
+                participant = existing_p
+            else:
+                participant = Participant(
+                    branch_id=branch_id,
+                    first_name=first_name,
+                    last_name=last_name,
+                    enrolled_date=rec_date,
+                    privacy_accepted=True,
+                    status="approved",
+                )
+                db.add(participant)
+                await db.flush()  # get id
+                participants_created += 1
+
+            participant_map[name] = participant
+
+        # Upsert record by branch_id + name + date
         stmt = select(Record).where(
             Record.branch_id == branch_id,
             Record.name == name,
@@ -209,17 +251,18 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession) -> dict:
         existing = result.scalar_one_or_none()
 
         if existing:
+            existing.participant_id = participant.id
             existing.morning_male = 1 if morning else 0
             existing.afternoon_male = 1 if afternoon else 0
             existing.evening_male = 1 if evening else 0
             existing.minutes = minutes
-            # ไม่เปลี่ยน status ถ้า approved แล้ว — ป้องกัน re-sync reset
             if existing.status != "approved":
                 existing.status = "pending"
             updated += 1
         else:
             db.add(Record(
                 type="individual", branch_id=branch_id, name=name,
+                participant_id=participant.id,
                 minutes=minutes,
                 morning_male=1 if morning else 0,
                 afternoon_male=1 if afternoon else 0,
@@ -229,7 +272,11 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession) -> dict:
             created += 1
 
     await db.commit()
-    return {"created": created, "updated": updated, "errors": errors[:10]}
+    return {
+        "created": created, "updated": updated,
+        "participants_created": participants_created,
+        "errors": errors[:10],
+    }
 
 
 # === Sync: Bulk Records (placeholder — format TBD) ===
