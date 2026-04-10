@@ -27,7 +27,9 @@ async def sse_stream():
                     yield f"event: {event_type}\ndata: {event_type}\n\n"
                 except asyncio.TimeoutError:
                     yield ": keepalive\n\n"
-        except asyncio.CancelledError:
+                except (asyncio.CancelledError, GeneratorExit):
+                    break
+        except (asyncio.CancelledError, GeneratorExit):
             pass
         finally:
             unsubscribe(q)
