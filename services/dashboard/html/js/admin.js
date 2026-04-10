@@ -1,4 +1,25 @@
 const FMT = new Intl.NumberFormat('th-TH');
+const sortState = {}; // tableId → {col, asc}
+
+function sortTable(tableId, colIndex) {
+    const table = document.getElementById(tableId);
+    const tbody = table.querySelector('tbody');
+    const rows = [...tbody.querySelectorAll('tr')];
+    const prev = sortState[tableId];
+    const asc = prev && prev.col === colIndex ? !prev.asc : true;
+    sortState[tableId] = {col: colIndex, asc};
+
+    rows.sort((a, b) => {
+        const aVal = a.cells[colIndex]?.textContent?.trim() || '';
+        const bVal = b.cells[colIndex]?.textContent?.trim() || '';
+        const aNum = parseFloat(aVal), bNum = parseFloat(bVal);
+        if (!isNaN(aNum) && !isNaN(bNum)) return asc ? aNum - bNum : bNum - aNum;
+        return asc ? aVal.localeCompare(bVal, 'th') : bVal.localeCompare(aVal, 'th');
+    });
+
+    tbody.innerHTML = '';
+    rows.forEach(r => tbody.appendChild(r));
+}
 const PAGE_SIZE = 50;
 let branchMode = false;
 
@@ -206,9 +227,9 @@ async function loadParticipants(append) {
 
         data.forEach(p => {
             tbody.innerHTML += `<tr>
-                <td>${p.id}</td><td>${p.prefix || '-'}</td><td>${p.first_name}</td>
+                <td>${p.id}</td><td>${p.member_code || '-'}</td><td>${p.first_name}</td>
                 <td>${p.last_name}</td><td>${p.gender || '-'}</td><td>${p.age || '-'}</td>
-                <td>${p.province || '-'}</td><td>${p.branch_id}</td><td>${p.status || '-'}</td><td>${p.enrolled_date || '-'}</td></tr>`;
+                <td>${p.branch_id}</td><td>${p.status || '-'}</td><td>${p.enrolled_date || '-'}</td></tr>`;
         });
 
         participantOffset += data.length;
@@ -276,7 +297,7 @@ async function loadIndRecords(append) {
             const as = (r.afternoon_male||0)+(r.afternoon_female||0)+(r.afternoon_unspecified||0);
             const es = (r.evening_male||0)+(r.evening_female||0)+(r.evening_unspecified||0);
             tbody.innerHTML += `<tr>
-                <td>${r.id}</td><td>${r.name}</td><td>${FMT.format(r.minutes)}</td>
+                <td>${r.id}</td><td>${r.member_code || '-'}</td><td>${r.name}</td><td>${FMT.format(r.minutes)}</td>
                 <td>${ms ? '✓' : ''}</td><td>${as ? '✓' : ''}</td><td>${es ? '✓' : ''}</td>
                 <td>${r.date}</td><td>${r.status}</td></tr>`;
         });

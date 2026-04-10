@@ -51,7 +51,11 @@ async def list_records(
     db: AsyncSession = Depends(get_db),
 ):
     """List records with optional filters and pagination."""
-    stmt = select(Record).order_by(Record.date.desc(), Record.id.desc())
+    stmt = (
+        select(Record, Participant.member_code)
+        .outerjoin(Participant, Record.participant_id == Participant.id)
+        .order_by(Record.date.desc(), Record.id.desc())
+    )
     if branch_id:
         stmt = stmt.where(Record.branch_id == branch_id)
     if record_type:
@@ -60,23 +64,23 @@ async def list_records(
         stmt = stmt.where(Record.status == status)
     stmt = stmt.limit(limit).offset(offset)
     result = await db.execute(stmt)
-    records = result.scalars().all()
     return [
         {
-            "id": r.id, "type": r.type, "branch_id": r.branch_id,
-            "org_id": r.org_id, "participant_id": r.participant_id,
-            "name": r.name, "minutes": r.minutes,
-            "participant_count": r.participant_count,
-            "morning_male": r.morning_male, "morning_female": r.morning_female,
-            "morning_unspecified": r.morning_unspecified,
-            "afternoon_male": r.afternoon_male, "afternoon_female": r.afternoon_female,
-            "afternoon_unspecified": r.afternoon_unspecified,
-            "evening_male": r.evening_male, "evening_female": r.evening_female,
-            "evening_unspecified": r.evening_unspecified,
-            "date": str(r.date), "status": r.status,
-            "submitted_by": r.submitted_by,
+            "id": r.Record.id, "type": r.Record.type, "branch_id": r.Record.branch_id,
+            "org_id": r.Record.org_id, "participant_id": r.Record.participant_id,
+            "member_code": r.member_code,
+            "name": r.Record.name, "minutes": r.Record.minutes,
+            "participant_count": r.Record.participant_count,
+            "morning_male": r.Record.morning_male, "morning_female": r.Record.morning_female,
+            "morning_unspecified": r.Record.morning_unspecified,
+            "afternoon_male": r.Record.afternoon_male, "afternoon_female": r.Record.afternoon_female,
+            "afternoon_unspecified": r.Record.afternoon_unspecified,
+            "evening_male": r.Record.evening_male, "evening_female": r.Record.evening_female,
+            "evening_unspecified": r.Record.evening_unspecified,
+            "date": str(r.Record.date), "status": r.Record.status,
+            "submitted_by": r.Record.submitted_by,
         }
-        for r in records
+        for r in result.all()
     ]
 
 

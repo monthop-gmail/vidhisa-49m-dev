@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>สาขา Admin — วิทิสา 49M</title>
 <link rel="stylesheet" href="/css/style.css">
+<style>
+.sortable { cursor:pointer; user-select:none; }
+.sortable:hover { background:#e3f2fd; }
+.sortable::after { content:' ⇅'; opacity:0.3; font-size:0.8rem; }
+</style>
 </head>
 <body>
 
@@ -171,7 +176,10 @@
         <table id="participant-table">
             <thead>
                 <tr>
-                    <th>ID</th><th>คำนำหน้า</th><th>ชื่อ</th><th>นามสกุล</th><th>เพศ</th><th>อายุ</th><th>จังหวัด</th><th>สาขา</th><th>สถานะ</th><th>สมัคร</th>
+                    <th class="sortable" onclick="sortTable('participant-table',0)">ID</th>
+                    <th class="sortable" onclick="sortTable('participant-table',1)">รหัส</th>
+                    <th class="sortable" onclick="sortTable('participant-table',2)">ชื่อ</th>
+                    <th>นามสกุล</th><th>เพศ</th><th>อายุ</th><th>สาขา</th><th>สถานะ</th><th>สมัคร</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -217,7 +225,12 @@
         <table id="ind-record-table">
             <thead>
                 <tr>
-                    <th>ID</th><th>ชื่อ</th><th>นาที</th><th>เช้า</th><th>กลางวัน</th><th>เย็น</th><th>วันที่</th><th>สถานะ</th>
+                    <th class="sortable" onclick="sortTable('ind-record-table',0)">ID</th>
+                    <th class="sortable" onclick="sortTable('ind-record-table',1)">รหัส</th>
+                    <th class="sortable" onclick="sortTable('ind-record-table',2)">ชื่อ</th>
+                    <th>นาที</th><th>เช้า</th><th>กลางวัน</th><th>เย็น</th>
+                    <th class="sortable" onclick="sortTable('ind-record-table',7)">วันที่</th>
+                    <th>สถานะ</th>
                 </tr>
             </thead>
             <tbody></tbody>
