@@ -25,6 +25,18 @@
         </select>
     </section>
 
+    <section id="section-ggs-sync" style="display:none;">
+        <h2>Google Sheet — ดึงข้อมูลสาขา</h2>
+        <div class="form-grid" style="margin-bottom:0.5rem;">
+            <div><label>Google Sheet URL</label><input id="ggs-url-input" placeholder="https://docs.google.com/spreadsheets/d/..." style="width:100%;"></div>
+        </div>
+        <div style="display:flex; gap:0.5rem; align-items:center;">
+            <button class="btn-approve" onclick="saveGgsUrl()">บันทึก URL</button>
+            <button class="btn-approve" onclick="syncBranchGgs()">ดึงข้อมูล</button>
+            <span id="ggs-sync-status" style="font-size:0.85rem; color:#666;"></span>
+        </div>
+    </section>
+
     <section id="section-enrollments" style="display:none;">
         <h2>สาขาขอเข้าร่วมโครงการ <span id="enrollment-count" style="font-size:0.85rem; color:#666; font-weight:normal;"></span></h2>
         <div style="margin-bottom:0.5rem; display:flex; gap:0.5rem; align-items:center;">

@@ -8,6 +8,8 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import get_current_user
+from app.branch_auth import check_branch_access
 from app.database import get_db
 from app.models import Branch, Organization, Record
 from app.schemas import (
@@ -313,24 +315,28 @@ async def update_organization(
 
 
 @router.patch("/organizations/{org_id}/approve")
-async def approve_organization(org_id: str, db: AsyncSession = Depends(get_db)):
+async def approve_organization(org_id: str, user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Approve a pending organization."""
     result = await db.execute(select(Organization).where(Organization.id == org_id))
     org = result.scalar_one_or_none()
     if not org:
         raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบองค์กร"})
+    if org.branch_id:
+        check_branch_access(user, org.branch_id)
     org.status = "approved"
     await db.commit()
     return {"id": org.id, "status": "approved"}
 
 
 @router.patch("/organizations/{org_id}/reject")
-async def reject_organization(org_id: str, db: AsyncSession = Depends(get_db)):
+async def reject_organization(org_id: str, user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Reject a pending organization."""
     result = await db.execute(select(Organization).where(Organization.id == org_id))
     org = result.scalar_one_or_none()
     if not org:
         raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบองค์กร"})
+    if org.branch_id:
+        check_branch_access(user, org.branch_id)
     org.status = "rejected"
     await db.commit()
     return {"id": org.id, "status": "rejected"}

@@ -10,8 +10,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import get_current_user
+from app.branch_auth import check_branch_access
 from app.database import get_db
-from app.models import Branch, BranchGroup, Organization, Participant, Record
+from app.models import Branch, BranchGroup, Organization, Participant, Record, User
 
 router = APIRouter()
 
@@ -275,10 +277,79 @@ async def _sync_records(sheet_id: str, db: AsyncSession, valid_branches: set) ->
     return {"created": created, "updated": updated, "errors": errors}
 
 
+@router.patch("/ggs/set-url")
+async def set_ggs_url(
+    data: dict,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set Google Sheet URL for a branch. Branch admin sets own, central admin sets any."""
+    branch_id = data.get("branch_id", "").strip() or user.branch_id
+    url = data.get("url", "").strip()
+
+    if not branch_id:
+        raise HTTPException(status_code=400, detail={"error": "MISSING", "message": "กรุณาระบุ branch_id"})
+    check_branch_access(user, branch_id)
+
+    result = await db.execute(select(Branch).where(Branch.id == branch_id))
+    branch = result.scalar_one_or_none()
+    if not branch:
+        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": f"ไม่พบสาขา {branch_id}"})
+
+    branch.ggs_url = url or None
+    await db.commit()
+    return {"branch_id": branch_id, "ggs_url": branch.ggs_url, "message": "บันทึก URL สำเร็จ"}
+
+
+@router.post("/ggs/sync-branch")
+async def sync_branch_ggs(
+    data: dict = None,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Sync GGS for current user's branch (or specified branch for central admin)."""
+    data = data or {}
+    branch_id = data.get("branch_id", "").strip() or user.branch_id
+
+    if not branch_id:
+        raise HTTPException(status_code=400, detail={"error": "MISSING", "message": "กรุณาระบุ branch_id"})
+    check_branch_access(user, branch_id)
+
+    # Get branch GGS URL
+    result = await db.execute(select(Branch).where(Branch.id == branch_id))
+    branch = result.scalar_one_or_none()
+    if not branch or not branch.ggs_url:
+        raise HTTPException(status_code=400, detail={
+            "error": "NO_GGS_URL",
+            "message": f"สาขา {branch_id} ยังไม่ได้ตั้ง Google Sheet URL — กรุณาตั้งค่าก่อน",
+        })
+
+    sheet_id = extract_sheet_id(branch.ggs_url)
+    results = {}
+
+    branch_result = await db.execute(select(Branch.id))
+    valid_branches = {r[0] for r in branch_result.all()}
+    org_result = await db.execute(select(Organization.id))
+    existing_orgs = {r[0] for r in org_result.all()}
+
+    sheets = data.get("sheets", ["organizations", "participants", "records"])
+
+    if "organizations" in sheets:
+        results["organizations"] = await _sync_organizations(sheet_id, db, valid_branches, existing_orgs)
+    if "participants" in sheets:
+        results["participants"] = await _sync_participants(sheet_id, db, valid_branches)
+    if "records" in sheets:
+        results["records"] = await _sync_records(sheet_id, db, valid_branches)
+
+    return {"branch_id": branch_id, **results}
+
+
 @router.get("/ggs/sources")
 async def list_ggs_sources(db: AsyncSession = Depends(get_db)):
-    """List all registered GGS sources (branches with ggs_url)."""
-    stmt = select(Branch.id, Branch.name, Branch.group_id).order_by(Branch.id)
+    """List all branches with GGS URL status."""
+    stmt = select(Branch.id, Branch.name, Branch.group_id, Branch.ggs_url).order_by(Branch.id)
     result = await db.execute(stmt)
-    # For now return branch list — ggs_url will be added to branch table later
-    return [{"branch_id": r.id, "branch_name": r.name, "group_id": r.group_id} for r in result.all()]
+    return [
+        {"branch_id": r.id, "branch_name": r.name, "group_id": r.group_id, "ggs_url": r.ggs_url}
+        for r in result.all()
+    ]

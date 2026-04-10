@@ -8,6 +8,8 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import get_current_user
+from app.branch_auth import check_branch_access
 from app.database import get_db
 from app.models import Branch, Participant
 from app.schemas import ImportResult, ParticipantCreate, ParticipantResponse
@@ -238,24 +240,28 @@ async def transfer_participant(participant_id: int, data: dict, db: AsyncSession
 
 
 @router.patch("/participants/{participant_id}/approve")
-async def approve_participant(participant_id: int, db: AsyncSession = Depends(get_db)):
+async def approve_participant(participant_id: int, user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Approve a pending participant."""
     result = await db.execute(select(Participant).where(Participant.id == participant_id))
     p = result.scalar_one_or_none()
     if not p:
         raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบผู้เข้าร่วม"})
+    if p.branch_id:
+        check_branch_access(user, p.branch_id)
     p.status = "approved"
     await db.commit()
     return {"id": p.id, "status": "approved"}
 
 
 @router.patch("/participants/{participant_id}/reject")
-async def reject_participant(participant_id: int, db: AsyncSession = Depends(get_db)):
+async def reject_participant(participant_id: int, user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Reject a pending participant."""
     result = await db.execute(select(Participant).where(Participant.id == participant_id))
     p = result.scalar_one_or_none()
     if not p:
         raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบผู้เข้าร่วม"})
+    if p.branch_id:
+        check_branch_access(user, p.branch_id)
     p.status = "rejected"
     await db.commit()
     return {"id": p.id, "status": "rejected"}

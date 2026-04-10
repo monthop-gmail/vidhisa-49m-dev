@@ -476,6 +476,59 @@ async function loadUsers() {
     } catch (e) { console.error('users error:', e); }
 }
 
+// === GGS Sync (branch admin) ===
+async function loadGgsUrl() {
+    const bid = getBranchContext();
+    if (!bid) return;
+    try {
+        const res = await fetch('/api/ggs/sources');
+        const data = await res.json();
+        const branch = data.find(b => b.branch_id === bid);
+        if (branch && branch.ggs_url) {
+            document.getElementById('ggs-url-input').value = branch.ggs_url;
+        }
+    } catch (e) { console.error('load ggs url error:', e); }
+}
+
+async function saveGgsUrl() {
+    const url = document.getElementById('ggs-url-input').value.trim();
+    const bid = getBranchContext();
+    const status = document.getElementById('ggs-sync-status');
+    const res = await authFetch('/api/ggs/set-url', {
+        method: 'PATCH', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({branch_id: bid, url: url}),
+    });
+    const data = await res.json();
+    if (res.ok) { status.textContent = data.message; status.style.color = '#43a047'; }
+    else { status.textContent = data.detail?.message || 'เกิดข้อผิดพลาด'; status.style.color = '#e53935'; }
+}
+
+async function syncBranchGgs() {
+    const bid = getBranchContext();
+    const status = document.getElementById('ggs-sync-status');
+    status.textContent = 'กำลังดึงข้อมูล...'; status.style.color = '#666';
+    try {
+        const res = await authFetch('/api/ggs/sync-branch', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({branch_id: bid}),
+        });
+        const data = await res.json();
+        if (res.ok) {
+            let msg = `สำเร็จ:`;
+            if (data.organizations) msg += ` org +${data.organizations.created || 0}`;
+            if (data.participants) msg += ` | participants +${data.participants.created || 0}`;
+            if (data.records) msg += ` | records +${data.records.created || 0}`;
+            status.textContent = msg; status.style.color = '#43a047';
+            // Refresh tables
+            loadPendingOrgs(); loadPendingParticipants(); loadPending();
+            loadOrganizations(); loadParticipants();
+            loadBulkRecords(); loadIndRecords();
+        } else {
+            status.textContent = data.detail?.message || 'เกิดข้อผิดพลาด'; status.style.color = '#e53935';
+        }
+    } catch (e) { status.textContent = 'เกิดข้อผิดพลาด'; status.style.color = '#e53935'; }
+}
+
 async function editUser(id, currentUsername, currentEmail) {
     const newUsername = prompt(`แก้ username (ปัจจุบัน: ${currentUsername})\nแนะนำใช้ email:`, currentEmail || currentUsername);
     if (newUsername === null) return;
@@ -520,6 +573,8 @@ async function initAdmin() {
         document.getElementById('section-branches').style.display = 'none';
         document.getElementById('org-section-title').textContent = `องค์กรในสาขา ${contextBranch}`;
 
+        document.getElementById('section-ggs-sync').style.display = 'block';
+        loadGgsUrl();
         loadPendingOrgs();
         loadPendingParticipants();
         loadPending();

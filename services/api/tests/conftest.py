@@ -12,5 +12,11 @@ def base_url():
 
 @pytest.fixture(scope="session")
 def client():
+    """Client with admin auth token for all tests."""
     with httpx.Client(base_url=BASE_URL, timeout=10) as c:
+        # Login as central admin
+        r = c.post("/api/auth/login", json={"username": "admin", "password": "vidhisa2569"})
+        if r.status_code == 200:
+            token = r.json()["token"]
+            c.headers["Authorization"] = f"Bearer {token}"
         yield c
