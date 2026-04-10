@@ -85,7 +85,10 @@ class Branch(Base):
     admin_name = Column(String(200))
     contact = Column(String(200))
     opening_hours = Column(String(500))
-    ggs_url = Column(Text)
+    ggs_url_org = Column(Text)
+    ggs_url_participant = Column(Text)
+    ggs_url_record_bulk = Column(Text)
+    ggs_url_record_ind = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self) -> str:

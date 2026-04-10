@@ -477,26 +477,34 @@ async function loadUsers() {
 }
 
 // === GGS Sync (branch admin) ===
-async function loadGgsUrl() {
+async function loadGgsUrls() {
     const bid = getBranchContext();
     if (!bid) return;
     try {
         const res = await fetch('/api/ggs/sources');
         const data = await res.json();
         const branch = data.find(b => b.branch_id === bid);
-        if (branch && branch.ggs_url) {
-            document.getElementById('ggs-url-input').value = branch.ggs_url;
+        if (branch) {
+            if (branch.ggs_url_org) document.getElementById('ggs-url-org').value = branch.ggs_url_org;
+            if (branch.ggs_url_participant) document.getElementById('ggs-url-participant').value = branch.ggs_url_participant;
+            if (branch.ggs_url_record_bulk) document.getElementById('ggs-url-record-bulk').value = branch.ggs_url_record_bulk;
+            if (branch.ggs_url_record_ind) document.getElementById('ggs-url-record-ind').value = branch.ggs_url_record_ind;
         }
-    } catch (e) { console.error('load ggs url error:', e); }
+    } catch (e) { console.error('load ggs urls error:', e); }
 }
 
-async function saveGgsUrl() {
-    const url = document.getElementById('ggs-url-input').value.trim();
+async function saveGgsUrls() {
     const bid = getBranchContext();
     const status = document.getElementById('ggs-sync-status');
     const res = await authFetch('/api/ggs/set-url', {
         method: 'PATCH', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({branch_id: bid, url: url}),
+        body: JSON.stringify({
+            branch_id: bid,
+            ggs_url_org: document.getElementById('ggs-url-org').value.trim(),
+            ggs_url_participant: document.getElementById('ggs-url-participant').value.trim(),
+            ggs_url_record_bulk: document.getElementById('ggs-url-record-bulk').value.trim(),
+            ggs_url_record_ind: document.getElementById('ggs-url-record-ind').value.trim(),
+        }),
     });
     const data = await res.json();
     if (res.ok) { status.textContent = data.message; status.style.color = '#43a047'; }
@@ -514,12 +522,13 @@ async function syncBranchGgs() {
         });
         const data = await res.json();
         if (res.ok) {
-            let msg = `สำเร็จ:`;
-            if (data.organizations) msg += ` org +${data.organizations.created || 0}`;
-            if (data.participants) msg += ` | participants +${data.participants.created || 0}`;
-            if (data.records) msg += ` | records +${data.records.created || 0}`;
+            let msg = 'สำเร็จ:';
+            if (data.record_ind) msg += ` รายคน +${data.record_ind.created || 0}/${data.record_ind.updated || 0}`;
+            if (data.record_bulk) msg += ` | กลุ่ม: ${data.record_bulk.message || 'skip'}`;
+            if (data.org) msg += ` | org: ${data.org.message || 'skip'}`;
+            if (data.participant) msg += ` | ผู้เข้าร่วม: ${data.participant.message || 'skip'}`;
+            if (data.message) msg = data.message;
             status.textContent = msg; status.style.color = '#43a047';
-            // Refresh tables
             loadPendingOrgs(); loadPendingParticipants(); loadPending();
             loadOrganizations(); loadParticipants();
             loadBulkRecords(); loadIndRecords();
@@ -574,7 +583,7 @@ async function initAdmin() {
         document.getElementById('org-section-title').textContent = `องค์กรในสาขา ${contextBranch}`;
 
         document.getElementById('section-ggs-sync').style.display = 'block';
-        loadGgsUrl();
+        loadGgsUrls();
         loadPendingOrgs();
         loadPendingParticipants();
         loadPending();

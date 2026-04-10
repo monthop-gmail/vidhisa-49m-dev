@@ -27,12 +27,15 @@
 
     <section id="section-ggs-sync" style="display:none;">
         <h2>Google Sheet — ดึงข้อมูลสาขา</h2>
-        <div class="form-grid" style="margin-bottom:0.5rem;">
-            <div><label>Google Sheet URL</label><input id="ggs-url-input" placeholder="https://docs.google.com/spreadsheets/d/..." style="width:100%;"></div>
+        <div style="display:grid; grid-template-columns:1fr; gap:0.4rem; margin-bottom:0.5rem; font-size:0.9rem;">
+            <div><label>1. หน่วยงานขอเข้าร่วม</label><input id="ggs-url-org" placeholder="URL Google Sheet หน่วยงาน" style="width:100%;"></div>
+            <div><label>2. รายบุคคลขอเข้าร่วม</label><input id="ggs-url-participant" placeholder="URL Google Sheet รายบุคคล" style="width:100%;"></div>
+            <div><label>3. บันทึกสมาธิ หน่วยงาน</label><input id="ggs-url-record-bulk" placeholder="URL Google Sheet บันทึกหน่วยงาน" style="width:100%;"></div>
+            <div><label>4. บันทึกสมาธิ รายบุคคล</label><input id="ggs-url-record-ind" placeholder="URL Google Sheet บันทึกรายบุคคล" style="width:100%;"></div>
         </div>
         <div style="display:flex; gap:0.5rem; align-items:center;">
-            <button class="btn-approve" onclick="saveGgsUrl()">บันทึก URL</button>
-            <button class="btn-approve" onclick="syncBranchGgs()">ดึงข้อมูล</button>
+            <button class="btn-approve" onclick="saveGgsUrls()">บันทึก URL</button>
+            <button class="btn-approve" onclick="syncBranchGgs()">ดึงข้อมูลทั้งหมด</button>
             <span id="ggs-sync-status" style="font-size:0.85rem; color:#666;"></span>
         </div>
     </section>

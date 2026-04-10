@@ -58,7 +58,10 @@ CREATE TABLE branches (
     admin_name      VARCHAR(200),
     contact         VARCHAR(200),
     opening_hours   VARCHAR(500),
-    ggs_url         TEXT,
+    ggs_url_org             TEXT,
+    ggs_url_participant     TEXT,
+    ggs_url_record_bulk     TEXT,
+    ggs_url_record_ind      TEXT,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 

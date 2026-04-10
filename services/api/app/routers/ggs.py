@@ -3,7 +3,7 @@
 import csv
 import io
 import re
-from datetime import date as date_type
+from datetime import date as date_type, datetime
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,269 +13,62 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import get_current_user
 from app.branch_auth import check_branch_access
 from app.database import get_db
-from app.models import Branch, BranchGroup, Organization, Participant, Record, User
+from app.models import Branch, Organization, Participant, Record, User
 
 router = APIRouter()
 
+GGS_URL_TYPES = ["ggs_url_org", "ggs_url_participant", "ggs_url_record_bulk", "ggs_url_record_ind"]
+
 
 def extract_sheet_id(url: str) -> str:
-    """Extract Google Sheet ID from URL."""
     match = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", url)
     if not match:
         raise HTTPException(status_code=400, detail={"error": "INVALID_URL", "message": "URL ไม่ใช่ Google Sheet"})
     return match.group(1)
 
 
-def build_csv_url(sheet_id: str, sheet_name: str) -> str:
-    """Build CSV export URL for a specific sheet."""
-    return f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
+def build_csv_url(sheet_id: str, sheet_name: str = None) -> str:
+    if sheet_name:
+        return f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
+    return f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv"
 
 
 async def fetch_csv(url: str) -> list[dict]:
-    """Fetch CSV from URL and return list of dicts."""
     async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
         res = await client.get(url)
         if res.status_code != 200:
             raise HTTPException(status_code=502, detail={
                 "error": "GGS_FETCH_FAILED",
-                "message": f"ดึงข้อมูลจาก Google Sheet ไม่ได้ (HTTP {res.status_code})",
+                "message": f"ดึง Google Sheet ไม่ได้ (HTTP {res.status_code})",
             })
     text = res.text.lstrip("\ufeff")
     reader = csv.DictReader(io.StringIO(text))
     return list(reader)
 
 
-@router.post("/ggs/sync")
-async def sync_from_ggs(
-    data: dict,
-    db: AsyncSession = Depends(get_db),
-):
-    """Sync data from a Google Sheet URL.
-
-    Body: {"url": "https://docs.google.com/spreadsheets/d/xxx/edit", "sheets": ["organizations", "participants", "records"]}
-    """
-    url = data.get("url", "").strip()
-    sheets = data.get("sheets", ["organizations", "participants", "records"])
-    if not url:
-        raise HTTPException(status_code=400, detail={"error": "MISSING_URL", "message": "กรุณาระบุ URL ของ Google Sheet"})
-
-    sheet_id = extract_sheet_id(url)
-    results = {}
-
-    # Load valid references
-    branch_result = await db.execute(select(Branch.id))
-    valid_branches = {r[0] for r in branch_result.all()}
-    org_result = await db.execute(select(Organization.id))
-    existing_orgs = {r[0] for r in org_result.all()}
-
-    if "organizations" in sheets:
-        results["organizations"] = await _sync_organizations(sheet_id, db, valid_branches, existing_orgs)
-
-    if "participants" in sheets:
-        results["participants"] = await _sync_participants(sheet_id, db, valid_branches)
-
-    if "records" in sheets:
-        results["records"] = await _sync_records(sheet_id, db, valid_branches)
-
-    return results
+def parse_thai_date(s: str) -> date_type | None:
+    """Parse date like '5/4/2026' (D/M/YYYY) or '2026-04-05'."""
+    s = s.strip()
+    if not s:
+        return None
+    if '-' in s:
+        return date_type.fromisoformat(s)
+    parts = s.split('/')
+    if len(parts) == 3:
+        d, m, y = int(parts[0]), int(parts[1]), int(parts[2])
+        return date_type(y, m, d)
+    return None
 
 
-async def _sync_organizations(sheet_id: str, db: AsyncSession, valid_branches: set, existing_orgs: set) -> dict:
-    """Sync organizations sheet."""
-    try:
-        rows = await fetch_csv(build_csv_url(sheet_id, "organizations"))
-    except Exception:
-        return {"status": "skip", "message": "ไม่พบ sheet 'organizations'"}
-
-    created = 0
-    updated = 0
-    errors = []
-
-    for i, row in enumerate(rows, start=2):
-        org_id = (row.get("id") or "").strip()
-        name = (row.get("name") or "").strip()
-        branch_id = (row.get("branch_id") or "").strip()
-
-        if not org_id or not name:
-            errors.append(f"แถว {i}: ขาด id หรือ name")
-            continue
-        if branch_id and branch_id not in valid_branches:
-            errors.append(f"แถว {i}: branch_id '{branch_id}' ไม่มีในระบบ")
-            continue
-
-        lat = (row.get("latitude") or "").strip()
-        lng = (row.get("longitude") or "").strip()
-        max_p = (row.get("max_participants") or "").strip()
-
-        fields = {
-            "name": name,
-            "org_type": (row.get("org_type") or "").strip() or None,
-            "branch_id": branch_id or None,
-            "sub_district": (row.get("sub_district") or "").strip() or None,
-            "district": (row.get("district") or "").strip() or None,
-            "province": (row.get("province") or "").strip() or None,
-            "email": (row.get("email") or "").strip() or None,
-            "max_participants": int(max_p) if max_p else None,
-            "gender_male": int((row.get("gender_male") or "0").strip() or "0"),
-            "gender_female": int((row.get("gender_female") or "0").strip() or "0"),
-            "gender_unspecified": int((row.get("gender_unspecified") or "0").strip() or "0"),
-            "contact_name": (row.get("contact_name") or "").strip() or None,
-            "contact_phone": (row.get("contact_phone") or "").strip() or None,
-            "contact_line_id": (row.get("contact_line_id") or "").strip() or None,
-            "enrolled_date": (row.get("enrolled_date") or "").strip() or None,
-            "enrolled_until": (row.get("enrolled_until") or "").strip() or None,
-            "latitude": float(lat) if lat else None,
-            "longitude": float(lng) if lng else None,
-        }
-
-        if org_id in existing_orgs:
-            result = await db.execute(select(Organization).where(Organization.id == org_id))
-            org = result.scalar_one()
-            for k, v in fields.items():
-                setattr(org, k, v)
-            updated += 1
-        else:
-            org = Organization(id=org_id, **fields)
-            db.add(org)
-            existing_orgs.add(org_id)
-            created += 1
-
-    await db.commit()
-    return {"created": created, "updated": updated, "errors": errors}
+def parse_sessions(s: str) -> tuple[bool, bool, bool]:
+    """Parse 'เช้า 5 นาที, กลางวัน 5 นาที, เย็น 5 นาที'."""
+    morning = 'เช้า' in s
+    afternoon = 'กลางวัน' in s
+    evening = 'เย็น' in s
+    return morning, afternoon, evening
 
 
-async def _sync_participants(sheet_id: str, db: AsyncSession, valid_branches: set) -> dict:
-    """Sync participants sheet."""
-    try:
-        rows = await fetch_csv(build_csv_url(sheet_id, "participants"))
-    except Exception:
-        return {"status": "skip", "message": "ไม่พบ sheet 'participants'"}
-
-    created = 0
-    errors = []
-
-    for i, row in enumerate(rows, start=2):
-        branch_id = (row.get("branch_id") or "").strip()
-        first_name = (row.get("first_name") or "").strip()
-        last_name = (row.get("last_name") or "").strip()
-
-        if not branch_id or not first_name or not last_name:
-            errors.append(f"แถว {i}: ขาด branch_id, first_name หรือ last_name")
-            continue
-        if branch_id not in valid_branches:
-            errors.append(f"แถว {i}: branch_id '{branch_id}' ไม่มีในระบบ")
-            continue
-
-        age_str = (row.get("age") or "").strip()
-        p = Participant(
-            branch_id=branch_id,
-            prefix=(row.get("prefix") or "").strip() or None,
-            first_name=first_name,
-            last_name=last_name,
-            gender=(row.get("gender") or "").strip() or None,
-            age=int(age_str) if age_str else None,
-            sub_district=(row.get("sub_district") or "").strip() or None,
-            district=(row.get("district") or "").strip() or None,
-            province=(row.get("province") or "").strip() or None,
-            phone=(row.get("phone") or "").strip() or None,
-            line_id=(row.get("line_id") or "").strip() or None,
-            enrolled_date=(row.get("enrolled_date") or "").strip() or None,
-            privacy_accepted=True,
-        )
-        db.add(p)
-        created += 1
-
-    await db.commit()
-    return {"created": created, "errors": errors}
-
-
-async def _sync_records(sheet_id: str, db: AsyncSession, valid_branches: set) -> dict:
-    """Sync records sheet — upsert by branch_id + org_id/name + date."""
-    try:
-        rows = await fetch_csv(build_csv_url(sheet_id, "records"))
-    except Exception:
-        return {"status": "skip", "message": "ไม่พบ sheet 'records'"}
-
-    created = 0
-    updated = 0
-    errors = []
-
-    for i, row in enumerate(rows, start=2):
-        rec_type = (row.get("type") or "").strip()
-        branch_id = (row.get("branch_id") or "").strip()
-        name = (row.get("name") or "").strip()
-        date_str = (row.get("date") or "").strip()
-
-        if not rec_type or not branch_id or not name or not date_str:
-            errors.append(f"แถว {i}: ขาดข้อมูลที่จำเป็น")
-            continue
-        if branch_id not in valid_branches:
-            errors.append(f"แถว {i}: branch_id '{branch_id}' ไม่มีในระบบ")
-            continue
-
-        org_id = (row.get("org_id") or "").strip() or None
-        rec_date = date_type.fromisoformat(date_str)
-
-        if rec_type == "bulk":
-            mm = int((row.get("morning_male") or "0").strip() or "0")
-            mf = int((row.get("morning_female") or "0").strip() or "0")
-            mu = int((row.get("morning_unspecified") or "0").strip() or "0")
-            am = int((row.get("afternoon_male") or "0").strip() or "0")
-            af = int((row.get("afternoon_female") or "0").strip() or "0")
-            au = int((row.get("afternoon_unspecified") or "0").strip() or "0")
-            em = int((row.get("evening_male") or "0").strip() or "0")
-            ef = int((row.get("evening_female") or "0").strip() or "0")
-            eu = int((row.get("evening_unspecified") or "0").strip() or "0")
-            total_people = (mm+mf+mu) + (am+af+au) + (em+ef+eu)
-            minutes = total_people * 5
-
-            fields = {
-                "type": "bulk", "branch_id": branch_id, "name": name, "org_id": org_id,
-                "minutes": minutes if minutes > 0 else int((row.get("minutes") or "0").strip() or "0"),
-                "participant_count": max(mm+mf+mu, am+af+au, em+ef+eu),
-                "minutes_per_person": 5,
-                "morning_male": mm, "morning_female": mf, "morning_unspecified": mu,
-                "afternoon_male": am, "afternoon_female": af, "afternoon_unspecified": au,
-                "evening_male": em, "evening_female": ef, "evening_unspecified": eu,
-                "date": rec_date, "status": "pending",
-                "submitted_by": (row.get("submitted_by") or "").strip() or None,
-                "submitted_phone": (row.get("submitted_phone") or "").strip() or None,
-            }
-        else:
-            # individual
-            morning = int((row.get("morning") or "0").strip() or "0")
-            afternoon = int((row.get("afternoon") or "0").strip() or "0")
-            evening = int((row.get("evening") or "0").strip() or "0")
-            minutes = (morning + afternoon + evening) * 5
-
-            fields = {
-                "type": "individual", "branch_id": branch_id, "name": name,
-                "minutes": minutes if minutes > 0 else int((row.get("minutes") or "0").strip() or "0"),
-                "morning_male": morning, "afternoon_male": afternoon, "evening_male": evening,
-                "date": rec_date, "status": "pending",
-            }
-
-        # Upsert
-        existing = None
-        if org_id:
-            stmt = select(Record).where(
-                Record.branch_id == branch_id, Record.org_id == org_id,
-                Record.name == name, Record.date == rec_date,
-            )
-            result = await db.execute(stmt)
-            existing = result.scalar_one_or_none()
-
-        if existing:
-            for k, v in fields.items():
-                setattr(existing, k, v)
-            updated += 1
-        else:
-            db.add(Record(**fields))
-            created += 1
-
-    await db.commit()
-    return {"created": created, "updated": updated, "errors": errors}
-
+# === Set URLs ===
 
 @router.patch("/ggs/set-url")
 async def set_ggs_url(
@@ -283,10 +76,8 @@ async def set_ggs_url(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Set Google Sheet URL for a branch. Branch admin sets own, central admin sets any."""
+    """Set Google Sheet URLs for a branch."""
     branch_id = data.get("branch_id", "").strip() or user.branch_id
-    url = data.get("url", "").strip()
-
     if not branch_id:
         raise HTTPException(status_code=400, detail={"error": "MISSING", "message": "กรุณาระบุ branch_id"})
     check_branch_access(user, branch_id)
@@ -296,10 +87,37 @@ async def set_ggs_url(
     if not branch:
         raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": f"ไม่พบสาขา {branch_id}"})
 
-    branch.ggs_url = url or None
-    await db.commit()
-    return {"branch_id": branch_id, "ggs_url": branch.ggs_url, "message": "บันทึก URL สำเร็จ"}
+    updated = []
+    for field in GGS_URL_TYPES:
+        if field in data:
+            setattr(branch, field, data[field].strip() or None)
+            updated.append(field)
 
+    # Backward compat: "url" sets all or specific type
+    if "url" in data and "url_type" in data:
+        url_type = data["url_type"]
+        field = f"ggs_url_{url_type}" if not url_type.startswith("ggs_url_") else url_type
+        if hasattr(branch, field):
+            setattr(branch, field, data["url"].strip() or None)
+            updated.append(field)
+    elif "url" in data and not updated:
+        # Default: set record_ind (most common)
+        branch.ggs_url_record_ind = data["url"].strip() or None
+        updated.append("ggs_url_record_ind")
+
+    await db.commit()
+    return {
+        "branch_id": branch_id,
+        "updated": updated,
+        "ggs_url_org": branch.ggs_url_org,
+        "ggs_url_participant": branch.ggs_url_participant,
+        "ggs_url_record_bulk": branch.ggs_url_record_bulk,
+        "ggs_url_record_ind": branch.ggs_url_record_ind,
+        "message": f"บันทึก URL สำเร็จ ({len(updated)} fields)",
+    }
+
+
+# === Sync branch GGS ===
 
 @router.post("/ggs/sync-branch")
 async def sync_branch_ggs(
@@ -307,49 +125,158 @@ async def sync_branch_ggs(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Sync GGS for current user's branch (or specified branch for central admin)."""
+    """Sync all GGS data for a branch."""
     data = data or {}
     branch_id = data.get("branch_id", "").strip() or user.branch_id
-
     if not branch_id:
         raise HTTPException(status_code=400, detail={"error": "MISSING", "message": "กรุณาระบุ branch_id"})
     check_branch_access(user, branch_id)
 
-    # Get branch GGS URL
     result = await db.execute(select(Branch).where(Branch.id == branch_id))
     branch = result.scalar_one_or_none()
-    if not branch or not branch.ggs_url:
-        raise HTTPException(status_code=400, detail={
-            "error": "NO_GGS_URL",
-            "message": f"สาขา {branch_id} ยังไม่ได้ตั้ง Google Sheet URL — กรุณาตั้งค่าก่อน",
-        })
+    if not branch:
+        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": f"ไม่พบสาขา {branch_id}"})
 
-    sheet_id = extract_sheet_id(branch.ggs_url)
     results = {}
+    sync_types = data.get("types", ["record_ind", "record_bulk", "org", "participant"])
 
-    branch_result = await db.execute(select(Branch.id))
-    valid_branches = {r[0] for r in branch_result.all()}
-    org_result = await db.execute(select(Organization.id))
-    existing_orgs = {r[0] for r in org_result.all()}
+    if "record_ind" in sync_types and branch.ggs_url_record_ind:
+        results["record_ind"] = await _sync_record_ind(branch.ggs_url_record_ind, branch_id, db)
 
-    sheets = data.get("sheets", ["organizations", "participants", "records"])
+    if "record_bulk" in sync_types and branch.ggs_url_record_bulk:
+        results["record_bulk"] = await _sync_record_bulk(branch.ggs_url_record_bulk, branch_id, db)
 
-    if "organizations" in sheets:
-        results["organizations"] = await _sync_organizations(sheet_id, db, valid_branches, existing_orgs)
-    if "participants" in sheets:
-        results["participants"] = await _sync_participants(sheet_id, db, valid_branches)
-    if "records" in sheets:
-        results["records"] = await _sync_records(sheet_id, db, valid_branches)
+    if "org" in sync_types and branch.ggs_url_org:
+        results["org"] = await _sync_org(branch.ggs_url_org, branch_id, db)
+
+    if "participant" in sync_types and branch.ggs_url_participant:
+        results["participant"] = await _sync_participant(branch.ggs_url_participant, branch_id, db)
+
+    if not results:
+        return {"branch_id": branch_id, "message": "ไม่มี GGS URL ที่ตั้งไว้ — กรุณาบันทึก URL ก่อน"}
 
     return {"branch_id": branch_id, **results}
+
+
+# === Sync: Individual Records (format จาก อ.เต้) ===
+
+async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession) -> dict:
+    """Sync individual records from GGS — format: ชื่อผู้ปฏิบัติ, วันที่, รอบ."""
+    try:
+        sheet_id = extract_sheet_id(url)
+        rows = await fetch_csv(build_csv_url(sheet_id))
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+    created = 0
+    updated = 0
+    errors = []
+
+    for i, row in enumerate(rows, start=2):
+        raw_name = (row.get("เลือกชื่อผู้ปฏิบัติ") or "").strip()
+        raw_date = (row.get("วันที่ปฏิบัติ") or "").strip()
+        raw_session = (row.get("รอบการปฏิบัติ") or "").strip()
+
+        if not raw_name or not raw_date:
+            errors.append(f"แถว {i}: ขาดชื่อหรือวันที่")
+            continue
+
+        # Parse name: "003 บรรณวิทย์ ฉิมธนู" → "บรรณวิทย์ ฉิมธนู"
+        name_match = re.match(r"^\d+\s+(.+)$", raw_name)
+        name = name_match.group(1).strip() if name_match else raw_name
+
+        rec_date = parse_thai_date(raw_date)
+        if not rec_date:
+            errors.append(f"แถว {i}: วันที่ไม่ถูกต้อง '{raw_date}'")
+            continue
+
+        morning, afternoon, evening = parse_sessions(raw_session)
+        sessions = sum([morning, afternoon, evening])
+        minutes = sessions * 5
+
+        if minutes == 0:
+            errors.append(f"แถว {i}: ไม่มีรอบที่ปฏิบัติ")
+            continue
+
+        # Upsert by branch_id + name + date
+        stmt = select(Record).where(
+            Record.branch_id == branch_id,
+            Record.name == name,
+            Record.date == rec_date,
+            Record.type == "individual",
+        )
+        result = await db.execute(stmt)
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            existing.morning_male = 1 if morning else 0
+            existing.afternoon_male = 1 if afternoon else 0
+            existing.evening_male = 1 if evening else 0
+            existing.minutes = minutes
+            existing.status = "pending"
+            updated += 1
+        else:
+            db.add(Record(
+                type="individual", branch_id=branch_id, name=name,
+                minutes=minutes,
+                morning_male=1 if morning else 0,
+                afternoon_male=1 if afternoon else 0,
+                evening_male=1 if evening else 0,
+                date=rec_date, status="pending",
+            ))
+            created += 1
+
+    await db.commit()
+    return {"created": created, "updated": updated, "errors": errors[:10]}
+
+
+# === Sync: Bulk Records (placeholder — format TBD) ===
+
+async def _sync_record_bulk(url: str, branch_id: str, db: AsyncSession) -> dict:
+    """Sync bulk records — format TBD."""
+    return {"status": "skip", "message": "รอ format จาก อ.เต้"}
+
+
+# === Sync: Organizations (placeholder — format TBD) ===
+
+async def _sync_org(url: str, branch_id: str, db: AsyncSession) -> dict:
+    """Sync organizations — format TBD."""
+    return {"status": "skip", "message": "รอ format จาก อ.เต้"}
+
+
+# === Sync: Participants (placeholder — format TBD) ===
+
+async def _sync_participant(url: str, branch_id: str, db: AsyncSession) -> dict:
+    """Sync participants — format TBD."""
+    return {"status": "skip", "message": "รอ format จาก อ.เต้"}
+
+
+# === Legacy sync (keep backward compat) ===
+
+@router.post("/ggs/sync")
+async def sync_from_ggs(data: dict, db: AsyncSession = Depends(get_db)):
+    """Legacy sync — accepts URL directly."""
+    url = data.get("url", "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail={"error": "MISSING_URL", "message": "กรุณาระบุ URL"})
+    extract_sheet_id(url)  # validate
+    return {"message": "ใช้ /api/ggs/sync-branch แทน — ตั้ง URL ที่ /api/ggs/set-url ก่อน"}
 
 
 @router.get("/ggs/sources")
 async def list_ggs_sources(db: AsyncSession = Depends(get_db)):
     """List all branches with GGS URL status."""
-    stmt = select(Branch.id, Branch.name, Branch.group_id, Branch.ggs_url).order_by(Branch.id)
+    stmt = select(
+        Branch.id, Branch.name, Branch.group_id,
+        Branch.ggs_url_org, Branch.ggs_url_participant,
+        Branch.ggs_url_record_bulk, Branch.ggs_url_record_ind,
+    ).order_by(Branch.id)
     result = await db.execute(stmt)
     return [
-        {"branch_id": r.id, "branch_name": r.name, "group_id": r.group_id, "ggs_url": r.ggs_url}
+        {
+            "branch_id": r.id, "branch_name": r.name, "group_id": r.group_id,
+            "ggs_url_org": r.ggs_url_org, "ggs_url_participant": r.ggs_url_participant,
+            "ggs_url_record_bulk": r.ggs_url_record_bulk, "ggs_url_record_ind": r.ggs_url_record_ind,
+        }
         for r in result.all()
     ]
