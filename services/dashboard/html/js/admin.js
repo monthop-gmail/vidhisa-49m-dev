@@ -465,12 +465,27 @@ async function loadUsers() {
         count.textContent = `(${data.length} คน)`;
 
         data.forEach(u => {
+            const editBtn = u.role === 'branch_admin'
+                ? `<button style="font-size:0.75rem; padding:0.1rem 0.4rem; cursor:pointer;" onclick="editUser(${u.id}, '${u.username}', '${u.email || ''}')">แก้ไข</button>`
+                : '';
             tbody.innerHTML += `<tr>
                 <td>${u.id}</td><td>${u.username}</td><td>${u.full_name}</td>
                 <td>${u.email || '-'}</td><td>${u.role}</td>
-                <td>${u.branch_id || '-'}</td><td>${u.status}</td></tr>`;
+                <td>${u.branch_id || '-'}</td><td>${u.status}</td><td>${editBtn}</td></tr>`;
         });
     } catch (e) { console.error('users error:', e); }
+}
+
+async function editUser(id, currentUsername, currentEmail) {
+    const newUsername = prompt(`แก้ username (ปัจจุบัน: ${currentUsername})\nแนะนำใช้ email:`, currentEmail || currentUsername);
+    if (newUsername === null) return;
+    const res = await authFetch(`/api/users/${id}`, {
+        method: 'PATCH', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username: newUsername}),
+    });
+    const data = await res.json();
+    if (res.ok) { alert(data.message); loadUsers(); }
+    else alert(data.detail?.message || 'เกิดข้อผิดพลาด');
 }
 
 // Detect branch mode

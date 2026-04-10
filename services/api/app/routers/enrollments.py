@@ -242,3 +242,36 @@ async def list_users(user=Depends(require_central_admin), db: AsyncSession = Dep
         }
         for u in users
     ]
+
+
+@router.patch("/users/{user_id}")
+async def update_user(
+    user_id: int,
+    data: dict,
+    user=Depends(require_central_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update user (username, email, branch_id, status)."""
+    result = await db.execute(select(User).where(User.id == user_id))
+    u = result.scalar_one_or_none()
+    if not u:
+        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบ user"})
+
+    new_username = (data.get("username") or "").strip()
+    if new_username and new_username != u.username:
+        dup = await db.execute(select(User).where(User.username == new_username))
+        if dup.scalar_one_or_none():
+            raise HTTPException(status_code=409, detail={"error": "DUPLICATE", "message": f"username '{new_username}' ซ้ำ"})
+        u.username = new_username
+
+    if "email" in data:
+        u.email = (data["email"] or "").strip() or None
+    if "full_name" in data:
+        u.full_name = (data["full_name"] or "").strip() or u.full_name
+    if "branch_id" in data:
+        u.branch_id = (data["branch_id"] or "").strip() or None
+    if "status" in data and data["status"] in ("active", "disabled"):
+        u.status = data["status"]
+
+    await db.commit()
+    return {"id": u.id, "username": u.username, "message": "อัพเดทสำเร็จ"}
