@@ -13,6 +13,47 @@ class Base(DeclarativeBase):
     pass
 
 
+class User(Base):
+    """User account for admin access."""
+
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(100), unique=True, nullable=False)
+    password_hash = Column(String(200), nullable=False)
+    full_name = Column(String(200), nullable=False)
+    email = Column(String(200))
+    phone = Column(String(50))
+    role = Column(String(20), nullable=False, default="branch_admin")
+    branch_id = Column(String(10))
+    status = Column(String(20), nullable=False, default="active")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class BranchEnrollment(Base):
+    """Branch enrollment request from Google Form."""
+
+    __tablename__ = "branch_enrollments"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    branch_number = Column(String(10))
+    branch_name = Column(String(200), nullable=False)
+    admin1_name = Column(String(200))
+    admin1_email = Column(String(200))
+    admin1_phone = Column(String(50))
+    admin2_name = Column(String(200))
+    admin2_email = Column(String(200))
+    admin2_phone = Column(String(50))
+    admin3_name = Column(String(200))
+    admin3_email = Column(String(200))
+    admin3_phone = Column(String(50))
+    submitted_email = Column(String(200))
+    submitted_at = Column(DateTime(timezone=True))
+    status = Column(String(20), nullable=False, default="pending")
+    approved_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class BranchGroup(Base):
     """Regional grouping of branches for reporting purposes."""
 

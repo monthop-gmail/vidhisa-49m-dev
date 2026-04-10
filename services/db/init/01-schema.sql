@@ -2,6 +2,42 @@
 -- Vidhisa 49M — Database Schema
 -- =============================================
 
+CREATE TABLE users (
+    id              SERIAL PRIMARY KEY,
+    username        VARCHAR(100) UNIQUE NOT NULL,
+    password_hash   VARCHAR(200) NOT NULL,
+    full_name       VARCHAR(200) NOT NULL,
+    email           VARCHAR(200),
+    phone           VARCHAR(50),
+    role            VARCHAR(20) NOT NULL DEFAULT 'branch_admin'
+                    CHECK (role IN ('central_admin', 'branch_admin')),
+    branch_id       VARCHAR(10),
+    status          VARCHAR(20) NOT NULL DEFAULT 'active'
+                    CHECK (status IN ('active', 'disabled')),
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE branch_enrollments (
+    id              SERIAL PRIMARY KEY,
+    branch_number   VARCHAR(10),
+    branch_name     VARCHAR(200) NOT NULL,
+    admin1_name     VARCHAR(200),
+    admin1_email    VARCHAR(200),
+    admin1_phone    VARCHAR(50),
+    admin2_name     VARCHAR(200),
+    admin2_email    VARCHAR(200),
+    admin2_phone    VARCHAR(50),
+    admin3_name     VARCHAR(200),
+    admin3_email    VARCHAR(200),
+    admin3_phone    VARCHAR(50),
+    submitted_email VARCHAR(200),
+    submitted_at    TIMESTAMPTZ,
+    status          VARCHAR(20) NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending', 'approved', 'rejected')),
+    approved_at     TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE branch_groups (
     id          VARCHAR(10) PRIMARY KEY,
     name        VARCHAR(100) NOT NULL,

@@ -5,8 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.routers import (
+    auth,
     branch,
     branches,
+    enrollments,
     feed,
     ggs,
     leaderboard,
@@ -43,6 +45,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router, prefix="/api")
+app.include_router(enrollments.router, prefix="/api")
 app.include_router(records.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")
 app.include_router(projection.router, prefix="/api")

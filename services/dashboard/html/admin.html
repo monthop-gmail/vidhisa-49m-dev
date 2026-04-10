@@ -8,9 +8,13 @@
 </head>
 <body>
 
+<script src="/js/auth-guard.js"></script>
 <header>
     <h1 id="admin-title">Admin</h1>
-    <p><a href="/">Dashboard</a> | <a href="/register.html">ลงทะเบียน</a> | <a href="/record.html">บันทึก</a> | <a href="/admin.html">Admin กลาง</a></p>
+    <p>
+        <a href="/">Dashboard</a> | <a href="/register.html">ลงทะเบียน</a> | <a href="/record.html">บันทึก</a> | <a href="/admin.html">Admin กลาง</a>
+        <span style="float:right;"><span id="user-display" style="opacity:0.8;"></span> <a href="#" onclick="logout()" style="color:#ffd54f;">ออกจากระบบ</a></span>
+    </p>
 </header>
 
 <main>

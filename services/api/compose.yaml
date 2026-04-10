@@ -4,6 +4,11 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-vidhisa}:${POSTGRES_PASSWORD:-changeme}@vidhisa-db:5432/${POSTGRES_DB:-vidhisa49m}
       TZ: ${TZ:-Asia/Bangkok}
+      JWT_SECRET: ${JWT_SECRET:-vidhisa-49m-dev-secret}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
