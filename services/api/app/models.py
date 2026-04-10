@@ -134,6 +134,7 @@ class Participant(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     branch_id = Column(String(10), ForeignKey("branches.id"))
+    member_code = Column(String(20))
     prefix = Column(String(50))
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)

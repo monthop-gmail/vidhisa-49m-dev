@@ -64,16 +64,15 @@ def test_create_duplicate_organization(client):
 
 
 def test_update_organization(client):
-    r = client.put("/api/organizations/ORG001", json={
-        "id": "ORG001",
-        "name": "โรงเรียนสาธิต มศว (อัพเดท)",
-        "org_type": "โรงเรียน",
+    r = client.put("/api/organizations/PLJ-B001", json={
+        "id": "PLJ-B001",
+        "name": "สถาบันพลังจิตตานุภาพ (อัพเดท)",
+        "org_type": "สถาบันพลังจิตตานุภาพ",
         "branch_id": "B001",
     })
     assert r.status_code == 200
 
-    # Verify
-    r2 = client.get("/api/organizations/ORG001")
+    r2 = client.get("/api/organizations/PLJ-B001")
     assert "อัพเดท" in r2.json()["name"]
 
 

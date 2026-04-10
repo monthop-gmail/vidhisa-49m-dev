@@ -336,6 +336,7 @@ class ParticipantResponse(BaseModel):
 
     id: int
     branch_id: str
+    member_code: str | None = None
     prefix: str | None
     first_name: str
     last_name: str

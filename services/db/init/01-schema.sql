@@ -94,6 +94,7 @@ CREATE TABLE organizations (
 CREATE TABLE participants (
     id                  SERIAL PRIMARY KEY,
     branch_id           VARCHAR(10) REFERENCES branches(id),
+    member_code         VARCHAR(20),
     prefix              VARCHAR(50),
     first_name          VARCHAR(100) NOT NULL,
     last_name           VARCHAR(100) NOT NULL,
