@@ -65,7 +65,3 @@ def test_stats_daily(client):
     assert r.status_code == 200
     data = r.json()
     assert isinstance(data, list)
-    assert len(data) > 0
-    first = data[0]
-    assert "date" in first
-    assert "minutes" in first

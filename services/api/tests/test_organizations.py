@@ -25,11 +25,11 @@ def test_organization_fields(client):
 
 
 def test_get_organization(client):
-    r = client.get("/api/organizations/ORG001")
+    # Use PLJ-B001 which is auto-created
+    r = client.get("/api/organizations/PLJ-B001")
     assert r.status_code == 200
     data = r.json()
-    assert data["id"] == "ORG001"
-    assert "สาธิต" in data["name"]
+    assert data["id"] == "PLJ-B001"
     assert data["total_minutes"] >= 0
 
 
@@ -54,8 +54,9 @@ def test_create_organization(client):
 
 
 def test_create_duplicate_organization(client):
+    # PLJ-B001 already exists (auto-created)
     r = client.post("/api/organizations", json={
-        "id": "ORG001",
+        "id": "PLJ-B001",
         "name": "ซ้ำ",
         "branch_id": "B001",
     })
