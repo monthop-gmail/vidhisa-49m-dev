@@ -132,8 +132,9 @@ async def approve_enrollment(
         if not name:
             continue
 
-        username = _make_username(enrollment.branch_number, idx)
-        password = generate_password()
+        # ใช้ email เป็น username, เบอร์โทรเป็น password
+        username = email if email else _make_username(enrollment.branch_number, idx)
+        password = phone if phone else generate_password()
 
         # Check if username exists
         existing = await db.execute(select(User).where(User.username == username))
