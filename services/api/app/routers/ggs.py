@@ -213,7 +213,9 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession) -> dict:
             existing.afternoon_male = 1 if afternoon else 0
             existing.evening_male = 1 if evening else 0
             existing.minutes = minutes
-            existing.status = "pending"
+            # ไม่เปลี่ยน status ถ้า approved แล้ว — ป้องกัน re-sync reset
+            if existing.status != "approved":
+                existing.status = "pending"
             updated += 1
         else:
             db.add(Record(
