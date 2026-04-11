@@ -189,10 +189,17 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession) -> dict:
             errors.append(f"แถว {i}: ขาดชื่อหรือวันที่")
             continue
 
-        # Parse name: "003 บรรณวิทย์ ฉิมธนู" → code="003", name="บรรณวิทย์ ฉิมธนู"
-        name_match = re.match(r"^(\d+)\s+(.+)$", raw_name)
-        member_code = name_match.group(1).strip() if name_match else None
-        name = name_match.group(2).strip() if name_match else raw_name
+        # Parse name: รองรับ 2 format
+        # 1. "WP047 001 วัชรัชชัย ดวงมณีกุลรัตน์" → branch=WP047, code=001
+        # 2. "003 บรรณวิทย์ ฉิมธนู" → code=003
+        m_wp = re.match(r"^WP(\d+)\s+(\d+)\s+(.+)$", raw_name)
+        if m_wp:
+            member_code = m_wp.group(2).strip()
+            name = m_wp.group(3).strip()
+        else:
+            m_simple = re.match(r"^(\d+)\s+(.+)$", raw_name)
+            member_code = m_simple.group(1).strip() if m_simple else None
+            name = m_simple.group(2).strip() if m_simple else raw_name
 
         rec_date = parse_thai_date(raw_date)
         if not rec_date:
