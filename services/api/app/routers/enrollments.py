@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import generate_password, hash_password, require_central_admin
 from app.database import get_db
 from app.email_service import send_credentials_email
-from app.models import BranchEnrollment, User
+from app.models import Branch, BranchEnrollment, Organization, User
 
 router = APIRouter()
 
@@ -154,6 +154,26 @@ async def approve_enrollment(
     branch_id = f"B{enrollment.branch_number}" if enrollment.branch_number else None
     users_created = []
     emails_sent = []
+    org_created = False
+
+    # Auto-create PLJ org for this branch
+    if branch_id:
+        # Check branch exists
+        br_check = await db.execute(select(Branch).where(Branch.id == branch_id))
+        branch_obj = br_check.scalar_one_or_none()
+        if branch_obj:
+            plj_id = f"PLJ-{branch_id}"
+            org_check = await db.execute(select(Organization).where(Organization.id == plj_id))
+            if not org_check.scalar_one_or_none():
+                org = Organization(
+                    id=plj_id,
+                    name=f"สถาบันพลังจิตตานุภาพ {branch_obj.name}",
+                    org_type="สถาบันพลังจิตตานุภาพ",
+                    branch_id=branch_id,
+                    status="approved",
+                )
+                db.add(org)
+                org_created = True
 
     # Create users for each admin (1-3)
     admins = [
@@ -202,9 +222,12 @@ async def approve_enrollment(
         "branch_name": enrollment.branch_name,
         "users_created": len(users_created),
         "emails_sent": len(emails_sent),
+        "org_created": org_created,
         "users": [{"username": u["username"], "name": u["name"], "email": u["email"]} for u in users_created],
-        "message": f"อนุมัติสำเร็จ สร้าง {len(users_created)} users, ส่ง email {len(emails_sent)} ฉบับ",
-        "_credentials": users_created,  # สำหรับ admin ดู password
+        "message": f"อนุมัติสำเร็จ สร้าง {len(users_created)} users"
+                   + (f", สร้าง PLJ org" if org_created else "")
+                   + f", ส่ง email {len(emails_sent)} ฉบับ",
+        "_credentials": users_created,
     }
 
 
