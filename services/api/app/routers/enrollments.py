@@ -68,6 +68,9 @@ async def sync_enrollments(
             continue
 
         branch_num = (row.get("เลขสาขา (3 หลัก)") or "").strip()
+        # Normalize: "47" → "047", "9" → "009", "101" → "101"
+        if branch_num and branch_num.isdigit():
+            branch_num = branch_num.zfill(3)
         timestamp_str = (row.get("Timestamp") or "").strip()
 
         e = BranchEnrollment(
@@ -201,6 +204,8 @@ async def update_enrollment_branch(
     new_branch_num = (data.get("branch_number") or "").strip()
     if not new_branch_num:
         raise HTTPException(status_code=400, detail={"error": "MISSING", "message": "กรุณาระบุ branch_number"})
+    if new_branch_num.isdigit():
+        new_branch_num = new_branch_num.zfill(3)
 
     result = await db.execute(select(BranchEnrollment).where(BranchEnrollment.id == enrollment_id))
     enrollment = result.scalar_one_or_none()
