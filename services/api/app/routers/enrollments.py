@@ -2,6 +2,7 @@
 
 import csv
 import io
+import json
 import re
 from datetime import datetime, timezone
 
@@ -17,7 +18,38 @@ from app.models import BranchEnrollment, User
 
 router = APIRouter()
 
-GGS_URL = "https://docs.google.com/spreadsheets/d/1yXs6dHAxNvRne9jcFzr3ttNKvDHbzYMVpy3gV_O2QTA/gviz/tq?tqx=out:csv"
+GGS_URL = "https://docs.google.com/spreadsheets/d/1yXs6dHAxNvRne9jcFzr3ttNKvDHbzYMVpy3gV_O2QTA/gviz/tq?tqx=out:json&headers=1"
+
+
+def _parse_gviz_json(raw: str) -> list[dict]:
+    """Parse Google gviz JSON (JSONP format) and return list of dicts.
+
+    Prefers formatted value (f) over raw value (v) so that custom-formatted
+    numbers like 058 are preserved instead of being converted to 58.
+    """
+    start = raw.find("(") + 1
+    end = raw.rfind(")")
+    data = json.loads(raw[start:end])
+    table = data["table"]
+    col_labels = [c.get("label", "") for c in table["cols"]]
+
+    rows = []
+    for row in table["rows"]:
+        d = {}
+        for col, cell in zip(col_labels, row["c"]):
+            if cell is None:
+                d[col] = ""
+                continue
+            f = cell.get("f")
+            v = cell.get("v")
+            if f:
+                d[col] = str(f)
+            elif v is not None:
+                d[col] = str(v)
+            else:
+                d[col] = ""
+        rows.append(d)
+    return rows
 
 
 @router.get("/enrollments")
@@ -43,14 +75,13 @@ async def sync_enrollments(
     user=Depends(require_central_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Sync enrollment data from Google Sheet."""
+    """Sync enrollment data from Google Sheet (uses gviz JSON to preserve formatted values)."""
     async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
         res = await client.get(GGS_URL)
         if res.status_code != 200:
             raise HTTPException(status_code=502, detail={"error": "GGS_FETCH_FAILED", "message": "ดึง Google Sheet ไม่ได้"})
 
-    text = res.text.lstrip("\ufeff")
-    reader = csv.DictReader(io.StringIO(text))
+    rows_data = _parse_gviz_json(res.text)
 
     # Load existing
     existing_result = await db.execute(select(BranchEnrollment.branch_name))
@@ -59,7 +90,7 @@ async def sync_enrollments(
     created = 0
     skipped = 0
 
-    for row in reader:
+    for row in rows_data:
         branch_name = (row.get("ชื่อสาขา") or "").strip()
         if not branch_name:
             continue
