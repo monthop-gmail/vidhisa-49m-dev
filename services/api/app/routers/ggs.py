@@ -335,8 +335,12 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_appr
         new_status = "approved" if auto_approve else "pending"
         approved_by = "auto-sync" if auto_approve else None
 
+        plj_org_id = f"{branch_id}-00"
+
         if existing:
             existing.participant_id = participant.id
+            if not existing.org_id:
+                existing.org_id = plj_org_id
             existing.morning_male = 1 if morning else 0
             existing.afternoon_male = 1 if afternoon else 0
             existing.evening_male = 1 if evening else 0
@@ -349,6 +353,7 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_appr
         else:
             db.add(Record(
                 type="individual", branch_id=branch_id, name=name,
+                org_id=plj_org_id,
                 participant_id=participant.id,
                 minutes=minutes,
                 morning_male=1 if morning else 0,
