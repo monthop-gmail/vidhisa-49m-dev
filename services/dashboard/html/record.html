@@ -47,11 +47,12 @@
         <h2>บันทึกแบบกลุ่ม</h2>
         <div class="info-box">สาขาเป็นผู้บันทึก — นาทีเป็นขององค์กร | บันทึกซ้ำวันเดิม = อัพเดต</div>
         <div class="form-grid">
-            <div><label>1. เลือกหน่วยงาน *</label><select id="b-org"><option value="">-- เลือกสาขาก่อน --</option></select></div>
+            <div><label>1. เลือกหน่วยงาน *</label><select id="b-org" onchange="onOrgChange()"><option value="">-- เลือกสาขาก่อน --</option></select></div>
             <div><label>2. วันที่ปฏิบัติ *</label><input id="b-date" type="date"></div>
         </div>
 
         <h3 style="margin-top:0.8rem">จำนวนผู้ปฏิบัติ (15 นาที/คน — ปฏิบัติครบ 3 รอบ/วัน)</h3>
+        <div id="b-hint" style="font-size:0.85rem; color:#666; margin-bottom:0.3rem;"></div>
         <table style="font-size:0.9rem;">
             <thead>
                 <tr><th>ชาย</th><th>หญิง</th><th>ไม่ระบุ</th><th>รวมคน</th><th>นาทีรวม</th></tr>
@@ -147,10 +148,13 @@ async function onBranchChange(branchId) {
     loadParticipants();
 }
 
+let orgsCache = {};
+
 async function loadOrgs() {
     const branchId = getSelectedBranch();
     const sel = document.getElementById('b-org');
     sel.innerHTML = '<option value="">-- เลือก --</option>';
+    orgsCache = {};
     if (!branchId) return;
 
     // ดึงใหม่ทุกครั้ง filter จาก API ตาม branch_id
@@ -162,11 +166,34 @@ async function loadOrgs() {
     filtered.forEach(o => {
         if (seen.has(o.id)) return;
         seen.add(o.id);
+        orgsCache[o.id] = o;
         const opt = document.createElement('option');
         opt.value = o.id;
         opt.textContent = `${o.name}`;
         sel.appendChild(opt);
     });
+}
+
+function onOrgChange() {
+    const orgId = document.getElementById('b-org').value;
+    const org = orgsCache[orgId];
+    const hint = document.getElementById('b-hint');
+    const fields = ['b-m', 'b-f', 'b-u'];
+    if (!org) {
+        fields.forEach(id => { const e = document.getElementById(id); e.value = 0; e.removeAttribute('max'); });
+        if (hint) hint.textContent = '';
+        calcBulk();
+        return;
+    }
+    const m = org.gender_male || 0, f = org.gender_female || 0, u = org.gender_unspecified || 0;
+    document.getElementById('b-m').value = m;
+    document.getElementById('b-f').value = f;
+    document.getElementById('b-u').value = u;
+    document.getElementById('b-m').max = m;
+    document.getElementById('b-f').max = f;
+    document.getElementById('b-u').max = u;
+    if (hint) hint.textContent = `เพดานจากทะเบียน: ชาย ${m} / หญิง ${f} / ไม่ระบุ ${u} (รวม ${m+f+u} คน)`;
+    calcBulk();
 }
 
 async function loadParticipants() {
@@ -202,6 +229,14 @@ async function submitBulk() {
     const totalMinutes = totalPeople * 15;
 
     if (totalPeople === 0) return showMsg('b-msg', 'กรุณาระบุจำนวนผู้ปฏิบัติอย่างน้อย 1 คน', false);
+
+    const org = orgsCache[orgId];
+    if (org) {
+        const maxM = org.gender_male || 0, maxF = org.gender_female || 0, maxU = org.gender_unspecified || 0;
+        if (m > maxM || f > maxF || u > maxU) {
+            return showMsg('b-msg', `เกินเพดานทะเบียน: ชาย ≤ ${maxM}, หญิง ≤ ${maxF}, ไม่ระบุ ≤ ${maxU}`, false);
+        }
+    }
 
     const orgName = document.getElementById('b-org').selectedOptions[0]?.textContent?.split(' — ')[1] || '';
 
