@@ -2,6 +2,7 @@
 
 import csv
 import io
+import json
 import re
 from datetime import date as date_type, datetime
 
@@ -33,6 +34,11 @@ def build_csv_url(sheet_id: str, sheet_name: str = None) -> str:
     return f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv"
 
 
+def build_json_url(sheet_id: str, sheet_name: str = None) -> str:
+    base = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:json&headers=1"
+    return f"{base}&sheet={sheet_name}" if sheet_name else base
+
+
 async def fetch_csv(url: str) -> list[dict]:
     async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
         res = await client.get(url)
@@ -44,6 +50,53 @@ async def fetch_csv(url: str) -> list[dict]:
     text = res.text.lstrip("\ufeff")
     reader = csv.DictReader(io.StringIO(text))
     return list(reader)
+
+
+async def fetch_gviz_rows(url: str) -> list[dict]:
+    """Fetch gviz JSON and return rows as dicts.
+
+    For date cells, extracts date from raw value (Date(y,m,d)) into ISO format
+    — avoids locale ambiguity (M/D vs D/M) in the formatted value.
+    For other cells, prefers formatted value (f) to preserve custom formats like 058.
+    """
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+        res = await client.get(url)
+        if res.status_code != 200:
+            raise HTTPException(status_code=502, detail={
+                "error": "GGS_FETCH_FAILED",
+                "message": f"ดึง Google Sheet ไม่ได้ (HTTP {res.status_code})",
+            })
+    raw = res.text
+    start = raw.find("(") + 1
+    end = raw.rfind(")")
+    data = json.loads(raw[start:end])
+    table = data["table"]
+    col_labels = [c.get("label", "") for c in table["cols"]]
+    col_types = [c.get("type", "") for c in table["cols"]]
+
+    rows = []
+    for row in table["rows"]:
+        d = {}
+        for label, ctype, cell in zip(col_labels, col_types, row["c"]):
+            if cell is None:
+                d[label] = ""
+                continue
+            v = cell.get("v")
+            f = cell.get("f")
+            if ctype in ("date", "datetime") and isinstance(v, str) and v.startswith("Date("):
+                m = re.match(r"Date\((\d+),(\d+),(\d+)", v)
+                if m:
+                    y, mo, dd = int(m.group(1)), int(m.group(2)) + 1, int(m.group(3))
+                    d[label] = f"{y:04d}-{mo:02d}-{dd:02d}"
+                    continue
+            if f:
+                d[label] = str(f)
+            elif v is not None:
+                d[label] = str(v)
+            else:
+                d[label] = ""
+        rows.append(d)
+    return rows
 
 
 def parse_thai_date(s: str) -> date_type | None:
@@ -164,7 +217,7 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession) -> dict:
     """Sync individual records from GGS — format: ชื่อผู้ปฏิบัติ, วันที่, รอบ."""
     try:
         sheet_id = extract_sheet_id(url)
-        rows = await fetch_csv(build_csv_url(sheet_id))
+        rows = await fetch_gviz_rows(build_json_url(sheet_id))
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
