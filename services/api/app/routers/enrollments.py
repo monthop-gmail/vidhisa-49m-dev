@@ -182,18 +182,26 @@ async def approve_enrollment(
         (enrollment.admin3_name, enrollment.admin3_email, enrollment.admin3_phone, 3),
     ]
 
+    # Track used usernames (DB + pending adds in this txn) so admins sharing an email don't collide
+    taken_usernames_result = await db.execute(select(User.username))
+    used_usernames = {r[0] for r in taken_usernames_result.all()}
+
     for name, email, phone, idx in admins:
         if not name:
             continue
 
         # ใช้ email เป็น username, เบอร์โทรเป็น password
-        username = email if email else _make_username(enrollment.branch_number, idx)
+        base = email if email else _make_username(enrollment.branch_number, idx)
         password = phone if phone else generate_password()
 
-        # Check if username exists
-        existing = await db.execute(select(User).where(User.username == username))
-        if existing.scalar_one_or_none():
-            username = f"{username}-{enrollment.id}"
+        username = base
+        if username in used_usernames:
+            username = f"{base}-{idx}"
+        suffix = 2
+        while username in used_usernames:
+            username = f"{base}-{idx}-{suffix}"
+            suffix += 1
+        used_usernames.add(username)
 
         u = User(
             username=username,
