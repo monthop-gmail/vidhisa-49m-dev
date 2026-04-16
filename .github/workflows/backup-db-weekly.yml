@@ -31,14 +31,15 @@ jobs:
             echo "✅ dump ready: $(du -h /tmp/offsite-backup.sql.gz | cut -f1)"
 
       - name: Download dump to runner
-        uses: nicklasfrahm/scp-action@main
-        with:
-          direction: download
-          host: ${{ secrets.GCP_VM_HOST }}
-          username: ${{ secrets.GCP_VM_USER }}
-          key: ${{ secrets.GCP_VM_SSH_KEY }}
-          source: "/tmp/offsite-backup.sql.gz"
-          target: "./offsite-backup.sql.gz"
+        env:
+          SSH_KEY: ${{ secrets.GCP_VM_SSH_KEY }}
+          SSH_HOST: ${{ secrets.GCP_VM_HOST }}
+          SSH_USER: ${{ secrets.GCP_VM_USER }}
+        run: |
+          install -m 600 /dev/null ~/.ssh_key
+          printf '%s\n' "$SSH_KEY" > ~/.ssh_key
+          scp -o StrictHostKeyChecking=no -i ~/.ssh_key "$SSH_USER@$SSH_HOST:/tmp/offsite-backup.sql.gz" ./offsite-backup.sql.gz
+          ls -lh ./offsite-backup.sql.gz
 
       - name: Checkout private backup repo
         uses: actions/checkout@v4
