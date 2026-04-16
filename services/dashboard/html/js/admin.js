@@ -180,6 +180,7 @@ async function loadOrganizations() {
             tbody.innerHTML += `<tr>
                 <td>${o.id}</td><td>${o.name}</td><td>${o.org_type || '-'}</td>
                 <td>${o.province || '-'}</td><td>${o.branch_id || '-'}</td>
+                <td>${o.gender_male ?? '-'}</td><td>${o.gender_female ?? '-'}</td><td>${o.gender_unspecified ?? '-'}</td>
                 <td>${o.status || '-'}</td>
                 <td>${FMT.format(o.total_minutes)}</td><td>${FMT.format(o.total_records)}</td></tr>`;
         });
