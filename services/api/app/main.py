@@ -1,9 +1,14 @@
+import asyncio
+import logging
+import os
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.database import async_session
 from app.routers import (
     auth,
     branch,
@@ -21,6 +26,38 @@ from app.routers import (
     stats,
 )
 
+log = logging.getLogger("vidhisa.autosync")
+AUTO_SYNC_INTERVAL_SECONDS = int(os.getenv("AUTO_SYNC_INTERVAL_SECONDS", str(6 * 3600)))
+AUTO_SYNC_ENABLED = os.getenv("AUTO_SYNC_ENABLED", "true").lower() in ("1", "true", "yes")
+
+
+async def _auto_sync_loop() -> None:
+    await asyncio.sleep(60)  # give app a minute to settle before first run
+    while True:
+        try:
+            async with async_session() as db:
+                result = await ggs.sync_all_record_ind(db, auto_approve=True)
+            log.info("auto-sync ok: %s", {k: result[k] for k in ("branches", "created", "updated") if k in result})
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log.exception("auto-sync failed: %s", exc)
+        await asyncio.sleep(AUTO_SYNC_INTERVAL_SECONDS)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    task = asyncio.create_task(_auto_sync_loop()) if AUTO_SYNC_ENABLED else None
+    try:
+        yield
+    finally:
+        if task:
+            task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):
+                pass
+
 
 class NoCacheMiddleware(BaseHTTPMiddleware):
     """Middleware to prevent caching of API responses."""
@@ -35,7 +72,7 @@ class NoCacheMiddleware(BaseHTTPMiddleware):
         return response
 
 
-app = FastAPI(title="Vidhisa 49M API", version="0.1.0")
+app = FastAPI(title="Vidhisa 49M API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(NoCacheMiddleware)
 app.add_middleware(

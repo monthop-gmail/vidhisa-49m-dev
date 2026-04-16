@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import get_current_user
+from app.auth import get_current_user, require_central_admin
 from app.branch_auth import check_branch_access
 from app.database import get_db
 from app.models import Branch, Organization, Participant, Record, User
@@ -192,9 +192,10 @@ async def sync_branch_ggs(
 
     results = {}
     sync_types = data.get("types", ["record_ind", "record_bulk", "org", "participant"])
+    auto_approve = bool(data.get("auto_approve", False))
 
     if "record_ind" in sync_types and branch.ggs_url_record_ind:
-        results["record_ind"] = await _sync_record_ind(branch.ggs_url_record_ind, branch_id, db)
+        results["record_ind"] = await _sync_record_ind(branch.ggs_url_record_ind, branch_id, db, auto_approve)
 
     if "record_bulk" in sync_types and branch.ggs_url_record_bulk:
         results["record_bulk"] = await _sync_record_bulk(branch.ggs_url_record_bulk, branch_id, db)
@@ -213,7 +214,7 @@ async def sync_branch_ggs(
 
 # === Sync: Individual Records (format จาก อ.เต้) ===
 
-async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession) -> dict:
+async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_approve: bool = False) -> dict:
     """Sync individual records from GGS — format: ชื่อผู้ปฏิบัติ, วันที่, รอบ."""
     try:
         sheet_id = extract_sheet_id(url)
@@ -314,6 +315,9 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession) -> dict:
         result = await db.execute(stmt)
         existing = result.scalar_one_or_none()
 
+        new_status = "approved" if auto_approve else "pending"
+        approved_by = "auto-sync" if auto_approve else None
+
         if existing:
             existing.participant_id = participant.id
             existing.morning_male = 1 if morning else 0
@@ -321,7 +325,9 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession) -> dict:
             existing.evening_male = 1 if evening else 0
             existing.minutes = minutes
             if existing.status != "approved":
-                existing.status = "pending"
+                existing.status = new_status
+                if auto_approve:
+                    existing.approved_by = approved_by
             updated += 1
         else:
             db.add(Record(
@@ -331,7 +337,8 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession) -> dict:
                 morning_male=1 if morning else 0,
                 afternoon_male=1 if afternoon else 0,
                 evening_male=1 if evening else 0,
-                date=rec_date, status="pending",
+                date=rec_date, status=new_status,
+                approved_by=approved_by,
             ))
             created += 1
 
@@ -362,6 +369,66 @@ async def _sync_org(url: str, branch_id: str, db: AsyncSession) -> dict:
 async def _sync_participant(url: str, branch_id: str, db: AsyncSession) -> dict:
     """Sync participants — format TBD."""
     return {"status": "skip", "message": "รอ format จาก อ.เต้"}
+
+
+# === Auto-sync all branches ===
+
+async def sync_all_record_ind(db: AsyncSession, auto_approve: bool = True) -> dict:
+    """Sync record_ind for all branches that have a URL set.
+
+    Used by both the scheduled background task and the manual /ggs/sync-all endpoint.
+    """
+    result = await db.execute(
+        select(Branch).where(Branch.ggs_url_record_ind.isnot(None))
+    )
+    branches = result.scalars().all()
+
+    summary = {"branches": len(branches), "created": 0, "updated": 0, "participants_created": 0, "errors": []}
+    details = []
+    for branch in branches:
+        res = await _sync_record_ind(branch.ggs_url_record_ind, branch.id, db, auto_approve=auto_approve)
+        details.append({"branch_id": branch.id, **res})
+        summary["created"] += res.get("created", 0)
+        summary["updated"] += res.get("updated", 0)
+        summary["participants_created"] += res.get("participants_created", 0)
+        if res.get("errors"):
+            summary["errors"].append({"branch_id": branch.id, "errors": res["errors"]})
+    summary["details"] = details
+    return summary
+
+
+@router.post("/ggs/sync-all")
+async def sync_all_ggs(
+    data: dict = None,
+    user: User = Depends(require_central_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin กลาง: sync record_ind ทุกสาขาที่มี URL (auto_approve default: True)."""
+    data = data or {}
+    auto_approve = bool(data.get("auto_approve", True))
+    return await sync_all_record_ind(db, auto_approve=auto_approve)
+
+
+@router.delete("/ggs/branch/{branch_id}/records")
+async def clear_branch_records(
+    branch_id: str,
+    user: User = Depends(require_central_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin กลาง: ลบ individual records ของสาขา เพื่อ sync ใหม่ (participants คงอยู่)."""
+    result = await db.execute(select(Branch).where(Branch.id == branch_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": f"ไม่พบสาขา {branch_id}"})
+
+    count_result = await db.execute(
+        select(Record).where(Record.branch_id == branch_id, Record.type == "individual")
+    )
+    records = count_result.scalars().all()
+    deleted = len(records)
+    for r in records:
+        await db.delete(r)
+    await db.commit()
+    return {"branch_id": branch_id, "deleted": deleted, "message": f"ลบ {deleted} รายการ"}
 
 
 # === Legacy sync (keep backward compat) ===
