@@ -10,9 +10,32 @@
 <body>
 
 <header>
+    <div id="auth-bar" style="position:absolute; top:0.5rem; right:1rem; font-size:0.85rem; display:none;">
+        <span id="user-display" style="opacity:0.8;"></span>
+        <a href="#" onclick="logout()" style="color:#ffd54f; margin-left:0.5rem;">ออกจากระบบ</a>
+    </div>
     <h1>โครงการวิทิสา 49 ล้านนาที</h1>
     <p>รวมพลังจิตปฏิบัติสมาธิวิทิสา ถวายพระพรสมเด็จพระบรมราชินี</p>
 </header>
+<script>
+function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    document.cookie = 'token=; path=/; max-age=0';
+    window.location.reload();
+}
+(function() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    fetch('/api/auth/me', {headers: {'Authorization': `Bearer ${token}`}})
+        .then(r => r.ok ? r.json() : null)
+        .then(user => {
+            if (!user) return;
+            document.getElementById('user-display').textContent = `${user.full_name} (${user.role})`;
+            document.getElementById('auth-bar').style.display = 'block';
+        }).catch(() => {});
+})();
+</script>
 
 <main>
     <!-- Grand Counter -->

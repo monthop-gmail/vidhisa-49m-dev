@@ -25,8 +25,17 @@
 <script src="/js/auth-guard.js"></script>
 <header>
     <h1>ลงทะเบียน</h1>
-    <p><a href="/">Dashboard</a> | <a href="/admin.html">Admin</a> | <a href="/register.html">ลงทะเบียน</a> | <a href="/record.html">บันทึก</a></p>
+    <p>
+        <a href="/">Dashboard</a> | <a href="/admin.html">Admin</a> | <a href="/register.html">ลงทะเบียน</a> | <a href="/record.html">บันทึก</a>
+        <span style="float:right;"><span id="user-display" style="opacity:0.8;"></span> <a href="#" onclick="logout()" style="color:#ffd54f;">ออกจากระบบ</a></span>
+    </p>
 </header>
+<script>
+window.addEventListener('auth-ready', (e) => {
+    const ud = document.getElementById('user-display');
+    if (ud && e.detail && e.detail.full_name) ud.textContent = `${e.detail.full_name} (${e.detail.role})`;
+});
+</script>
 
 <main>
     <section>
