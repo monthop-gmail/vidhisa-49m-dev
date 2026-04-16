@@ -1,6 +1,101 @@
 const FMT = new Intl.NumberFormat('th-TH');
 const sortState = {}; // tableId → {col, asc}
 
+// === Detail modal ===
+
+function closeDetailModal() {
+    document.getElementById('detail-modal').style.display = 'none';
+}
+
+function _row(label, value) {
+    if (value === null || value === undefined || value === '') return '';
+    return `<tr><td style="padding:0.2rem 0.5rem; color:#666; white-space:nowrap;">${label}</td><td style="padding:0.2rem 0.5rem;"><b>${value}</b></td></tr>`;
+}
+
+async function showOrgDetail(orgId) {
+    const modal = document.getElementById('detail-modal');
+    const content = document.getElementById('detail-content');
+    content.innerHTML = 'กำลังโหลด...';
+    modal.style.display = 'block';
+    try {
+        const org = await (await fetch(`/api/organizations/${encodeURIComponent(orgId)}`)).json();
+        const recs = await (await fetch(`/api/records?branch_id=${org.branch_id}&limit=500`)).json();
+        const myRecs = recs.filter(r => r.org_id === orgId).sort((a,b) => (b.date||'').localeCompare(a.date||''));
+        const recRows = myRecs.slice(0, 30).map(r =>
+            `<tr><td>${r.date}</td><td>${r.type}</td><td>${FMT.format(r.minutes)}</td><td>${r.status}</td></tr>`
+        ).join('');
+        content.innerHTML = `
+            <h2 style="margin-top:0">${org.name}</h2>
+            <p style="color:#666;">${org.id} · ${org.org_type || ''} · สาขา ${org.branch_id || '-'}</p>
+            <table style="border-collapse:collapse; margin-bottom:1rem;">
+                ${_row('จังหวัด', [org.sub_district, org.district, org.province].filter(Boolean).join(' / ') || '-')}
+                ${_row('Email', org.email)}
+                ${_row('ผู้ประสานงาน', [org.contact_name, org.contact_phone, org.contact_line_id].filter(Boolean).join(' · '))}
+                ${_row('ผู้เข้าร่วมสูงสุด', org.max_participants)}
+                ${_row('ชาย/หญิง/ไม่ระบุ', `${org.gender_male ?? 0} / ${org.gender_female ?? 0} / ${org.gender_unspecified ?? 0}`)}
+                ${_row('เข้าร่วม', `${org.enrolled_date || '-'} ถึง ${org.enrolled_until || '-'}`)}
+                ${_row('สถานะ', org.status)}
+                ${_row('นาทีรวม', FMT.format(org.total_minutes))}
+                ${_row('รายการ', FMT.format(org.total_records))}
+            </table>
+            <h3 style="margin-bottom:0.3rem;">บันทึก (${myRecs.length} รายการ)</h3>
+            <table style="width:100%; font-size:0.9rem;">
+                <thead><tr><th>วันที่</th><th>ชนิด</th><th>นาที</th><th>สถานะ</th></tr></thead>
+                <tbody>${recRows || '<tr><td colspan="4" style="color:#999;">ไม่มีรายการ</td></tr>'}</tbody>
+            </table>
+        `;
+    } catch (e) {
+        content.innerHTML = `<p style="color:#e53935;">โหลดไม่สำเร็จ: ${e}</p>`;
+    }
+}
+
+async function showParticipantDetail(pid) {
+    const modal = document.getElementById('detail-modal');
+    const content = document.getElementById('detail-content');
+    content.innerHTML = 'กำลังโหลด...';
+    modal.style.display = 'block';
+    try {
+        const p = await (await fetch(`/api/participants/${pid}`)).json();
+        const recs = await (await fetch(`/api/records?branch_id=${p.branch_id}&limit=2000`)).json();
+        const myRecs = recs.filter(r => r.participant_id === pid).sort((a,b) => (b.date||'').localeCompare(a.date||''));
+        const approved = myRecs.filter(r => r.status === 'approved');
+        const totalMin = approved.reduce((s,r) => s + (r.minutes || 0), 0);
+        const recRows = myRecs.map(r =>
+            `<tr><td>${r.date}</td><td>${FMT.format(r.minutes)}</td><td>${[
+                r.morning_male ? 'เช้า' : '',
+                r.afternoon_male ? 'กลางวัน' : '',
+                r.evening_male ? 'เย็น' : '',
+            ].filter(Boolean).join(' · ')}</td><td>${r.status}</td></tr>`
+        ).join('');
+        content.innerHTML = `
+            <h2 style="margin-top:0">${p.prefix || ''}${p.first_name} ${p.last_name}</h2>
+            <p style="color:#666;">ID ${p.id} · รหัส ${p.member_code || '-'} · สาขา ${p.branch_id}</p>
+            <table style="border-collapse:collapse; margin-bottom:1rem;">
+                ${_row('เพศ', p.gender)}
+                ${_row('อายุ', p.age)}
+                ${_row('ที่อยู่', [p.sub_district, p.district, p.province].filter(Boolean).join(' / ') || '-')}
+                ${_row('เบอร์ · Line', [p.phone, p.line_id].filter(Boolean).join(' · '))}
+                ${_row('สมัคร', p.enrolled_date)}
+                ${_row('สถานะ', p.status)}
+                ${_row('นาทีรวม (approved)', FMT.format(totalMin))}
+                ${_row('วันที่ปฏิบัติ', FMT.format(approved.length))}
+            </table>
+            <h3 style="margin-bottom:0.3rem;">บันทึกการปฏิบัติ (${myRecs.length} วัน)</h3>
+            <table style="width:100%; font-size:0.9rem;">
+                <thead><tr><th>วันที่</th><th>นาที</th><th>รอบ</th><th>สถานะ</th></tr></thead>
+                <tbody>${recRows || '<tr><td colspan="4" style="color:#999;">ไม่มีรายการ</td></tr>'}</tbody>
+            </table>
+        `;
+    } catch (e) {
+        content.innerHTML = `<p style="color:#e53935;">โหลดไม่สำเร็จ: ${e}</p>`;
+    }
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeDetailModal();
+});
+
+
 function sortTable(tableId, colIndex) {
     const table = document.getElementById(tableId);
     const tbody = table.querySelector('tbody');
@@ -177,7 +272,7 @@ async function loadOrganizations() {
         const tbody = document.querySelector('#org-table tbody');
         tbody.innerHTML = '';
         data.forEach(o => {
-            tbody.innerHTML += `<tr>
+            tbody.innerHTML += `<tr style="cursor:pointer" onclick="showOrgDetail('${o.id}')">
                 <td>${o.id}</td><td>${o.name}</td><td>${o.org_type || '-'}</td>
                 <td>${o.province || '-'}</td><td>${o.branch_id || '-'}</td>
                 <td>${o.gender_male ?? '-'}</td><td>${o.gender_female ?? '-'}</td><td>${o.gender_unspecified ?? '-'}</td>
@@ -227,7 +322,7 @@ async function loadParticipants(append) {
         empty.style.display = 'none';
 
         data.forEach(p => {
-            tbody.innerHTML += `<tr>
+            tbody.innerHTML += `<tr style="cursor:pointer" onclick="showParticipantDetail(${p.id})">
                 <td>${p.id}</td><td>${p.member_code || '-'}</td><td>${p.first_name}</td>
                 <td>${p.last_name}</td><td>${p.gender || '-'}</td><td>${p.age || '-'}</td>
                 <td>${p.branch_id}</td><td>${p.status || '-'}</td><td>${p.enrolled_date || '-'}</td>

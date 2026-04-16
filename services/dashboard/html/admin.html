@@ -247,6 +247,14 @@ label:has(> input[type="file"][accept=".csv"]) { display:none !important; }
     </section>
 </main>
 
+<!-- Detail Modal -->
+<div id="detail-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; overflow:auto;" onclick="if(event.target===this)closeDetailModal()">
+    <div style="background:white; max-width:800px; margin:3rem auto; padding:1.5rem; border-radius:8px; position:relative;">
+        <button onclick="closeDetailModal()" style="position:absolute; top:0.5rem; right:0.8rem; background:none; border:none; font-size:1.5rem; cursor:pointer;">×</button>
+        <div id="detail-content">กำลังโหลด...</div>
+    </div>
+</div>
+
 <script src="/js/branch-context.js"></script>
 <script src="/js/admin.js"></script>
 </body>
