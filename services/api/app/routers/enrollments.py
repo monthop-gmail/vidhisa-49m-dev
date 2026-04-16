@@ -170,6 +170,9 @@ async def approve_enrollment(
                     name=f"สถาบันพลังจิตตานุภาพ {branch_obj.name}",
                     org_type="สถาบันพลังจิตตานุภาพ",
                     branch_id=branch_id,
+                    sub_district=branch_obj.sub_district,
+                    district=branch_obj.district,
+                    province=branch_obj.province,
                     status="approved",
                 )
                 db.add(org)
