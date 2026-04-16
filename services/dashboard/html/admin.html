@@ -9,6 +9,9 @@
 .sortable { cursor:pointer; user-select:none; }
 .sortable:hover { background:#e3f2fd; }
 .sortable::after { content:' ⇅'; opacity:0.3; font-size:0.8rem; }
+/* Hide Export/Import CSV buttons across all sections */
+a[href*="/export"],
+label:has(> input[type="file"][accept=".csv"]) { display:none !important; }
 </style>
 </head>
 <body>
