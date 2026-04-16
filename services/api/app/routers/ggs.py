@@ -125,6 +125,21 @@ def parse_sessions(s: str) -> tuple[bool, bool, bool]:
 
 # === Set URLs ===
 
+def _normalize_ggs_url(raw: str) -> str | None:
+    """Normalize any Google Sheets URL to canonical gviz JSON form.
+
+    Accepts /edit, /edit?usp=sharing, /gviz/tq?..., /pubhtml, etc.
+    Returns None if raw is empty; raw unchanged if not a Google Sheets URL.
+    """
+    s = (raw or "").strip()
+    if not s:
+        return None
+    m = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", s)
+    if not m:
+        return s
+    return f"https://docs.google.com/spreadsheets/d/{m.group(1)}/gviz/tq?tqx=out:json"
+
+
 @router.patch("/ggs/set-url")
 async def set_ggs_url(
     data: dict,
@@ -145,7 +160,7 @@ async def set_ggs_url(
     updated = []
     for field in GGS_URL_TYPES:
         if field in data:
-            setattr(branch, field, data[field].strip() or None)
+            setattr(branch, field, _normalize_ggs_url(data[field]))
             updated.append(field)
 
     # Backward compat: "url" sets all or specific type
@@ -153,11 +168,11 @@ async def set_ggs_url(
         url_type = data["url_type"]
         field = f"ggs_url_{url_type}" if not url_type.startswith("ggs_url_") else url_type
         if hasattr(branch, field):
-            setattr(branch, field, data["url"].strip() or None)
+            setattr(branch, field, _normalize_ggs_url(data["url"]))
             updated.append(field)
     elif "url" in data and not updated:
         # Default: set record_ind (most common)
-        branch.ggs_url_record_ind = data["url"].strip() or None
+        branch.ggs_url_record_ind = _normalize_ggs_url(data["url"])
         updated.append("ggs_url_record_ind")
 
     await db.commit()
