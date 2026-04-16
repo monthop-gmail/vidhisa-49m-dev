@@ -1,0 +1,35 @@
+name: Backup DB (nightly)
+
+# สำรอง DB บน GCP VM ทุกคืน 01:00 ICT (18:00 UTC) + manual trigger
+# เก็บไว้บน VM 30 วัน (rotate อัตโนมัติ)
+# ข้อมูลไม่ถูก upload ไป GitHub (repo เป็น public — ป้องกัน PII รั่ว)
+# สำรองออฟไซต์ให้ backup-db-weekly.yml จัดการ (push ไป private repo)
+
+on:
+  schedule:
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+jobs:
+  backup:
+    name: pg_dump + rotate on VM
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump DB on VM + rotate 30 days
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.GCP_VM_HOST }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_VM_SSH_KEY }}
+          script: |
+            set -e
+            STAMP=$(date +%Y%m%d-%H%M%S)
+            mkdir -p /root/db-backups
+            cd /root/vidhisa-49m-dev
+            docker compose exec -T vidhisa-db pg_dump -U vidhisa -d vidhisa49m --no-owner --clean --if-exists \
+              | gzip -9 > /root/db-backups/vidhisa-${STAMP}.sql.gz
+            SIZE=$(du -h /root/db-backups/vidhisa-${STAMP}.sql.gz | cut -f1)
+            echo "✅ backup created: vidhisa-${STAMP}.sql.gz (${SIZE})"
+            # rotate: keep last 30 files
+            ls -1t /root/db-backups/vidhisa-*.sql.gz | tail -n +31 | xargs -r rm -v
+            echo "total backups on VM: $(ls -1 /root/db-backups/vidhisa-*.sql.gz | wc -l)"

@@ -1,0 +1,78 @@
+name: Backup DB Weekly (offsite private repo)
+
+# คัดสำรองล่าสุดจาก VM → push ไปที่ private repo (monthop-gmail/vidhisa-49m-backups)
+# รันอาทิตย์ 02:00 ICT (19:00 UTC Sat) + manual trigger
+# ต้องตั้ง secret BACKUP_REPO_TOKEN (GitHub PAT มี repo scope)
+
+on:
+  schedule:
+    - cron: "0 19 * * 6"
+  workflow_dispatch:
+
+jobs:
+  offsite-backup:
+    name: Push latest dump to private repo
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure fresh dump exists on VM
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.GCP_VM_HOST }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_VM_SSH_KEY }}
+          script: |
+            set -e
+            cd /root/vidhisa-49m-dev
+            mkdir -p /root/db-backups
+            STAMP=$(date +%Y%m%d-%H%M%S)
+            docker compose exec -T vidhisa-db pg_dump -U vidhisa -d vidhisa49m --no-owner --clean --if-exists \
+              | gzip -9 > /root/db-backups/vidhisa-${STAMP}.sql.gz
+            cp /root/db-backups/vidhisa-${STAMP}.sql.gz /tmp/offsite-backup.sql.gz
+            echo "✅ dump ready: $(du -h /tmp/offsite-backup.sql.gz | cut -f1)"
+
+      - name: Download dump to runner
+        uses: nicklasfrahm/scp-action@main
+        with:
+          direction: download
+          host: ${{ secrets.GCP_VM_HOST }}
+          username: ${{ secrets.GCP_VM_USER }}
+          private_key: ${{ secrets.GCP_VM_SSH_KEY }}
+          source: "/tmp/offsite-backup.sql.gz"
+          target: "./offsite-backup.sql.gz"
+
+      - name: Checkout private backup repo
+        uses: actions/checkout@v4
+        with:
+          repository: monthop-gmail/vidhisa-49m-backups
+          token: ${{ secrets.BACKUP_REPO_TOKEN }}
+          path: backups-repo
+
+      - name: Commit dump to private repo
+        run: |
+          set -e
+          cd backups-repo
+          YEAR=$(date +%Y)
+          DATE=$(date +%Y-%m-%d)
+          mkdir -p "weekly/${YEAR}"
+          cp ../offsite-backup.sql.gz "weekly/${YEAR}/${DATE}.sql.gz"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          if git diff --cached --quiet; then
+            echo "no changes to commit"
+          else
+            SIZE=$(du -h "weekly/${YEAR}/${DATE}.sql.gz" | cut -f1)
+            git commit -m "backup: ${DATE} (${SIZE})"
+            git push
+            echo "✅ pushed weekly/${YEAR}/${DATE}.sql.gz (${SIZE})"
+          fi
+
+      - name: Cleanup VM tmp
+        if: always()
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.GCP_VM_HOST }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_VM_SSH_KEY }}
+          script: |
+            rm -f /tmp/offsite-backup.sql.gz
