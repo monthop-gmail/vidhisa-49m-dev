@@ -16,8 +16,8 @@ def _build_db_url() -> str:
 DATABASE_URL: str = os.getenv("DATABASE_URL") or _build_db_url()
 
 TARGET_MINUTES: int = 49_000_000
-START_DATE: date = date(2026, 3, 1)
-DEADLINE: date = date(2026, 7, 31)
+START_DATE: date = date(2026, 4, 1)
+DEADLINE: date = date(2026, 12, 31)
 
 MAX_SESSION_MINUTES: int = 5
 MAX_DAILY_MINUTES: int = 15

@@ -14,8 +14,8 @@ def test_projection(client):
     assert "start_date" in data
     assert "today" in data
     assert "deadline" in data
-    assert data["deadline"] == "2026-07-31"
-    assert data["start_date"] == "2026-03-01"
+    assert data["deadline"] == "2026-12-31"
+    assert data["start_date"] == "2026-04-01"
 
     assert isinstance(data["days_remaining"], int)
     assert isinstance(data["daily_rate_current"], int)
