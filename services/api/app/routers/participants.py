@@ -5,13 +5,13 @@ import io
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user, get_current_user_optional, scoped_branch_id
 from app.branch_auth import check_branch_access
 from app.database import get_db
-from app.models import Branch, Participant, User
+from app.models import Branch, Participant, Record, User
 from app.schemas import ImportResult, ParticipantCreate, ParticipantResponse
 
 router = APIRouter()
@@ -31,14 +31,33 @@ async def list_participants(
     db: AsyncSession = Depends(get_db),
     user: User | None = Depends(get_current_user_optional),
 ):
-    """List participants, optionally filtered by branch, with pagination."""
+    """List participants with aggregated record stats, optional branch filter + pagination."""
     branch_id = scoped_branch_id(user, branch_id)
-    stmt = select(Participant).order_by(Participant.first_name)
+    stmt = (
+        select(
+            Participant,
+            func.coalesce(func.sum(Record.minutes), 0).label("total_minutes"),
+            func.count(Record.id).label("total_records"),
+        )
+        .outerjoin(
+            Record,
+            (Record.participant_id == Participant.id) & (Record.status == "approved"),
+        )
+        .group_by(Participant.id)
+        .order_by(Participant.first_name)
+    )
     if branch_id:
         stmt = stmt.where(Participant.branch_id == branch_id)
     stmt = stmt.limit(limit).offset(offset)
     result = await db.execute(stmt)
-    return result.scalars().all()
+    return [
+        ParticipantResponse.model_validate({
+            **{c.name: getattr(r.Participant, c.name) for c in Participant.__table__.columns},
+            "total_minutes": r.total_minutes,
+            "total_records": r.total_records,
+        })
+        for r in result.all()
+    ]
 
 
 @router.get("/participants/export")

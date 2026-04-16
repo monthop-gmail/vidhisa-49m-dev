@@ -350,6 +350,8 @@ class ParticipantResponse(BaseModel):
     enrolled_date: date | None
     privacy_accepted: bool
     status: str = "pending"
+    total_minutes: int = 0
+    total_records: int = 0
 
     model_config = {"from_attributes": True}
 

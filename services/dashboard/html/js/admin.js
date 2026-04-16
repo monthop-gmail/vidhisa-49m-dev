@@ -230,7 +230,8 @@ async function loadParticipants(append) {
             tbody.innerHTML += `<tr>
                 <td>${p.id}</td><td>${p.member_code || '-'}</td><td>${p.first_name}</td>
                 <td>${p.last_name}</td><td>${p.gender || '-'}</td><td>${p.age || '-'}</td>
-                <td>${p.branch_id}</td><td>${p.status || '-'}</td><td>${p.enrolled_date || '-'}</td></tr>`;
+                <td>${p.branch_id}</td><td>${p.status || '-'}</td><td>${p.enrolled_date || '-'}</td>
+                <td>${FMT.format(p.total_minutes || 0)}</td><td>${FMT.format(p.total_records || 0)}</td></tr>`;
         });
 
         participantOffset += data.length;
