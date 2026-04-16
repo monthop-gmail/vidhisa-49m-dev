@@ -274,9 +274,8 @@ async function loadOrganizations() {
         data.forEach(o => {
             tbody.innerHTML += `<tr style="cursor:pointer" onclick="showOrgDetail('${o.id}')">
                 <td>${o.id}</td><td>${o.name}</td><td>${o.org_type || '-'}</td>
-                <td>${o.province || '-'}</td><td>${o.branch_id || '-'}</td>
+                <td>${o.province || '-'}</td>
                 <td>${o.gender_male ?? '-'}</td><td>${o.gender_female ?? '-'}</td><td>${o.gender_unspecified ?? '-'}</td>
-                <td>${o.status || '-'}</td>
                 <td>${FMT.format(o.total_minutes)}</td><td>${FMT.format(o.total_records)}</td></tr>`;
         });
     } catch (e) { console.error('org error:', e); }
@@ -325,7 +324,7 @@ async function loadParticipants(append) {
             tbody.innerHTML += `<tr style="cursor:pointer" onclick="showParticipantDetail(${p.id})">
                 <td>${p.id}</td><td>${p.member_code || '-'}</td><td>${p.first_name}</td>
                 <td>${p.last_name}</td><td>${p.gender || '-'}</td><td>${p.age || '-'}</td>
-                <td>${p.branch_id}</td><td>${p.status || '-'}</td><td>${p.enrolled_date || '-'}</td>
+                <td>${p.enrolled_date || '-'}</td>
                 <td>${FMT.format(p.total_minutes || 0)}</td><td>${FMT.format(p.total_records || 0)}</td></tr>`;
         });
 
