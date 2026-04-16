@@ -78,6 +78,10 @@
 
     <section>
         <h2>องค์กรรออนุมัติ <span id="pending-org-count" style="font-size:0.85rem; color:#666; font-weight:normal;"></span></h2>
+        <div style="margin-bottom:0.5rem; display:flex; gap:0.5rem; align-items:center;">
+            <button class="btn-approve" onclick="syncOrgEnrollments()">ดึงข้อมูลจาก Google Sheet</button>
+            <span id="sync-org-status" style="font-size:0.85rem; color:#666;"></span>
+        </div>
         <table id="pending-org-table">
             <thead>
                 <tr>

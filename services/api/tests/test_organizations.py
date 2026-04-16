@@ -25,11 +25,11 @@ def test_organization_fields(client):
 
 
 def test_get_organization(client):
-    # Use PLJ-B001 which is auto-created
-    r = client.get("/api/organizations/PLJ-B001")
+    # Use B001-00 which is auto-created
+    r = client.get("/api/organizations/B001-00")
     assert r.status_code == 200
     data = r.json()
-    assert data["id"] == "PLJ-B001"
+    assert data["id"] == "B001-00"
     assert data["total_minutes"] >= 0
 
 
@@ -54,9 +54,9 @@ def test_create_organization(client):
 
 
 def test_create_duplicate_organization(client):
-    # PLJ-B001 already exists (auto-created)
+    # B001-00 already exists (auto-created)
     r = client.post("/api/organizations", json={
-        "id": "PLJ-B001",
+        "id": "B001-00",
         "name": "ซ้ำ",
         "branch_id": "B001",
     })
@@ -64,15 +64,15 @@ def test_create_duplicate_organization(client):
 
 
 def test_update_organization(client):
-    r = client.put("/api/organizations/PLJ-B001", json={
-        "id": "PLJ-B001",
+    r = client.put("/api/organizations/B001-00", json={
+        "id": "B001-00",
         "name": "สถาบันพลังจิตตานุภาพ (อัพเดท)",
         "org_type": "สถาบันพลังจิตตานุภาพ",
         "branch_id": "B001",
     })
     assert r.status_code == 200
 
-    r2 = client.get("/api/organizations/PLJ-B001")
+    r2 = client.get("/api/organizations/B001-00")
     assert "อัพเดท" in r2.json()["name"]
 
 
@@ -121,7 +121,7 @@ def test_import_csv_create(client):
 
 
 def test_import_csv_update(client):
-    csv_content = "id,name,org_type,branch_id,province,latitude,longitude,contact\nPLJ-B001,สถาบันพลังจิตตานุภาพ (ทดสอบ),สถาบันพลังจิตตานุภาพ,B001,,,,\n"
+    csv_content = "id,name,org_type,branch_id,province,latitude,longitude,contact\nB001-00,สถาบันพลังจิตตานุภาพ (ทดสอบ),สถาบันพลังจิตตานุภาพ,B001,,,,\n"
     r = client.post("/api/organizations/import", files={"file": ("orgs.csv", csv_content, "text/csv")})
     assert r.status_code == 200
     data = r.json()

@@ -20,6 +20,8 @@ router = APIRouter()
 
 GGS_URL_TYPES = ["ggs_url_org", "ggs_url_participant", "ggs_url_record_bulk", "ggs_url_record_ind"]
 
+GGS_ORG_ENROLLMENT_URL = "https://docs.google.com/spreadsheets/d/1COYcLXAliYPqpVEPev22MJtiKHO6b7-drVGjhZxNpOY/gviz/tq?tqx=out:json&headers=1"
+
 
 def extract_sheet_id(url: str) -> str:
     match = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", url)
@@ -460,3 +462,105 @@ async def list_ggs_sources(db: AsyncSession = Depends(get_db)):
         }
         for r in result.all()
     ]
+
+
+# === Sync external org enrollments (central sheet from อ.เต้) ===
+
+def _to_int(v) -> int | None:
+    s = str(v or "").strip()
+    if not s:
+        return None
+    try:
+        return int(float(s))
+    except (ValueError, TypeError):
+        return None
+
+
+@router.post("/ggs/sync-org-enrollments")
+async def sync_org_enrollments_ggs(
+    user: User = Depends(require_central_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Sync external org enrollments from central GGS → insert as pending Organizations."""
+    rows = await fetch_gviz_rows(GGS_ORG_ENROLLMENT_URL)
+
+    # Preload existing orgs + branches
+    existing_result = await db.execute(select(Organization.name, Organization.branch_id))
+    existing_pairs = {(r[0], r[1]) for r in existing_result.all()}
+
+    branches_result = await db.execute(select(Branch.id))
+    valid_branches = {r[0] for r in branches_result.all()}
+
+    # Preload per-branch max seq for id generation (B234-01, B234-02, ...)
+    seq_result = await db.execute(
+        select(Organization.id).where(Organization.id.like("B%-%"))
+    )
+    max_seq: dict[str, int] = {}
+    for (oid,) in seq_result.all():
+        parts = oid.split("-")
+        if len(parts) == 2 and parts[1].isdigit():
+            max_seq[parts[0]] = max(max_seq.get(parts[0], 0), int(parts[1]))
+
+    created = 0
+    skipped = 0
+    errors: list[str] = []
+
+    for i, row in enumerate(rows, start=2):
+        name = (row.get("ชื่อหน่วยงาน/โรงเรียน/องค์กร") or "").strip()
+        branch_num = (row.get("ระบุเลขสาขาที่ประสานงาน (3 หลัก)") or "").strip()
+        if not name or not branch_num:
+            errors.append(f"แถว {i}: ขาดชื่อหรือเลขสาขา")
+            continue
+        if branch_num.replace(".0", "").isdigit():
+            branch_num = branch_num.replace(".0", "").zfill(3)
+        branch_id = f"B{branch_num}"
+        if branch_id not in valid_branches:
+            errors.append(f"แถว {i}: ไม่พบสาขา {branch_id}")
+            continue
+        if (name, branch_id) in existing_pairs:
+            skipped += 1
+            continue
+
+        max_seq[branch_id] = max_seq.get(branch_id, 0) + 1
+        org_id = f"{branch_id}-{max_seq[branch_id]:02d}"
+
+        def _parse_date(s: str):
+            s = (s or "").strip()
+            if not s:
+                return None
+            try:
+                return date_type.fromisoformat(s)
+            except ValueError:
+                return None
+
+        org = Organization(
+            id=org_id,
+            name=name,
+            org_type="หน่วยงาน",
+            branch_id=branch_id,
+            sub_district=(row.get("ตำบล") or "").strip() or None,
+            district=(row.get("อำเภอ") or "").strip() or None,
+            province=(row.get("จังหวัด") or "").strip() or None,
+            email=(row.get("อีเมล์ (สำหรับรับเกียรติบัตร)") or "").strip() or None,
+            contact_name=(row.get("ชื่อ-สกุล ผู้ประสานงานของหน่วยงาน") or "").strip() or None,
+            contact_phone=(row.get("เบอร์ติดต่อหน่วยงาน") or "").strip() or None,
+            contact_line_id=(row.get("Line ID (ถ้ามี)") or "").strip() or None,
+            max_participants=_to_int(row.get("จำนวนผู้เข้าร่วม")),
+            gender_male=_to_int(row.get("เพศชาย")) or 0,
+            gender_female=_to_int(row.get("เพศหญิง")) or 0,
+            gender_unspecified=_to_int(row.get("ไม่ระบุเพศ")) or 0,
+            enrolled_date=_parse_date(row.get("เข้าร่วมโครงการตั้งแต่วันที่")),
+            enrolled_until=_parse_date(row.get("ถึงวันที่")),
+            status="pending",
+        )
+        db.add(org)
+        existing_pairs.add((name, branch_id))
+        created += 1
+
+    await db.commit()
+    return {
+        "created": created,
+        "skipped": skipped,
+        "errors": errors[:20],
+        "message": f"ดึงข้อมูลสำเร็จ: ใหม่ {created}, ซ้ำ {skipped}",
+    }

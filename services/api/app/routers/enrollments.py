@@ -18,7 +18,7 @@ from app.models import Branch, BranchEnrollment, Organization, User
 
 router = APIRouter()
 
-GGS_URL = "https://docs.google.com/spreadsheets/d/1yXs6dHAxNvRne9jcFzr3ttNKvDHbzYMVpy3gV_O2QTA/gviz/tq?tqx=out:json&headers=1"
+GGS_URL = "https://docs.google.com/spreadsheets/d/1yXs6dHAxNvRne9jcFzr3ttNKvDHbzYMVpy3gV_O2QTA/gviz/tq?tqx=out:json&headers=1&sheet=Form+Responses+1"
 
 
 def _parse_gviz_json(raw: str) -> list[dict]:
@@ -162,7 +162,7 @@ async def approve_enrollment(
         br_check = await db.execute(select(Branch).where(Branch.id == branch_id))
         branch_obj = br_check.scalar_one_or_none()
         if branch_obj:
-            plj_id = f"PLJ-{branch_id}"
+            plj_id = f"{branch_id}-00"
             org_check = await db.execute(select(Organization).where(Organization.id == plj_id))
             if not org_check.scalar_one_or_none():
                 org = Organization(

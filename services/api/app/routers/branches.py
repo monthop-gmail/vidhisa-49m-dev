@@ -38,7 +38,7 @@ async def list_branches(db: AsyncSession = Depends(get_db)):
         )
         .outerjoin(
             Record,
-            (Record.branch_id == Branch.id) & (Record.status == "approved") & (Record.org_id.like("PLJ-%")),
+            (Record.branch_id == Branch.id) & (Record.status == "approved") & (Record.org_id.like("%-00")),
         )
         .group_by(Branch.id)
         .order_by(Branch.id)
@@ -189,7 +189,7 @@ async def get_branch(branch_id: str, db: AsyncSession = Depends(get_db)):
     ).where(
         Record.branch_id == branch_id,
         Record.status == "approved",
-        Record.org_id.like("PLJ-%"),
+        Record.org_id.like("%-00"),
     )
     stats = (await db.execute(stmt)).one()
 

@@ -83,7 +83,7 @@ async def get_by_group(db: AsyncSession = Depends(get_db)):
             .where(
                 Branch.group_id == g.id,
                 Record.status == "approved",
-                Record.org_id.like("PLJ-%"),
+                Record.org_id.like("%-00"),
             )
         )
         result = await db.execute(stmt)
@@ -128,7 +128,7 @@ async def get_by_branch(db: AsyncSession = Depends(get_db)):
         .join(Record, Record.branch_id == Branch.id)
         .where(
             Record.status == "approved",
-            Record.org_id.like("PLJ-%"),
+            Record.org_id.like("%-00"),
         )
         .group_by(Branch.id, Branch.name, Branch.province)
         .order_by(func.sum(Record.minutes).desc())

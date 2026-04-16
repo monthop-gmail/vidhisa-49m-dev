@@ -117,10 +117,10 @@ class TestParticipantApprovalFlow:
 
 class TestRecordApprovalFlow:
     def test_record_pending_then_approve(self, client):
-        # Use existing approved org PLJ-B001
+        # Use existing approved org B001-00
         r = client.post("/api/records", json={
             "type": "bulk", "branch_id": "B001", "name": "FlowTest",
-            "org_id": "PLJ-B001", "minutes": 50, "date": "2026-06-10",
+            "org_id": "B001-00", "minutes": 50, "date": "2026-06-10",
         })
         assert r.status_code == 201
         rid = r.json()["id"]
@@ -133,7 +133,7 @@ class TestRecordApprovalFlow:
     def test_record_pending_then_reject(self, client):
         r = client.post("/api/records", json={
             "type": "bulk", "branch_id": "B001", "name": "FlowTest2",
-            "org_id": "PLJ-B001", "minutes": 50, "date": "2026-06-11",
+            "org_id": "B001-00", "minutes": 50, "date": "2026-06-11",
         })
         rid = r.json()["id"]
         r = client.patch(f"/api/records/{rid}/reject", json={"reason": "test"})

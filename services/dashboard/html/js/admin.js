@@ -438,6 +438,27 @@ async function syncEnrollments() {
     }
 }
 
+async function syncOrgEnrollments() {
+    const status = document.getElementById('sync-org-status');
+    status.textContent = 'กำลังดึงข้อมูล...';
+    status.style.color = '#666';
+    try {
+        const res = await authFetch('/api/ggs/sync-org-enrollments', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+            status.textContent = data.message;
+            status.style.color = '#43a047';
+            loadPendingOrgs();
+        } else {
+            status.textContent = data.detail?.message || 'เกิดข้อผิดพลาด';
+            status.style.color = '#e53935';
+        }
+    } catch (e) {
+        status.textContent = 'เกิดข้อผิดพลาด';
+        status.style.color = '#e53935';
+    }
+}
+
 async function approveEnrollment(id) {
     if (!confirm('อนุมัติสาขานี้? ระบบจะสร้าง user/password ให้ admin สาขา')) return;
     const res = await authFetch(`/api/enrollments/${id}/approve`, { method: 'PATCH' });
