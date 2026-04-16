@@ -127,8 +127,8 @@ class TestAntifraud:
         oid = _create_org(client)
         r = client.post("/api/records", json={
             "type": "bulk", "branch_id": "B005", "name": _uid(),
-            "org_id": oid, "minutes": 100,
-            "participant_count": 10, "minutes_per_person": 10,
+            "org_id": oid, "minutes": 160,
+            "participant_count": 10, "minutes_per_person": 16,
             "date": "2026-03-14",
         })
         assert r.status_code == 422

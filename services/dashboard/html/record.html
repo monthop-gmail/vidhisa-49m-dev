@@ -51,39 +51,18 @@
             <div><label>2. วันที่ปฏิบัติ *</label><input id="b-date" type="date"></div>
         </div>
 
-        <h3 style="margin-top:0.8rem">จำนวนผู้ปฏิบัติ (แยกรอบ แยกเพศ)</h3>
+        <h3 style="margin-top:0.8rem">จำนวนผู้ปฏิบัติ (15 นาที/คน — ปฏิบัติครบ 3 รอบ/วัน)</h3>
         <table style="font-size:0.9rem;">
             <thead>
-                <tr><th>รอบ</th><th>ชาย</th><th>หญิง</th><th>ไม่ระบุ</th><th>รวมคน</th><th>นาที</th></tr>
+                <tr><th>ชาย</th><th>หญิง</th><th>ไม่ระบุ</th><th>รวมคน</th><th>นาทีรวม</th></tr>
             </thead>
             <tbody>
                 <tr>
-                    <td>เช้า (5 นาที)</td>
-                    <td><input id="b-mm" type="number" min="0" value="0" onchange="calcBulk()" style="width:70px"></td>
-                    <td><input id="b-mf" type="number" min="0" value="0" onchange="calcBulk()" style="width:70px"></td>
-                    <td><input id="b-mu" type="number" min="0" value="0" onchange="calcBulk()" style="width:70px"></td>
-                    <td id="b-mt" style="font-weight:bold">0</td>
-                    <td id="b-mmin">0</td>
-                </tr>
-                <tr>
-                    <td>กลางวัน (5 นาที)</td>
-                    <td><input id="b-am" type="number" min="0" value="0" onchange="calcBulk()" style="width:70px"></td>
-                    <td><input id="b-af" type="number" min="0" value="0" onchange="calcBulk()" style="width:70px"></td>
-                    <td><input id="b-au" type="number" min="0" value="0" onchange="calcBulk()" style="width:70px"></td>
-                    <td id="b-at" style="font-weight:bold">0</td>
-                    <td id="b-amin">0</td>
-                </tr>
-                <tr>
-                    <td>เย็น (5 นาที)</td>
-                    <td><input id="b-em" type="number" min="0" value="0" onchange="calcBulk()" style="width:70px"></td>
-                    <td><input id="b-ef" type="number" min="0" value="0" onchange="calcBulk()" style="width:70px"></td>
-                    <td><input id="b-eu" type="number" min="0" value="0" onchange="calcBulk()" style="width:70px"></td>
-                    <td id="b-et" style="font-weight:bold">0</td>
-                    <td id="b-emin">0</td>
-                </tr>
-                <tr style="background:#f5f5f5; font-weight:bold;">
-                    <td>รวม</td><td id="b-sum-m">0</td><td id="b-sum-f">0</td><td id="b-sum-u">0</td>
-                    <td id="b-total">0</td><td id="b-minutes">0</td>
+                    <td><input id="b-m" type="number" min="0" value="0" onchange="calcBulk()" style="width:80px"></td>
+                    <td><input id="b-f" type="number" min="0" value="0" onchange="calcBulk()" style="width:80px"></td>
+                    <td><input id="b-u" type="number" min="0" value="0" onchange="calcBulk()" style="width:80px"></td>
+                    <td id="b-total" style="font-weight:bold">0</td>
+                    <td id="b-minutes" style="font-weight:bold; color:#43a047">0</td>
                 </tr>
             </tbody>
         </table>
@@ -145,24 +124,10 @@ function showMsg(id, text, ok) {
 function v(id) { return parseInt(document.getElementById(id).value) || 0; }
 
 function calcBulk() {
-    // Morning
-    const mm=v('b-mm'), mf=v('b-mf'), mu=v('b-mu'), mt=mm+mf+mu;
-    document.getElementById('b-mt').textContent = mt;
-    document.getElementById('b-mmin').textContent = mt * 5;
-    // Afternoon
-    const am=v('b-am'), af=v('b-af'), au=v('b-au'), at=am+af+au;
-    document.getElementById('b-at').textContent = at;
-    document.getElementById('b-amin').textContent = at * 5;
-    // Evening
-    const em=v('b-em'), ef=v('b-ef'), eu=v('b-eu'), et=em+ef+eu;
-    document.getElementById('b-et').textContent = et;
-    document.getElementById('b-emin').textContent = et * 5;
-    // Totals
-    document.getElementById('b-sum-m').textContent = mm+am+em;
-    document.getElementById('b-sum-f').textContent = mf+af+ef;
-    document.getElementById('b-sum-u').textContent = mu+au+eu;
-    document.getElementById('b-total').textContent = mt+at+et;
-    document.getElementById('b-minutes').textContent = (mt+at+et) * 5;
+    const m=v('b-m'), f=v('b-f'), u=v('b-u');
+    const total = m + f + u;
+    document.getElementById('b-total').textContent = total;
+    document.getElementById('b-minutes').textContent = total * 15;
 }
 
 function calcIndMinutes() {
@@ -232,23 +197,20 @@ async function submitBulk() {
     const dt = document.getElementById('b-date').value;
     if (!branchId || !orgId || !dt) return showMsg('b-msg', 'กรุณาเลือกสาขา หน่วยงาน วันที่', false);
 
-    const mm=v('b-mm'), mf=v('b-mf'), mu=v('b-mu');
-    const am=v('b-am'), af=v('b-af'), au=v('b-au');
-    const em=v('b-em'), ef=v('b-ef'), eu=v('b-eu');
-    const mt=mm+mf+mu, at=am+af+au, et=em+ef+eu;
-    const totalPeople = mt+at+et;
-    const totalMinutes = totalPeople * 5;
+    const m=v('b-m'), f=v('b-f'), u=v('b-u');
+    const totalPeople = m + f + u;
+    const totalMinutes = totalPeople * 15;
 
-    if (totalPeople === 0) return showMsg('b-msg', 'กรุณาระบุจำนวนผู้ปฏิบัติอย่างน้อย 1 รอบ', false);
+    if (totalPeople === 0) return showMsg('b-msg', 'กรุณาระบุจำนวนผู้ปฏิบัติอย่างน้อย 1 คน', false);
 
     const orgName = document.getElementById('b-org').selectedOptions[0]?.textContent?.split(' — ')[1] || '';
 
     const body = {
         type: 'bulk', branch_id: branchId, name: orgName, org_id: orgId,
-        minutes: totalMinutes, participant_count: Math.max(mt, at, et), minutes_per_person: 5,
-        morning_male: mm, morning_female: mf, morning_unspecified: mu,
-        afternoon_male: am, afternoon_female: af, afternoon_unspecified: au,
-        evening_male: em, evening_female: ef, evening_unspecified: eu,
+        minutes: totalMinutes, participant_count: totalPeople, minutes_per_person: 15,
+        morning_male: m, morning_female: f, morning_unspecified: u,
+        afternoon_male: 0, afternoon_female: 0, afternoon_unspecified: 0,
+        evening_male: 0, evening_female: 0, evening_unspecified: 0,
         date: dt,
         submitted_by: document.getElementById('b-submitter').value.trim() || null,
         submitted_phone: document.getElementById('b-phone').value.trim() || null,
