@@ -36,7 +36,7 @@ jobs:
           direction: download
           host: ${{ secrets.GCP_VM_HOST }}
           username: ${{ secrets.GCP_VM_USER }}
-          private_key: ${{ secrets.GCP_VM_SSH_KEY }}
+          key: ${{ secrets.GCP_VM_SSH_KEY }}
           source: "/tmp/offsite-backup.sql.gz"
           target: "./offsite-backup.sql.gz"
 
