@@ -43,7 +43,7 @@
     <section id="tab-org" class="tab-content active">
         <h2>ลงทะเบียนองค์กร / หน่วยงาน</h2>
         <div class="form-grid">
-            <div><label>รหัสองค์กร *</label><input id="r-org-id" placeholder="ORG016"></div>
+            <div><label>รหัสองค์กร *</label><input id="r-org-id" placeholder="เลือกสาขาก่อน"></div>
             <div><label>ชื่อหน่วยงาน *</label><input id="r-org-name" placeholder="โรงเรียน..."></div>
             <div><label>ประเภท</label><select id="r-org-type">
                 <option value="">-- เลือก --</option>
@@ -189,10 +189,34 @@ async function registerParticipant() {
     else showMsg('r-p-msg', data.detail?.message || 'เกิดข้อผิดพลาด', false);
 }
 
+async function suggestNextOrgId(branchId) {
+    const input = document.getElementById('r-org-id');
+    if (!branchId) { input.value = ''; return; }
+    try {
+        const res = await fetch('/api/organizations');
+        const orgs = await res.json();
+        const pat = new RegExp(`^${branchId}-(\\d{2})$`);
+        let maxSeq = 0;
+        orgs.forEach(o => {
+            const m = o.id && o.id.match(pat);
+            if (m) {
+                const n = parseInt(m[1], 10);
+                if (n > maxSeq) maxSeq = n;
+            }
+        });
+        // -00 reserved for PLJ; external orgs start at -01
+        const next = Math.max(maxSeq + 1, 1);
+        input.value = `${branchId}-${String(next).padStart(2, '0')}`;
+    } catch (e) {
+        input.value = `${branchId}-01`;
+    }
+}
+
 // Single branch selector → sync to hidden fields in both tabs
 initBranchSelector('reg-branch', (branchId) => {
     document.getElementById('r-org-branch').value = branchId;
     document.getElementById('r-p-branch').value = branchId;
+    suggestNextOrgId(branchId);
 });
 
 // Auto-switch tab from URL hash
