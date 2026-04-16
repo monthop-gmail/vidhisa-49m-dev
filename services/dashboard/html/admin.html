@@ -36,7 +36,7 @@ label:has(> input[type="file"][accept=".csv"]) { display:none !important; }
     <section id="section-ggs-sync" style="display:none;">
         <h2>Google Sheet — ดึงข้อมูลสาขา</h2>
         <div style="display:grid; grid-template-columns:1fr; gap:0.4rem; margin-bottom:0.5rem; font-size:0.9rem;">
-            <div><label>1. หน่วยงานขอเข้าร่วม</label><input id="ggs-url-org" placeholder="URL Google Sheet หน่วยงาน" style="width:100%;"></div>
+            <div><label>1. หน่วยงานขอเข้าร่วม (ใช้ Google Sheet ส่วนกลาง — แก้ไขไม่ได้)</label><input id="ggs-url-org" value="https://docs.google.com/spreadsheets/d/1COYcLXAliYPqpVEPev22MJtiKHO6b7-drVGjhZxNpOY/gviz/tq?tqx=out:json" readonly style="width:100%; background:#f5f5f5; color:#666;"></div>
             <div><label>2. รายบุคคลขอเข้าร่วม</label><input id="ggs-url-participant" placeholder="URL Google Sheet รายบุคคล" style="width:100%;"></div>
             <div><label>3. บันทึกสมาธิ หน่วยงาน</label><input id="ggs-url-record-bulk" placeholder="URL Google Sheet บันทึกหน่วยงาน" style="width:100%;"></div>
             <div><label>4. บันทึกสมาธิ รายบุคคล</label><input id="ggs-url-record-ind" placeholder="URL Google Sheet บันทึกรายบุคคล" style="width:100%;"></div>

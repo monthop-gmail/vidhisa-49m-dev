@@ -528,7 +528,7 @@ async function loadGgsUrls() {
         const data = await res.json();
         const branch = data.find(b => b.branch_id === bid);
         if (branch) {
-            if (branch.ggs_url_org) document.getElementById('ggs-url-org').value = branch.ggs_url_org;
+            // ggs_url_org เป็น central sheet — ใช้ค่า default ที่ fix ใน HTML ไม่ overwrite ต่อสาขา
             if (branch.ggs_url_participant) document.getElementById('ggs-url-participant').value = branch.ggs_url_participant;
             if (branch.ggs_url_record_bulk) document.getElementById('ggs-url-record-bulk').value = branch.ggs_url_record_bulk;
             if (branch.ggs_url_record_ind) document.getElementById('ggs-url-record-ind').value = branch.ggs_url_record_ind;
