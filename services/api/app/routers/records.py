@@ -10,9 +10,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.anti_fraud import validate_record
+from app.auth import get_current_user_optional, scoped_branch_id
 from app.database import get_db
 from app.events import publish
-from app.models import Branch, Organization, Participant, Record
+from app.models import Branch, Organization, Participant, Record, User
 from app.schemas import (
     ApproveRequest,
     RecordCreate,
@@ -49,8 +50,10 @@ async def list_records(
     limit: int = 50,
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(get_current_user_optional),
 ):
     """List records with optional filters and pagination."""
+    branch_id = scoped_branch_id(user, branch_id)
     stmt = (
         select(Record, Participant.member_code)
         .outerjoin(Participant, Record.participant_id == Participant.id)

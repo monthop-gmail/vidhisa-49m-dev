@@ -8,10 +8,10 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import get_current_user
+from app.auth import get_current_user, get_current_user_optional, scoped_branch_id
 from app.branch_auth import check_branch_access
 from app.database import get_db
-from app.models import Branch, Participant
+from app.models import Branch, Participant, User
 from app.schemas import ImportResult, ParticipantCreate, ParticipantResponse
 
 router = APIRouter()
@@ -29,8 +29,10 @@ async def list_participants(
     limit: int = 50,
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(get_current_user_optional),
 ):
     """List participants, optionally filtered by branch, with pagination."""
+    branch_id = scoped_branch_id(user, branch_id)
     stmt = select(Participant).order_by(Participant.first_name)
     if branch_id:
         stmt = stmt.where(Participant.branch_id == branch_id)

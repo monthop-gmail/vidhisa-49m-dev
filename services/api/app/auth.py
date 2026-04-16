@@ -78,3 +78,25 @@ def require_central_admin(user: User = Depends(get_current_user)) -> User:
     if user.role != "central_admin":
         raise HTTPException(status_code=403, detail={"error": "FORBIDDEN", "message": "ต้องเป็น Admin กลาง"})
     return user
+
+
+async def get_current_user_optional(request: Request, db: AsyncSession = Depends(get_db)) -> User | None:
+    """Return User if authenticated, None otherwise — for endpoints that filter by user.branch_id when logged in."""
+    auth = request.headers.get("Authorization", "")
+    token = auth[7:] if auth.startswith("Bearer ") else request.cookies.get("token")
+    if not token:
+        return None
+    try:
+        payload = decode_token(token)
+        user_id = int(payload["sub"])
+    except HTTPException:
+        return None
+    result = await db.execute(select(User).where(User.id == user_id, User.status == "active"))
+    return result.scalar_one_or_none()
+
+
+def scoped_branch_id(user: User | None, requested: str | None) -> str | None:
+    """Force branch filter for non-central-admin users; return what to filter on."""
+    if user and user.role != "central_admin" and user.branch_id:
+        return user.branch_id
+    return requested
