@@ -1,0 +1,30 @@
+name: One-off — rename B140 orgs
+
+# ครั้งเดียว: B140-05 → B140-01, B140-04 → B140-02
+# จะถูกลบออกทันทีหลังรัน
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rename:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.GCP_VM_HOST }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_VM_SSH_KEY }}
+          script: |
+            set -e
+            cd /root/vidhisa-49m-dev
+            docker compose exec -T vidhisa-db psql -U vidhisa -d vidhisa49m -v ON_ERROR_STOP=1 <<'SQL'
+            BEGIN;
+            -- ใช้ id ชั่วคราวเพื่อหลบ unique constraint
+            UPDATE organizations SET id = 'B140-T1' WHERE id = 'B140-05';
+            UPDATE organizations SET id = 'B140-T2' WHERE id = 'B140-04';
+            UPDATE organizations SET id = 'B140-01' WHERE id = 'B140-T1';
+            UPDATE organizations SET id = 'B140-02' WHERE id = 'B140-T2';
+            SELECT id, name FROM organizations WHERE branch_id = 'B140' ORDER BY id;
+            COMMIT;
+            SQL
