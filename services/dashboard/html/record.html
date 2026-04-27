@@ -247,7 +247,7 @@ async function submitBulk() {
         }
     }
 
-    const orgName = document.getElementById('b-org').selectedOptions[0]?.textContent?.split(' — ')[1] || '';
+    const orgName = (orgsCache[orgId] && orgsCache[orgId].name) || document.getElementById('b-org').selectedOptions[0]?.textContent || '';
 
     const body = {
         type: 'bulk', branch_id: branchId, name: orgName, org_id: orgId,
