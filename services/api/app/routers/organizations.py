@@ -349,3 +349,29 @@ async def reject_organization(org_id: str, user=Depends(get_current_user), db: A
     org.status = "rejected"
     await db.commit()
     return {"id": org.id, "status": "rejected"}
+
+
+@router.delete("/organizations/{org_id}", status_code=204)
+async def delete_organization(
+    org_id: str,
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete an organization (admin กลาง only). Blocks if records reference it."""
+    if user.role != "central_admin":
+        raise HTTPException(status_code=403, detail={"error": "FORBIDDEN", "message": "ต้องเป็น Admin กลาง"})
+    result = await db.execute(select(Organization).where(Organization.id == org_id))
+    org = result.scalar_one_or_none()
+    if not org:
+        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบองค์กร"})
+    rec_count = (await db.execute(
+        select(func.count(Record.id)).where(Record.org_id == org_id)
+    )).scalar()
+    if rec_count and rec_count > 0:
+        raise HTTPException(
+            status_code=409,
+            detail={"error": "HAS_RECORDS", "message": f"มี records {rec_count} รายการผูกอยู่ ลบไม่ได้"},
+        )
+    await db.delete(org)
+    await db.commit()
+    return None
