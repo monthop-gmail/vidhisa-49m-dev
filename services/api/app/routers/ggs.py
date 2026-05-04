@@ -298,12 +298,12 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_appr
             first_name = parts[0]
             last_name = parts[1] if len(parts) > 1 else ""
 
-            # เช็คซ้ำข้ามสาขา
+            # เช็คซ้ำข้ามสาขา (อาจเจอหลายแถวถ้าชื่อซ้ำหลายสาขา → ใช้ first)
             dup_check = await db.execute(select(Participant).where(
                 Participant.first_name == first_name,
                 Participant.last_name == last_name,
             ))
-            existing_p = dup_check.scalar_one_or_none()
+            existing_p = dup_check.scalars().first()
             if existing_p and existing_p.branch_id != branch_id:
                 errors.append(f"แถว {i}: '{name}' ลงทะเบียนในสาขา {existing_p.branch_id} แล้ว")
                 continue
@@ -327,15 +327,15 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_appr
 
             participant_map[name] = participant
 
-        # Upsert record by branch_id + name + date
+        # Upsert record by branch_id + name + date (ใช้ first() กันกรณีมี duplicate row เก่าค้าง)
         stmt = select(Record).where(
             Record.branch_id == branch_id,
             Record.name == name,
             Record.date == rec_date,
             Record.type == "individual",
-        )
+        ).order_by(Record.id)
         result = await db.execute(stmt)
-        existing = result.scalar_one_or_none()
+        existing = result.scalars().first()
 
         new_status = "approved" if auto_approve else "pending"
         approved_by = "auto-sync" if auto_approve else None
