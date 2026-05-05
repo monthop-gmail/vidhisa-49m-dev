@@ -40,6 +40,20 @@ jobs:
           docker compose logs vidhisa-api
           exit 1
 
+      - name: Wait for DB migrations to complete
+        run: |
+          for i in $(seq 1 60); do
+            count=$(docker compose exec -T vidhisa-db psql -U vidhisa -d vidhisa49m -tAc "SELECT count(*) FROM branches WHERE view_secret IS NOT NULL" 2>/dev/null || echo 0)
+            if [ "$count" -ge 325 ]; then
+              echo "Migration applied: $count branches with view_secret"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Migration timeout"
+          docker compose logs vidhisa-db --tail=50
+          exit 1
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
