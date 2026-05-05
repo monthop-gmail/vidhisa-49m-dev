@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { getAuth } from '../lib/auth'
 import { Button, Card, CardBody, ErrorMessage, Field, Input, LoadingState, PageHeading } from '../components/ui'
-import { encodeBranchKey } from '../lib/branchKey'
 
 function MemberLinkCard({ link }: { link: string }) {
   const [copied, setCopied] = useState(false)
@@ -42,8 +41,8 @@ function MemberLinkCard({ link }: { link: string }) {
             {copied ? '✓ Copied' : 'Copy'}
           </Button>
         </div>
-        <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
-          ⓘ Mockup: ผู้ที่มี link นี้จะเห็นยอดของทุกคนในสาขา (ไม่ใช่แค่ของตัวเอง) — เป็นที่ตกลงไว้กับทีม
+        <div className="text-xs text-slate-500">
+          ⓘ ผู้ที่มี link นี้เข้าค้นชื่อตัวเองได้ (เห็นยอดของผู้เข้าร่วมในสาขาเดียวกันได้)
         </div>
       </CardBody>
     </Card>
@@ -85,6 +84,18 @@ function BranchEditPage() {
       })
       if (error) throw error
       return data as Record<string, unknown>
+    },
+  })
+
+  const { data: viewLink } = useQuery({
+    queryKey: ['branch-view-link', branchId],
+    queryFn: async () => {
+      const token = getAuth().token
+      const res = await fetch(`/api/branches/${branchId}/view-link`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error(String(res.status))
+      return (await res.json()) as { branch_id: string; view_secret: string; view_url_path: string }
     },
   })
 
@@ -156,7 +167,11 @@ function BranchEditPage() {
     (lat !== null && (Number.isNaN(lat) || lat < 5 || lat > 21)) ||
     (lng !== null && (Number.isNaN(lng) || lng < 97 || lng > 106))
 
-  const memberLink = `${window.location.origin.replace(/:5173$/, ':5174')}/br/${encodeBranchKey(branchId)}`
+  // me-ui served at /me-ui/ on same host; dev runs on :5174 so swap port
+  const origin = window.location.origin.replace(/:5173$/, '')
+  const memberLink = viewLink
+    ? `${origin}/me-ui/br/${viewLink.branch_id}-${viewLink.view_secret}`
+    : ''
 
   return (
     <div className="grid gap-4 max-w-3xl">
