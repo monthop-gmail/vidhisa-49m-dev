@@ -1,0 +1,18 @@
+@import 'tailwindcss';
+
+html,
+body {
+  font-family: 'Sarabun', ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+  margin: 0;
+}
+
+/* Larger touch targets for elderly users on mobile */
+button,
+a,
+input {
+  min-height: 44px;
+}
