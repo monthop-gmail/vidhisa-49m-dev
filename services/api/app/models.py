@@ -89,6 +89,8 @@ class Branch(Base):
     ggs_url_participant = Column(Text)
     ggs_url_record_bulk = Column(Text)
     ggs_url_record_ind = Column(Text)
+    view_secret = Column(String(6), unique=True)
+    record_form_url = Column(String(500))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self) -> str:
@@ -224,3 +226,18 @@ class ProvinceStat(Base):
 
     def __repr__(self) -> str:
         return f"<ProvinceStat(code='{self.province_code}', province='{self.province}', minutes={self.total_minutes})>"
+
+
+class BranchViewLog(Base):
+    """Audit log for /api/branch-view/* requests (rate limit + brute force monitoring)."""
+
+    __tablename__ = "branch_view_log"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    ts = Column(DateTime(timezone=True), server_default=func.now())
+    branch_id = Column(String(10))
+    ip = Column(String(45))
+    action = Column(String(20))
+    participant_id = Column(Integer)
+    status_code = Column(Integer)
+    user_agent = Column(String(500))

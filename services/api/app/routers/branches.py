@@ -8,9 +8,11 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import get_current_user_optional, scoped_branch_id
+from app.auth import get_current_user, get_current_user_optional, scoped_branch_id
+from app.branch_auth import check_branch_access
 from app.database import get_db
 from app.models import Branch, BranchGroup, Record, User
+from app.routers.branch_view import generate_view_secret
 from app.schemas import BranchCreateResponse, BranchDetail, BranchListItem, ImportResult
 
 router = APIRouter()
@@ -163,6 +165,7 @@ async def import_branches(file: UploadFile = File(...), db: AsyncSession = Depen
                 longitude=float(lng) if lng else None,
                 admin_name=(row.get("admin_name") or "").strip() or None,
                 contact=(row.get("contact") or "").strip() or None,
+                view_secret=generate_view_secret(),
             )
             db.add(branch)
             existing_ids.add(branch_id)
@@ -215,6 +218,29 @@ async def get_branch(branch_id: str, db: AsyncSession = Depends(get_db)):
     }
 
 
+@router.get("/branches/{branch_id}/view-link")
+async def get_branch_view_link(
+    branch_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return view_secret + record_form_url for sharing me-ui link.
+
+    Branch admin: only their own branch. Central admin: any branch.
+    """
+    check_branch_access(user, branch_id)
+    result = await db.execute(select(Branch).where(Branch.id == branch_id))
+    branch = result.scalar_one_or_none()
+    if not branch:
+        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบสาขา"})
+    return {
+        "branch_id": branch.id,
+        "view_secret": branch.view_secret,
+        "record_form_url": branch.record_form_url,
+        "view_url_path": f"/br/{branch.id}-{branch.view_secret}" if branch.view_secret else None,
+    }
+
+
 @router.post("/branches", status_code=201, response_model=BranchCreateResponse)
 async def create_branch(data: dict, db: AsyncSession = Depends(get_db)):
     """Create a new branch."""
@@ -243,6 +269,7 @@ async def create_branch(data: dict, db: AsyncSession = Depends(get_db)):
         longitude=data.get("longitude"),
         admin_name=data.get("admin_name"),
         contact=data.get("contact"),
+        view_secret=generate_view_secret(),
     )
     db.add(branch)
     await db.commit()

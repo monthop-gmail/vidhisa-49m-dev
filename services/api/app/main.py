@@ -8,10 +8,14 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
 from app.database import async_session
 from app.routers import (
     auth,
     branch,
+    branch_view,
     branches,
     enrollments,
     feed,
@@ -74,6 +78,10 @@ class NoCacheMiddleware(BaseHTTPMiddleware):
 
 app = FastAPI(title="Vidhisa 49M API", version="0.1.0", lifespan=lifespan)
 
+# Rate limiter for /api/branch-view/* endpoints (defined per-route in branch_view.py)
+app.state.limiter = branch_view.limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 app.add_middleware(NoCacheMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -96,6 +104,7 @@ app.include_router(organizations.router, prefix="/api")
 app.include_router(participants.router, prefix="/api")
 app.include_router(ggs.router, prefix="/api")
 app.include_router(sse.router, prefix="/api")
+app.include_router(branch_view.router, prefix="/api")
 
 
 @app.get("/api/healthz")
