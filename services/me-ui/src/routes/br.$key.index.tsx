@@ -2,7 +2,7 @@ import { createFileRoute, Navigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { parseBranchKey, getRememberedParticipant } from '../lib/branchKey'
 
-export const Route = createFileRoute('/br/$key')({
+export const Route = createFileRoute('/br/$key/')({
   component: BranchLanding,
 })
 

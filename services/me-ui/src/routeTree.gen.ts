@@ -10,7 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as BrKeyRouteImport } from './routes/br.$key'
+import { Route as BrKeyIndexRouteImport } from './routes/br.$key.index'
 import { Route as BrKeySearchRouteImport } from './routes/br.$key.search'
 import { Route as BrKeyMeParticipantIdRouteImport } from './routes/br.$key.me.$participantId'
 
@@ -19,57 +19,63 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BrKeyRoute = BrKeyRouteImport.update({
-  id: '/br/$key',
-  path: '/br/$key',
+const BrKeyIndexRoute = BrKeyIndexRouteImport.update({
+  id: '/br/$key/',
+  path: '/br/$key/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BrKeySearchRoute = BrKeySearchRouteImport.update({
-  id: '/search',
-  path: '/search',
-  getParentRoute: () => BrKeyRoute,
+  id: '/br/$key/search',
+  path: '/br/$key/search',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const BrKeyMeParticipantIdRoute = BrKeyMeParticipantIdRouteImport.update({
-  id: '/me/$participantId',
-  path: '/me/$participantId',
-  getParentRoute: () => BrKeyRoute,
+  id: '/br/$key/me/$participantId',
+  path: '/br/$key/me/$participantId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/br/$key': typeof BrKeyRouteWithChildren
   '/br/$key/search': typeof BrKeySearchRoute
+  '/br/$key/': typeof BrKeyIndexRoute
   '/br/$key/me/$participantId': typeof BrKeyMeParticipantIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/br/$key': typeof BrKeyRouteWithChildren
   '/br/$key/search': typeof BrKeySearchRoute
+  '/br/$key': typeof BrKeyIndexRoute
   '/br/$key/me/$participantId': typeof BrKeyMeParticipantIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/br/$key': typeof BrKeyRouteWithChildren
   '/br/$key/search': typeof BrKeySearchRoute
+  '/br/$key/': typeof BrKeyIndexRoute
   '/br/$key/me/$participantId': typeof BrKeyMeParticipantIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/br/$key' | '/br/$key/search' | '/br/$key/me/$participantId'
+  fullPaths:
+    | '/'
+    | '/br/$key/search'
+    | '/br/$key/'
+    | '/br/$key/me/$participantId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/br/$key' | '/br/$key/search' | '/br/$key/me/$participantId'
+  to: '/' | '/br/$key/search' | '/br/$key' | '/br/$key/me/$participantId'
   id:
     | '__root__'
     | '/'
-    | '/br/$key'
     | '/br/$key/search'
+    | '/br/$key/'
     | '/br/$key/me/$participantId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  BrKeyRoute: typeof BrKeyRouteWithChildren
+  BrKeySearchRoute: typeof BrKeySearchRoute
+  BrKeyIndexRoute: typeof BrKeyIndexRoute
+  BrKeyMeParticipantIdRoute: typeof BrKeyMeParticipantIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -81,45 +87,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/br/$key': {
-      id: '/br/$key'
+    '/br/$key/': {
+      id: '/br/$key/'
       path: '/br/$key'
-      fullPath: '/br/$key'
-      preLoaderRoute: typeof BrKeyRouteImport
+      fullPath: '/br/$key/'
+      preLoaderRoute: typeof BrKeyIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/br/$key/search': {
       id: '/br/$key/search'
-      path: '/search'
+      path: '/br/$key/search'
       fullPath: '/br/$key/search'
       preLoaderRoute: typeof BrKeySearchRouteImport
-      parentRoute: typeof BrKeyRoute
+      parentRoute: typeof rootRouteImport
     }
     '/br/$key/me/$participantId': {
       id: '/br/$key/me/$participantId'
-      path: '/me/$participantId'
+      path: '/br/$key/me/$participantId'
       fullPath: '/br/$key/me/$participantId'
       preLoaderRoute: typeof BrKeyMeParticipantIdRouteImport
-      parentRoute: typeof BrKeyRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
 
-interface BrKeyRouteChildren {
-  BrKeySearchRoute: typeof BrKeySearchRoute
-  BrKeyMeParticipantIdRoute: typeof BrKeyMeParticipantIdRoute
-}
-
-const BrKeyRouteChildren: BrKeyRouteChildren = {
-  BrKeySearchRoute: BrKeySearchRoute,
-  BrKeyMeParticipantIdRoute: BrKeyMeParticipantIdRoute,
-}
-
-const BrKeyRouteWithChildren = BrKeyRoute._addFileChildren(BrKeyRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  BrKeyRoute: BrKeyRouteWithChildren,
+  BrKeySearchRoute: BrKeySearchRoute,
+  BrKeyIndexRoute: BrKeyIndexRoute,
+  BrKeyMeParticipantIdRoute: BrKeyMeParticipantIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
