@@ -43,6 +43,7 @@ type AppUser = {
   username: string
   full_name: string
   email: string | null
+  phone: string | null
   role: string
   branch_id: string | null
   status: string
@@ -136,6 +137,7 @@ function UsersPage() {
                   <SortableTh sortKey="username" sort={sort} onSort={toggleSort}>Username</SortableTh>
                   <SortableTh sortKey="full_name" sort={sort} onSort={toggleSort}>ชื่อ</SortableTh>
                   <SortableTh sortKey="email" sort={sort} onSort={toggleSort}>Email</SortableTh>
+                  <Th>เบอร์</Th>
                   <SortableTh sortKey="role" sort={sort} onSort={toggleSort}>Role</SortableTh>
                   <SortableTh sortKey="branch_id" sort={sort} onSort={toggleSort}>สาขา</SortableTh>
                   <SortableTh sortKey="status" sort={sort} onSort={toggleSort}>Status</SortableTh>
@@ -149,6 +151,7 @@ function UsersPage() {
                     <Td className="font-mono text-xs">{u.username}</Td>
                     <Td>{u.full_name}</Td>
                     <Td className="text-slate-600 text-xs">{u.email ?? '—'}</Td>
+                    <Td className="text-slate-600 text-xs">{u.phone ?? '—'}</Td>
                     <Td>
                       <Badge tone={u.role === 'central_admin' ? 'blue' : 'gray'}>{u.role}</Badge>
                     </Td>
@@ -189,6 +192,7 @@ type EditForm = {
   username: string
   full_name: string
   email: string
+  phone: string
   branch_id: string
   status: string
 }
@@ -199,9 +203,12 @@ function EditUserModal({ user, onClose }: { user: AppUser | null; onClose: () =>
     username: '',
     full_name: '',
     email: '',
+    phone: '',
     branch_id: '',
     status: 'active',
   })
+  const [newPassword, setNewPassword] = useState('')
+  const [resetMsg, setResetMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -209,9 +216,12 @@ function EditUserModal({ user, onClose }: { user: AppUser | null; onClose: () =>
       username: user.username,
       full_name: user.full_name,
       email: user.email ?? '',
+      phone: user.phone ?? '',
       branch_id: user.branch_id ?? '',
       status: user.status,
     })
+    setNewPassword('')
+    setResetMsg(null)
   }, [user])
 
   const saveMut = useMutation({
@@ -227,6 +237,27 @@ function EditUserModal({ user, onClose }: { user: AppUser | null; onClose: () =>
       qc.invalidateQueries({ queryKey: ['users'] })
       onClose()
     },
+  })
+
+  const resetPasswordMut = useMutation({
+    mutationFn: async (password: string) => {
+      const token = getAuth().token
+      const res = await fetch(`/api/users/${user!.id}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ password }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.detail?.message ?? `${res.status}`)
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      setResetMsg({ ok: true, text: 'เปลี่ยนรหัสผ่านสำเร็จ' })
+      setNewPassword('')
+    },
+    onError: (err: Error) => setResetMsg({ ok: false, text: err.message }),
   })
 
   const set = <K extends keyof EditForm>(k: K, v: EditForm[K]) => setForm((f) => ({ ...f, [k]: v }))
@@ -249,6 +280,9 @@ function EditUserModal({ user, onClose }: { user: AppUser | null; onClose: () =>
           </Field>
           <Field label="Email">
             <Input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} />
+          </Field>
+          <Field label="เบอร์โทร">
+            <Input value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="เช่น 0812345678" />
           </Field>
           <Field label="Branch ID">
             <Input
@@ -281,6 +315,34 @@ function EditUserModal({ user, onClose }: { user: AppUser | null; onClose: () =>
             {saveMut.error && <ErrorMessage>{String(saveMut.error)}</ErrorMessage>}
           </div>
         </form>
+      )}
+
+      {user && (
+        <div className="mt-4 pt-4 border-t border-slate-200 grid gap-2">
+          <div className="text-sm font-semibold text-slate-700">เปลี่ยนรหัสผ่าน</div>
+          <Field label="รหัสผ่านใหม่ (≥ 6 ตัวอักษร)">
+            <Input
+              type="text"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="พิมพ์รหัสใหม่"
+              autoComplete="new-password"
+            />
+          </Field>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={newPassword.length < 6 || resetPasswordMut.isPending}
+              onClick={() => resetPasswordMut.mutate(newPassword)}
+            >
+              {resetPasswordMut.isPending ? 'กำลังเปลี่ยน…' : 'รีเซ็ตรหัสผ่าน'}
+            </Button>
+            {resetMsg && (
+              <span className={`text-sm ${resetMsg.ok ? 'text-emerald-600' : 'text-red-600'}`}>{resetMsg.text}</span>
+            )}
+          </div>
+        </div>
       )}
     </Modal>
   )

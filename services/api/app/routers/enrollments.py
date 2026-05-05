@@ -308,7 +308,8 @@ async def list_users(user=Depends(require_central_admin), db: AsyncSession = Dep
     return [
         {
             "id": u.id, "username": u.username, "full_name": u.full_name,
-            "email": u.email, "role": u.role, "branch_id": u.branch_id, "status": u.status,
+            "email": u.email, "phone": u.phone, "role": u.role,
+            "branch_id": u.branch_id, "status": u.status,
         }
         for u in users
     ]
@@ -338,6 +339,8 @@ async def update_user(
         u.email = (data["email"] or "").strip() or None
     if "full_name" in data:
         u.full_name = (data["full_name"] or "").strip() or u.full_name
+    if "phone" in data:
+        u.phone = (data["phone"] or "").strip() or None
     if "branch_id" in data:
         u.branch_id = (data["branch_id"] or "").strip() or None
     if "status" in data and data["status"] in ("active", "disabled"):
@@ -345,3 +348,26 @@ async def update_user(
 
     await db.commit()
     return {"id": u.id, "username": u.username, "message": "อัพเดทสำเร็จ"}
+
+
+@router.post("/users/{user_id}/reset-password")
+async def reset_user_password(
+    user_id: int,
+    data: dict,
+    user=Depends(require_central_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin reset password — set new password (≥6 chars)."""
+    new_password = (data.get("password") or "").strip()
+    if len(new_password) < 6:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "PASSWORD_TOO_SHORT", "message": "รหัสผ่านต้อง ≥ 6 ตัวอักษร"},
+        )
+    result = await db.execute(select(User).where(User.id == user_id))
+    u = result.scalar_one_or_none()
+    if not u:
+        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบ user"})
+    u.password_hash = hash_password(new_password)
+    await db.commit()
+    return {"id": u.id, "username": u.username, "message": "เปลี่ยนรหัสผ่านสำเร็จ"}
