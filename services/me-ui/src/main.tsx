@@ -6,7 +6,8 @@ import './index.css'
 import { queryClient } from './lib/queryClient'
 import { routeTree } from './routeTree.gen'
 
-const router = createRouter({ routeTree, context: { queryClient } })
+const basepath = import.meta.env.BASE_URL.replace(/\/$/, '') || undefined
+const router = createRouter({ routeTree, context: { queryClient }, basepath })
 
 declare module '@tanstack/react-router' {
   interface Register {

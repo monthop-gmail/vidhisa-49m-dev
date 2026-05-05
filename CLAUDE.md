@@ -33,7 +33,10 @@ cp .env.example .env
 docker compose up -d
 ```
 
-- Dashboard: http://localhost:8080
+- Dashboard (เดิม): http://localhost:8080 — `admin.html`, `record.html`, `register.html`, `index.html`
+- **Admin UI (ใหม่)**: http://localhost:8080/admin-ui/ — React SPA แทน admin.html (ทำงานขนานกัน)
+- **Me UI (ใหม่)**: http://localhost:8080/me/ — public SPA สำหรับผู้เข้าร่วมดูยอดของตน
+  (URL: `http://localhost:8080/me/br/{branch_id}-{secret}` — secret ดูจาก `GET /api/branches/{id}/view-link`)
 - API Docs: http://localhost:8000/docs
 - Adminer: http://localhost:8081
 
@@ -45,18 +48,45 @@ services/
   api/                      # FastAPI (Python 3.12)
     app/config.py            # ค่าคงที่: target, deadline, anti-fraud limits
     app/anti_fraud.py        # Validation rules
-    app/routers/             # Endpoint ทั้งหมด
-    tests/                   # Integration test (126 cases, ทดสอบกับ DB จริง)
-  db/init/                   # 01-schema.sql → 02-branches.sql → 03-seed.sql
-  dashboard/html/            # Static HTML/JS/CSS (nginx)
+    app/routers/             # Endpoint ทั้งหมด (รวม branch_view.py สำหรับ me-ui)
+    tests/                   # Integration test (139 cases, ทดสอบกับ DB จริง)
+  db/init/                   # 01-schema → 02-branches → 04-branch-view → 05-seed
+  dashboard/                 # nginx — multi-stage build รวม html + admin-ui dist + me-ui dist
+    html/                    # static HTML pages เดิม (admin.html, record.html, ...)
+    Dockerfile               # builds admin-ui + me-ui, copy เข้า nginx html
+    nginx.conf               # serve / + /admin-ui/ + /me/ + /api/ proxy
+  admin-ui/                  # Vite + React 19 + TanStack Router/Query — admin SPA ใหม่
+  me-ui/                     # Vite + React 19 — public SPA สำหรับผู้เข้าร่วม (no auth)
   adminer/                   # Adminer — Web DB management
   tunnels/                   # Cloudflare Tunnel (placeholder)
 spec/
-  api-spec.md                # API Contract ทุก endpoint
+  api-spec.md                # API Contract ทุก endpoint (admin-side)
+  branch-view-api-spec.md    # public read-only API spec (me-ui)
   data-spec.md               # โครงสร้างตาราง + ความสัมพันธ์
   db-diagram.md              # ER diagram + Business Rules
   prototype-spec.md          # ขอบเขตต้นแบบ
 ```
+
+## Frontend dev workflow (admin-ui / me-ui)
+
+```bash
+# Backend (Postgres + FastAPI + nginx serving built UIs)
+docker compose up -d --build
+
+# admin-ui dev server (Vite HMR)  — http://localhost:5173
+cd services/admin-ui && npm install --legacy-peer-deps && npm run dev
+
+# me-ui dev server  — http://localhost:5174
+cd services/me-ui && npm install --legacy-peer-deps && npm run dev
+
+# Regen OpenAPI types (เมื่อ backend API เปลี่ยน)
+cd services/admin-ui && npm run gen:api
+```
+
+- Vite proxy `/api/*` → `http://localhost:8000` (set `VITE_API_PROXY` to override)
+- **Build with subpath**: `npm run build` ใช้ `--base=/admin-ui/` (และ `/me/` สำหรับ me-ui)
+- TanStack Router อ่าน `import.meta.env.BASE_URL` เป็น `basepath` อัตโนมัติ
+- `docker compose up --build` rebuild dashboard image → admin-ui + me-ui ขึ้น path `/admin-ui/`, `/me/`
 
 ## วิทิสาสมาธิ (Domain Knowledge)
 
