@@ -1,24 +1,15 @@
 /**
- * Encode/decode branch key — short obfuscated token in URL.
- * MOCKUP ONLY: secret hardcoded; in production this becomes branches.view_secret in DB.
+ * Branch key helpers — split URL `/br/{branch_id}-{secret}` into 2 parts.
+ * No decode needed since secret lives in DB; we just verify via API.
  */
 
-const SECRET = 'vidhisa-2569-me'
+export type BranchKey = { branchId: string; secret: string }
 
-export function encodeBranchKey(branchId: string): string {
-  return btoa(`${branchId}.${SECRET}`).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_')
-}
-
-export function decodeBranchKey(key: string): string | null {
-  try {
-    const padded = key.replace(/-/g, '+').replace(/_/g, '/')
-    const decoded = atob(padded)
-    const [branchId, secret] = decoded.split('.')
-    if (secret !== SECRET || !branchId) return null
-    return branchId
-  } catch {
-    return null
-  }
+/** Split key like "B012-A3F9X2" into branchId + secret. Returns null if malformed. */
+export function parseBranchKey(key: string): BranchKey | null {
+  const m = /^(B\d{3})-([0-9A-HJKMNP-TV-Z]{6})$/.exec(key)
+  if (!m) return null
+  return { branchId: m[1], secret: m[2] }
 }
 
 const STORAGE_PREFIX = 'vidhisa.me.'

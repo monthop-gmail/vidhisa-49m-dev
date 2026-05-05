@@ -1,5 +1,6 @@
 import { createFileRoute, Navigate } from '@tanstack/react-router'
-import { decodeBranchKey, getRememberedParticipant } from '../lib/branchKey'
+import { useQuery } from '@tanstack/react-query'
+import { parseBranchKey, getRememberedParticipant } from '../lib/branchKey'
 
 export const Route = createFileRoute('/br/$key')({
   component: BranchLanding,
@@ -7,9 +8,21 @@ export const Route = createFileRoute('/br/$key')({
 
 function BranchLanding() {
   const { key } = Route.useParams()
-  const branchId = decodeBranchKey(key)
+  const parsed = parseBranchKey(key)
 
-  if (!branchId) {
+  const { data: info, isLoading, isError } = useQuery({
+    queryKey: ['branch-view-info', parsed?.branchId, parsed?.secret],
+    queryFn: async () => {
+      if (!parsed) throw new Error('invalid')
+      const res = await fetch(`/api/branch-view/${parsed.branchId}/${parsed.secret}/info`)
+      if (!res.ok) throw new Error(String(res.status))
+      return (await res.json()) as { branch_id: string; branch_name: string; province: string }
+    },
+    enabled: Boolean(parsed),
+    retry: false,
+  })
+
+  if (!parsed || isError) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <div className="max-w-md w-full bg-white rounded-2xl shadow p-8 text-center">
@@ -21,8 +34,11 @@ function BranchLanding() {
     )
   }
 
-  const remembered = getRememberedParticipant(branchId)
+  if (isLoading || !info) {
+    return <div className="min-h-screen flex items-center justify-center text-slate-500">กำลังตรวจสอบ link…</div>
+  }
 
+  const remembered = getRememberedParticipant(parsed.branchId)
   if (remembered) {
     return <Navigate to="/br/$key/me/$participantId" params={{ key, participantId: String(remembered) }} replace />
   }
