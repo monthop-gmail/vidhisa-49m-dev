@@ -35,8 +35,8 @@ docker compose up -d
 
 - Dashboard (เดิม): http://localhost:8080 — `admin.html`, `record.html`, `register.html`, `index.html`
 - **Admin UI (ใหม่)**: http://localhost:8080/admin-ui/ — React SPA แทน admin.html (ทำงานขนานกัน)
-- **Me UI (ใหม่)**: http://localhost:8080/me/ — public SPA สำหรับผู้เข้าร่วมดูยอดของตน
-  (URL: `http://localhost:8080/me/br/{branch_id}-{secret}` — secret ดูจาก `GET /api/branches/{id}/view-link`)
+- **Me UI (ใหม่)**: http://localhost:8080/me-ui/ — public SPA สำหรับผู้เข้าร่วมดูยอดของตน
+  (URL: `http://localhost:8080/me-ui/br/{branch_id}-{secret}` — secret ดูจาก `GET /api/branches/{id}/view-link`)
 - API Docs: http://localhost:8000/docs
 - Adminer: http://localhost:8081
 
@@ -54,7 +54,7 @@ services/
   dashboard/                 # nginx — multi-stage build รวม html + admin-ui dist + me-ui dist
     html/                    # static HTML pages เดิม (admin.html, record.html, ...)
     Dockerfile               # builds admin-ui + me-ui, copy เข้า nginx html
-    nginx.conf               # serve / + /admin-ui/ + /me/ + /api/ proxy
+    nginx.conf               # serve / + /admin-ui/ + /me-ui/ + /api/ proxy
   admin-ui/                  # Vite + React 19 + TanStack Router/Query — admin SPA ใหม่
   me-ui/                     # Vite + React 19 — public SPA สำหรับผู้เข้าร่วม (no auth)
   adminer/                   # Adminer — Web DB management
@@ -84,9 +84,9 @@ cd services/admin-ui && npm run gen:api
 ```
 
 - Vite proxy `/api/*` → `http://localhost:8000` (set `VITE_API_PROXY` to override)
-- **Build with subpath**: `npm run build` ใช้ `--base=/admin-ui/` (และ `/me/` สำหรับ me-ui)
+- **Build with subpath**: `npm run build` ใช้ `--base=/admin-ui/` (และ `/me-ui/` สำหรับ me-ui)
 - TanStack Router อ่าน `import.meta.env.BASE_URL` เป็น `basepath` อัตโนมัติ
-- `docker compose up --build` rebuild dashboard image → admin-ui + me-ui ขึ้น path `/admin-ui/`, `/me/`
+- `docker compose up --build` rebuild dashboard image → admin-ui + me-ui ขึ้น path `/admin-ui/`, `/me-ui/`
 
 ## วิทิสาสมาธิ (Domain Knowledge)
 

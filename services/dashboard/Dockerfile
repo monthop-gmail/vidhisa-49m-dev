@@ -18,5 +18,5 @@ RUN npm run build
 FROM nginx:alpine
 COPY dashboard/html/ /usr/share/nginx/html/
 COPY --from=admin-build /build/dist/ /usr/share/nginx/html/admin-ui/
-COPY --from=me-build /build/dist/ /usr/share/nginx/html/me/
+COPY --from=me-build /build/dist/ /usr/share/nginx/html/me-ui/
 COPY dashboard/nginx.conf /etc/nginx/conf.d/default.conf
