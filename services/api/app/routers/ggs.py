@@ -252,10 +252,17 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_appr
         key = f"{p.first_name} {p.last_name}"
         participant_map[key] = p
 
+    def _find(row: dict, *keywords: str) -> str:
+        """Return first value where col name contains ALL keywords (tolerate label suffixes)."""
+        for k, v in row.items():
+            if all(kw in k for kw in keywords):
+                return v
+        return ""
+
     for i, row in enumerate(rows, start=2):
-        raw_name = (row.get("เลือกชื่อผู้ปฏิบัติ") or "").strip()
-        raw_date = (row.get("วันที่ปฏิบัติ") or "").strip()
-        raw_session = (row.get("รอบการปฏิบัติ") or "").strip()
+        raw_name = (_find(row, "ชื่อ", "ผู้ปฏิบัติ") or _find(row, "ชื่อ-นามสกุล") or "").strip()
+        raw_date = (_find(row, "วันที่", "ปฏิบัติ") or "").strip()
+        raw_session = (_find(row, "รอบ") or "").strip()
 
         if not raw_name or not raw_date:
             errors.append(f"แถว {i}: ขาดชื่อหรือวันที่")
