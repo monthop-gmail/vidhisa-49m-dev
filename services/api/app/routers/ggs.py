@@ -73,7 +73,8 @@ async def fetch_gviz_rows(url: str) -> list[dict]:
     end = raw.rfind(")")
     data = json.loads(raw[start:end])
     table = data["table"]
-    col_labels = [c.get("label", "") for c in table["cols"]]
+    # strip whitespace ที่ header — กันสาขากรอก "วันที่ปฏิบัติ " (มี space เกิน) เผลอ
+    col_labels = [(c.get("label", "") or "").strip() for c in table["cols"]]
     col_types = [c.get("type", "") for c in table["cols"]]
 
     rows = []

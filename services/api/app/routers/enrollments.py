@@ -31,7 +31,7 @@ def _parse_gviz_json(raw: str) -> list[dict]:
     end = raw.rfind(")")
     data = json.loads(raw[start:end])
     table = data["table"]
-    col_labels = [c.get("label", "") for c in table["cols"]]
+    col_labels = [(c.get("label", "") or "").strip() for c in table["cols"]]
 
     rows = []
     for row in table["rows"]:
