@@ -166,7 +166,9 @@ async function loadProvinceTable(view, btn) {
         } else if (view === 'org') {
             thead.innerHTML = '<tr><th>#</th><th>องค์กร</th><th>ประเภท</th><th>จังหวัด</th><th>นาที</th><th>รายการ</th></tr>';
             const res = await fetch('/api/organizations');
-            const data = await res.json();
+            const all = await res.json();
+            // Show only "หน่วยงาน" external orgs (exclude PLJ สถาบันพลังจิตตานุภาพ)
+            const data = all.filter(d => d.org_type === 'หน่วยงาน');
             data.sort((a, b) => b.total_minutes - a.total_minutes);
             data.forEach((d, i) => {
                 tbody.innerHTML += `<tr><td>${i + 1}</td><td>${d.name}</td><td>${d.org_type || '-'}</td><td>${d.province || '-'}</td><td>${FMT.format(d.total_minutes)}</td><td>${FMT.format(d.total_records)}</td></tr>`;

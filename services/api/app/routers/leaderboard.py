@@ -23,22 +23,30 @@ async def get_leaderboard(
         limit: Maximum number of entries to return.
     """
     if type == "org":
+        # External orgs only (exclude PLJ — org_type='สถาบันพลังจิตตานุภาพ')
         stmt = (
             select(
                 Organization.id.label("org_id"),
                 Organization.name,
+                Organization.org_type,
                 func.coalesce(func.sum(Record.minutes), 0).label("total"),
             )
             .join(Record, Record.org_id == Organization.id)
-            .where(Record.status == "approved")
-            .group_by(Organization.id, Organization.name)
+            .where(
+                Record.status == "approved",
+                Organization.org_type == "หน่วยงาน",
+            )
+            .group_by(Organization.id, Organization.name, Organization.org_type)
             .order_by(func.sum(Record.minutes).desc())
             .limit(limit)
         )
 
         result = await db.execute(stmt)
         rows = result.all()
-        return [{"rank": i + 1, "org_id": r.org_id, "name": r.name, "minutes": r.total} for i, r in enumerate(rows)]
+        return [
+            {"rank": i + 1, "org_id": r.org_id, "name": r.name, "org_type": r.org_type, "minutes": r.total}
+            for i, r in enumerate(rows)
+        ]
 
     else:
         stmt = (

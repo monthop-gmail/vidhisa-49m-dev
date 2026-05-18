@@ -6,7 +6,7 @@ let currentView = 'province';
 const FMT_MAP = new Intl.NumberFormat('th-TH');
 
 function initMap() {
-    map = L.map('map').setView([13.0, 101.0], 6);
+    map = L.map('map').setView([13.0, 101.0], 5);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap',
         maxZoom: 18,
