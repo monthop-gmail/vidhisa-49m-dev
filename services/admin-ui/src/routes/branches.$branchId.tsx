@@ -75,6 +75,7 @@ function BranchEditPage() {
   const { branchId } = Route.useParams()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const currentUser = getAuth().user
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['branch', branchId],
@@ -126,6 +127,28 @@ function BranchEditPage() {
       record_form_url: String(data.record_form_url ?? ''),
     })
   }, [data])
+
+  const [clearMsg, setClearMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const clearRecordsMut = useMutation({
+    mutationFn: async () => {
+      const token = getAuth().token
+      const res = await fetch(`/api/ggs/branch/${branchId}/records`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}))
+        throw new Error(b.detail?.message ?? `HTTP ${res.status}`)
+      }
+      return res.json() as Promise<{ branch_id: string; deleted: number; message: string }>
+    },
+    onSuccess: (d) => {
+      setClearMsg({ ok: true, text: `ลบ ${d.deleted} records สำเร็จ` })
+      qc.invalidateQueries({ queryKey: ['branch', branchId] })
+      qc.invalidateQueries({ queryKey: ['branches'] })
+    },
+    onError: (err: Error) => setClearMsg({ ok: false, text: err.message }),
+  })
 
   const saveMut = useMutation({
     mutationFn: async (f: Form) => {
@@ -276,6 +299,42 @@ function BranchEditPage() {
           </form>
         </CardBody>
       </Card>
+
+      {currentUser?.role === 'central_admin' && (
+        <Card>
+          <CardBody className="grid gap-3 border-l-4 border-red-400 pl-4">
+            <div>
+              <div className="text-sm font-semibold text-red-700">⚠ Danger zone</div>
+              <div className="text-xs text-slate-600 mt-1">
+                ลบ records ทั้งสาขา (เฉพาะ <code>type='individual'</code>) — participants ยังคงอยู่
+                <br />
+                ใช้กรณีสาขาบันทึกข้อมูลผิด อยากเริ่มใหม่
+              </div>
+              <div className="text-xs text-amber-700 mt-1">
+                ⓘ ถ้า Google Sheet ของสาขายังมีข้อมูลผิดเหมือนเดิม — auto-sync รอบถัดไป (6 ชม.) จะ
+                สร้าง records กลับมาเหมือนเดิม → สาขาต้องแก้ sheet ก่อนกดลบ
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="danger"
+                disabled={clearRecordsMut.isPending}
+                onClick={() => {
+                  if (!confirm(`⚠ ลบ records ทั้งหมดของสาขา ${branchId}?\n\nเฉพาะ type='individual' — participants คงอยู่.\nกระทำการนี้ไม่สามารถ undo ได้`)) return
+                  if (!confirm(`ยืนยันอีกครั้ง — ลบ records ของ ${branchId} ทั้งหมด?`)) return
+                  clearRecordsMut.mutate()
+                }}
+              >
+                {clearRecordsMut.isPending ? 'กำลังลบ…' : `ลบ records ทั้งสาขา ${branchId}`}
+              </Button>
+              {clearMsg && (
+                <span className={`text-sm ${clearMsg.ok ? 'text-emerald-600' : 'text-red-600'}`}>{clearMsg.text}</span>
+              )}
+            </div>
+          </CardBody>
+        </Card>
+      )}
     </div>
   )
 }
