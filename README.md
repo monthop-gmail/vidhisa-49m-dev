@@ -12,23 +12,24 @@
 
 ## Spec
 
-| Spec                                     | รายละเอียด                                       |
-| ---------------------------------------- | ------------------------------------------------ |
-| [API Spec](spec/api-spec.md)             | API Contract — endpoint, request/response format |
-| [Data Spec](spec/data-spec.md)           | โครงสร้างข้อมูล, ตาราง, ความสัมพันธ์             |
-| [Prototype Spec](spec/prototype-spec.md) | ขอบเขตต้นแบบ, สิ่งที่ทำ/ไม่ทำ                    |
-| [DB Diagram](spec/db-diagram.md)         | ER Diagram, ความสัมพันธ์, กฎการนับนาที           |
+| Spec                                                | รายละเอียด                                       |
+| --------------------------------------------------- | ------------------------------------------------ |
+| [API Spec](spec/api-spec.md)                        | API Contract — endpoint admin-side (auth required) |
+| [Branch View API Spec](spec/branch-view-api-spec.md)| Public read-only API สำหรับ me-ui (no auth, secret-based) |
+| [Data Spec](spec/data-spec.md)                      | โครงสร้างข้อมูล, ตาราง, ความสัมพันธ์             |
+| [Prototype Spec](spec/prototype-spec.md)            | ขอบเขตต้นแบบ, สิ่งที่ทำ/ไม่ทำ                    |
+| [DB Diagram](spec/db-diagram.md)                    | ER Diagram, ความสัมพันธ์, กฎการนับนาที           |
 
-## Services
+## Services / UIs
 
-| Service       | Port     | รายละเอียด                                                                            |
-| ------------- | -------- | ------------------------------------------------------------------------------------- |
-| **Dashboard** | `8080`   | หน้า Dashboard หลัก — ตัวเลขสะสม, Progress Bar, Projection, แผนที่, Leaderboard, Feed |
-| **ลงทะเบียน** | `8080`   | register.html — ลงทะเบียนผู้เข้าร่วม + องค์กร (?branch=B001)                         |
-| **บันทึกผล**  | `8080`   | record.html — บันทึกนาทีสมาธิรายสาขา (?branch=B001)                                  |
-| **API**       | `8000`   | FastAPI + Swagger UI (`/docs`) — ทุก endpoint ตาม [API Spec](spec/api-spec.md)        |
-| **Adminer**   | `8081`   | Web UI จัดการ DB — ดู/แก้ข้อมูลได้โดยตรง                                              |
-| **DB**        | internal | PostgreSQL 16 — ฐานข้อมูลหลัก                                                         |
+| Service       | Port     | Path                | รายละเอียด                                                                            |
+| ------------- | -------- | ------------------- | ------------------------------------------------------------------------------------- |
+| **Dashboard** | `8080`   | `/`, `/admin.html`, `/record.html`, `/register.html`, `/data-quality.html` | หน้า HTML เดิม (nginx + vanilla JS) — Dashboard, แผนที่, Leaderboard, Feed |
+| **Admin UI (ใหม่)** | `8080`   | `/admin-ui/`        | React 19 + TanStack Router/Query SPA — ค่อยๆ replace `admin.html` (ทำงานคู่ขนาน) |
+| **Me UI (ใหม่)**    | `8080`   | `/me-ui/br/{id}-{secret}` | Public SPA สำหรับผู้เข้าร่วมดูยอดของตน (no login, secret-based link) |
+| **API**       | `8000`   | `/api/*` + `/docs`  | FastAPI + Swagger UI — endpoints ตาม [API Spec](spec/api-spec.md) + [Branch View](spec/branch-view-api-spec.md) |
+| **Adminer**   | `8081`   |                      | Web UI จัดการ DB                                                                       |
+| **DB**        | internal |                      | PostgreSQL 16 — ฐานข้อมูลหลัก                                                          |
 
 ## Quick Start (Development)
 
@@ -42,13 +43,27 @@ docker compose up -d
 - Dashboard: http://34.15.162.243:8080
 - ลงทะเบียน: http://34.15.162.243:8080/register.html?branch=B001
 - บันทึกผล: http://34.15.162.243:8080/record.html?branch=B001
-- Admin: http://34.15.162.243:8080/admin.html
+- Admin (legacy): http://34.15.162.243:8080/admin.html
+- **Admin UI (ใหม่)**: http://34.15.162.243:8080/admin-ui/
+- **Me UI (ผู้เข้าร่วม)**: http://34.15.162.243:8080/me-ui/br/{branch_id}-{secret} (secret ดูจาก `GET /api/branches/{id}/view-link`)
 - API Docs: http://34.15.162.243:8000/docs
 - Adminer: http://34.15.162.243:8081 (server: `vidhisa-db`, user: `vidhisa`, db: `vidhisa49m`)
 
+### Frontend dev (admin-ui / me-ui)
+
+```bash
+# admin-ui (Vite HMR) — http://localhost:5173
+cd services/admin-ui && npm install --legacy-peer-deps && npm run dev
+
+# me-ui — http://localhost:5174
+cd services/me-ui && npm install --legacy-peer-deps && npm run dev
+```
+
+`npm run build` ใช้ `--base=/admin-ui/` (และ `/me-ui/`) — TanStack Router อ่าน `BASE_URL` เป็น basepath
+
 ## Testing
 
-Integration test ทดสอบกับ API + DB จริง (ไม่ใช่ mock) — 126 cases ครอบคลุมทุก endpoint
+Integration test ทดสอบกับ API + DB จริง (ไม่ใช่ mock) — **139 cases** ครอบคลุมทุก endpoint
 
 ```bash
 # ต้อง docker compose up -d ก่อน
@@ -74,6 +89,7 @@ python3 -m pytest tests/ -v
 | `test_records_extended.py` | 15 | list+filter, export, import, upsert, 9 fields  |
 | `test_admin_flow.py`   | 12    | approve flow: org/participant/record pending→approved→record |
 | `test_edge_cases.py`   | 13    | transfer, pagination, re-approve, upsert+approved, GGS |
+| `test_branch_view.py`  | 13    | public /api/branch-view/* (info/search/me) + secret validation + PII filter |
 
 ## Production Deployment
 
@@ -122,16 +138,22 @@ vidhisa-49m-dev/
 ├── docker-compose.yml     # Root orchestrator (include pattern)
 ├── docker-compose.prd.yml # Production overlay (4 workers, non-root, health check)
 ├── .env.example           # ตัวแปร environment
+├── CLAUDE.md              # คู่มือสำหรับ AI coding agent (โครงสร้าง + กฎสำคัญ)
 ├── spec/                  # Spec เอกสาร
-│   ├── api-spec.md
+│   ├── api-spec.md             # admin-side endpoints
+│   ├── branch-view-api-spec.md # public read-only API (me-ui)
 │   ├── data-spec.md
 │   ├── db-diagram.md
 │   └── prototype-spec.md
 └── services/              # Modular Docker Compose
-    ├── api/               # FastAPI + anti-fraud
-    │   └── tests/         # Integration test (126 cases)
-    ├── db/                # PostgreSQL 16 + schema + seed data
-    ├── dashboard/         # nginx + static HTML/JS (Leaflet map, register, record)
+    ├── api/               # FastAPI + anti-fraud + routers รวม branch_view.py
+    │   └── tests/         # Integration test (139 cases)
+    ├── db/init/           # 01-schema → 02-branches → 04-branch-view → 05-seed
+    ├── dashboard/         # nginx multi-stage build: html/ + admin-ui dist + me-ui dist
+    │   ├── html/          # legacy HTML pages (admin.html, record.html, ...)
+    │   └── Dockerfile     # builds admin-ui + me-ui, copy เข้า nginx
+    ├── admin-ui/          # Vite + React 19 + TanStack Router/Query — admin SPA
+    ├── me-ui/             # Vite + React 19 — public SPA (no auth, secret-based)
     ├── adminer/           # Adminer — Web DB management
     └── tunnels/           # Cloudflare Tunnels (placeholder)
 ```

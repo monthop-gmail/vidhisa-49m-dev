@@ -1,12 +1,15 @@
-# API Spec — วิทิสา 49 ล้านนาที
+# API Spec — วิทิสา 49 ล้านนาที (admin-side)
 
-> สถานะ: **ร่าง** — รอหารือในที่ประชุม
+> สถานะ: **implemented + deployed** — สะท้อน endpoints ที่มีอยู่จริงบน main branch
+>
+> **API public read-only สำหรับ me-ui (no auth):** ดูที่ [branch-view-api-spec.md](branch-view-api-spec.md)
 
 ## หลักการ
 
 - **API-First** — ตกลง contract ก่อน ทีม UI + ทีม API ทำงานคู่ขนานได้
 - **REST JSON** — ใช้ง่าย ทุกภาษาเรียกได้
-- **ไม่ต้อง Login** (ตามแนวทาง อ.เต้) — เน้นความคล่องตัวกับกลุ่มเป้าหมาย
+- **JWT Auth** — POST `/api/auth/login` คืน `{token, user}` → ใส่ใน header `Authorization: Bearer <token>`
+- **Role-based scoping** — `branch_admin` เห็นเฉพาะข้อมูลสาขาตัวเอง (filter ใน list endpoints อัตโนมัติ); `central_admin` เห็นทั้งหมด
 
 ---
 
@@ -468,3 +471,47 @@ data: approved
 | `BULK_LIMIT_EXCEEDED` | 422 | ยอดองค์กรเกิน participant × เพดาน |
 | `NOT_FOUND` | 404 | ไม่พบรายการ (approve/reject) |
 | `INVALID_BRANCH` | 422 | ไม่พบสาขา |
+| `HAS_RECORDS` | 409 | ลบ org ไม่ได้เพราะมี records ผูก |
+| `PASSWORD_TOO_SHORT` | 400 | reset-password: รหัสผ่านสั้นกว่า 6 ตัวอักษร |
+| `INVALID_TOKEN` / `NOT_AUTHENTICATED` | 401 | JWT ไม่ถูกต้อง / ไม่ได้ส่ง |
+| `FORBIDDEN` | 403 | role ไม่พอ (เช่น branch_admin ทำของ central_admin) |
+
+---
+
+## Endpoints ที่เพิ่มหลังจาก spec เดิม
+
+> รายการที่เพิ่มหลังจาก spec ฉบับแรก — รายละเอียดในโค้ด (`services/api/app/routers/`)
+
+### Authentication (`auth.py`)
+- `POST /api/auth/login` — login → คืน `{token, user}` (body field คือ `token` ไม่ใช่ `access_token`)
+- `GET /api/auth/me` — ดู user ปัจจุบัน
+- `POST /api/auth/change-password` — เปลี่ยนรหัสผ่านตัวเอง (รับ old + new)
+
+### Branch enrollments + Users (`enrollments.py`)
+- `GET /api/enrollments` — รายการสาขาขอเข้าร่วม
+- `POST /api/enrollments/sync` — sync จาก GGS (central admin)
+- `PATCH /api/enrollments/{id}/approve` — อนุมัติ → สร้าง users 3 บัญชี + PLJ org (`B{xxx}-00`)
+- `PATCH /api/enrollments/{id}/reject`
+- `PATCH /api/enrollments/{id}/update-branch` — แก้เลขสาขา + อัพเดท users
+- `GET /api/users` — รายการผู้ใช้ (central admin)
+- `PATCH /api/users/{id}` — แก้ username/email/phone/branch_id/status
+- `POST /api/users/{id}/reset-password` — admin reset (≥6 ตัวอักษร)
+
+### Branch view-link (`branches.py`)
+- `GET /api/branches/{id}/view-link` — คืน `{branch_id, view_secret, record_form_url, view_url_path}` สำหรับ admin แชร์ลิงก์ me-ui
+
+### Organizations
+- `DELETE /api/organizations/{id}` — central admin ลบ org (block ถ้ามี records ผูก)
+
+### GGS (`ggs.py`) — สำคัญสำหรับการดูดข้อมูลจาก Google Sheet
+- `PATCH /api/ggs/set-url` — ตั้ง URL ต่อสาขา (normalize เป็น gviz JSON อัตโนมัติ — รับ `/edit?usp=sharing` ก็ได้)
+- `POST /api/ggs/sync-branch` — sync 1 สาขา (รับ `auto_approve: bool` optional)
+- `POST /api/ggs/sync-all` — sync **ทุกสาขาที่มี URL** (central admin) — รวม `auto_approve` default true
+- `POST /api/ggs/sync-org-enrollments` — sync central GGS หน่วยงานภายนอก → สร้าง orgs (`B{xxx}-NN`) pending
+- `DELETE /api/ggs/branch/{branch_id}/records` — ลบ individual records ของสาขา (participants คงอยู่) สำหรับ re-sync ใหม่
+- `GET /api/ggs/sources` — รายการ URL ของทุกสาขา
+
+> **Background task:** `_auto_sync_loop` ใน `main.py` รัน `sync_all_record_ind(auto_approve=True)` ทุก 6 ชม. (env: `AUTO_SYNC_INTERVAL_SECONDS`, `AUTO_SYNC_ENABLED`)
+
+### Public read-only API (me-ui)
+ทั้งหมดอยู่ที่ `branch_view.py` ภายใต้ prefix `/api/branch-view/{branch_id}/{secret}/...` — ไม่ใช้ JWT, ใช้ `view_secret` เป็น auth + rate limit ผ่าน slowapi + audit log → ดู [branch-view-api-spec.md](branch-view-api-spec.md)

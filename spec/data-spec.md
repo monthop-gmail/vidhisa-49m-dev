@@ -1,6 +1,6 @@
 # Data Spec — วิทิสา 49 ล้านนาที
 
-> สถานะ: **ร่าง** — รอหารือในที่ประชุม
+> สถานะ: **implemented + deployed** — สะท้อนสถานะ schema จริงบน main branch
 
 ---
 
@@ -18,24 +18,36 @@
 >
 > ข้อมูลกลุ่มทั้งหมด **ต้องขอจากทีม** (อ.เต้ / อ.จีรกาญ)
 
-### 2. branches — สาขา (~305 สาขา)
+### 2. branches — สาขา (325 สาขา)
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | PK | รหัสสาขา เช่น B001 |
 | `name` | string | ชื่อสาขา |
 | `group_id` | FK → branch_groups | กลุ่มที่สังกัด |
+| `custom_region` | string | ภูมิภาคจัดกลุ่มเอง |
+| `sub_district` | string | ตำบล/แขวง |
+| `district` | string | อำเภอ/เขต |
 | `province` | string | จังหวัด |
 | `province_code` | string | รหัสจังหวัด ISO 3166-2 เช่น TH-10 |
+| `latitude` | double | ละติจูด |
+| `longitude` | double | ลองจิจูด |
 | `admin_name` | string | ชื่อผู้ดูแลสาขา |
 | `contact` | string | ช่องทางติดต่อ |
+| `opening_hours` | string | เวลาทำการ |
+| `ggs_url_org` | text | URL Google Sheet ลงทะเบียนหน่วยงาน (per-branch) |
+| `ggs_url_participant` | text | URL Google Sheet ลงทะเบียนรายบุคคล |
+| `ggs_url_record_bulk` | text | URL Google Sheet บันทึกแบบกลุ่ม |
+| `ggs_url_record_ind` | text | URL Google Sheet บันทึกรายบุคคล |
+| `view_secret` | varchar(6) UNIQUE NOT NULL | secret สำหรับ me-ui (Crockford base32) |
+| `record_form_url` | varchar(500) | URL Google Form ให้ผู้เข้าร่วมกรอกบันทึก |
 | `created_at` | timestamp | |
 
 ### 3. organizations — องค์กร
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | PK | รหัสองค์กร เช่น PLJ-B001, ORG001 |
+| `id` | PK | รหัสองค์กร: `B{xxx}-00` = สถาบันพลังจิตตานุภาพ (PLJ — auto-create ตอน approve enrollment) / `B{xxx}-NN` = องค์กรภายนอก (NN ≥ 01) |
 | `name` | string | ชื่อองค์กร |
 | `org_type` | string | ประเภท: สถาบันพลังจิตตานุภาพ, โรงเรียน, มหาวิทยาลัย, วัด, หน่วยงาน, ชุมชน |
 | `branch_id` | FK → branches | สาขาที่ลงทะเบียน — ทุกองค์กรต้องมี |
@@ -64,6 +76,7 @@
 |-------|------|-------------|
 | `id` | PK (SERIAL) | รหัสอัตโนมัติ |
 | `branch_id` | FK → branches | สาขาที่สังกัด |
+| `member_code` | string(20) | รหัสในสาขา (เช่น "001" — สกัดจาก prefix ชื่อใน GGS sync) |
 | `prefix` | string | คำนำหน้า เช่น นาย, นาง |
 | `first_name` | string | ชื่อ |
 | `last_name` | string | นามสกุล |
@@ -76,7 +89,10 @@
 | `line_id` | string | LINE ID |
 | `enrolled_date` | date | วันที่ลงทะเบียน |
 | `privacy_accepted` | boolean | ยอมรับนโยบายข้อมูลส่วนบุคคล |
+| `status` | enum | `pending` / `approved` / `rejected` (auto-sync จาก GGS สร้างเป็น `approved`) |
 | `created_at` | timestamp | |
+
+> **กฎ 1 คน 1 สาขา:** ชื่อ `first_name + last_name` ซ้ำข้ามสาขาไม่ได้ — GGS sync จะ skip row + log error
 
 ### 5. records — บันทึกการปฏิบัติ
 
@@ -134,6 +150,52 @@
 | `total_records` | integer | จำนวนบันทึก |
 | `last_updated` | timestamp | |
 
+### 8. users — บัญชีผู้ใช้ (admin)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | PK (SERIAL) | |
+| `username` | string UNIQUE | login id (มักเป็น email สำหรับ branch_admin) |
+| `password_hash` | string | bcrypt hash |
+| `full_name` | string | |
+| `email` | string | |
+| `phone` | string | เบอร์โทร |
+| `role` | enum | `central_admin` / `branch_admin` |
+| `branch_id` | FK → branches | สาขาที่ดูแล (branch_admin เท่านั้น) |
+| `status` | enum | `active` / `disabled` |
+
+### 9. branch_enrollments — สาขาขอเข้าร่วมโครงการ
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | PK (SERIAL) | |
+| `branch_number` | string | "001" รูปแบบ 3 หลัก (zfill) |
+| `branch_name` | string | |
+| `admin1_name` / `admin1_email` / `admin1_phone` | string | ผู้ประสานงาน 1 |
+| `admin2_name` / ... | string | ผู้ประสานงาน 2 |
+| `admin3_name` / ... | string | ผู้ประสานงาน 3 |
+| `submitted_email` | string | email ผู้ส่งฟอร์ม |
+| `submitted_at` | timestamp | |
+| `status` | enum | `pending` / `approved` / `rejected` |
+| `approved_at` | timestamp | |
+
+> ตอน approve → สร้าง users 3 บัญชี (1 ต่อ admin) + สร้าง PLJ org (`B{xxx}-00`) auto-approved
+
+### 10. branch_view_log — audit log สำหรับ me-ui
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | PK BIGSERIAL | |
+| `ts` | timestamptz | |
+| `branch_id` | string(10) | |
+| `ip` | string(45) | client IP |
+| `action` | string(20) | `info` / `search` / `me` / `invalid` |
+| `participant_id` | int nullable | |
+| `status_code` | int | 200 / 404 / 429 |
+| `user_agent` | string(500) | |
+
+> ใช้ตรวจ rate limit + brute force attempts (ดู branch-view-api-spec.md)
+
 ---
 
 ## ความสัมพันธ์
@@ -189,4 +251,4 @@ branch_groups (1) ──── (N) branches (1) ──── (N) organizations (
 
 ---
 
-> สถานะ: **ร่าง** — รอหารือในที่ประชุม
+> สถานะ: **implemented + deployed** — สะท้อน schema จริงบน main branch

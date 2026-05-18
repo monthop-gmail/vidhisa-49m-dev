@@ -1,6 +1,6 @@
 # Branch View API Spec — me-ui
 
-> สถานะ: **ร่าง** — ขอความเห็นทีม backend
+> สถานะ: **implemented + deployed** (2026-05-05) — อยู่ที่ `services/api/app/routers/branch_view.py` + migration `services/db/init/04-branch-view.sql`
 >
 > Author: ทีม admin-ui · Date: 2026-05-05
 >
