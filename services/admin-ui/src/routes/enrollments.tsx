@@ -213,6 +213,18 @@ function EnrollmentsPage() {
                               </Button>
                             </>
                           )}
+                          {status === 'rejected' && (
+                            <Button
+                              size="sm"
+                              variant="success"
+                              onClick={() => {
+                                if (confirm('สาขานี้ถูก reject ไปแล้ว — อนุมัติใหม่?')) approveMut.mutate(id)
+                              }}
+                              disabled={isMutating}
+                            >
+                              Approve (กลับมาอนุมัติ)
+                            </Button>
+                          )}
                         </div>
                       </Td>
                     </Tr>
