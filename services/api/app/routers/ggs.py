@@ -354,10 +354,12 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_appr
             existing.participant_id = participant.id
             if not existing.org_id:
                 existing.org_id = plj_org_id
-            existing.morning_male = 1 if morning else 0
-            existing.afternoon_male = 1 if afternoon else 0
-            existing.evening_male = 1 if evening else 0
-            existing.minutes = minutes
+            # OR-merge sessions — กัน "หลายแถวต่อวัน" (เช่น 3 แถวแยกรอบ) ทับกัน
+            existing.morning_male = max(existing.morning_male or 0, 1 if morning else 0)
+            existing.afternoon_male = max(existing.afternoon_male or 0, 1 if afternoon else 0)
+            existing.evening_male = max(existing.evening_male or 0, 1 if evening else 0)
+            # คำนวณ minutes ใหม่จาก sessions รวม (5 นาที/รอบ)
+            existing.minutes = (existing.morning_male + existing.afternoon_male + existing.evening_male) * 5
             if existing.status != "approved":
                 existing.status = new_status
                 if auto_approve:
