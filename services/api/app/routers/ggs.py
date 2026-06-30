@@ -268,18 +268,24 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_appr
             errors.append(f"แถว {i}: ขาดชื่อหรือวันที่")
             continue
 
-        # Parse name: รองรับ 3 format
-        # 1. "WP047 001 วัชรัชชัย ดวงมณีกุลรัตน์"  (branch + space + code + space + name)
-        # 2. "WP111006 พรพิมล รัตนสวรรยา"        (branch+code ติดกัน 3+3 หลัก + space + name)
-        # 3. "003 บรรณวิทย์ ฉิมธนู"                (code อย่างเดียว + space + name)
+        # Parse name: รองรับ 4 format
+        # 1. "WP047 001 วัชรัชชัย ดวงมณีกุลรัตน์"  (WP + branch + space + code + space + name)
+        # 2. "WP111006 พรพิมล รัตนสวรรยา"        (WP + branch+code ติดกัน 3+3 หลัก + space + name)
+        # 3. "117001 สุภา แสงฤทธิ์เดช"             (branch+code ติดกัน — เฉพาะถ้า branch ตรงสาขาปัจจุบัน)
+        # 4. "003 บรรณวิทย์ ฉิมธนู"                (code อย่างเดียว + space + name)
         m_wp_spaced = re.match(r"^WP(\d+)\s+(\d+)\s+(.+)$", raw_name)
         m_wp_concat = re.match(r"^WP(\d{3})(\d{3})\s+(.+)$", raw_name)
+        m_branch_concat = re.match(r"^(\d{3})(\d{3})\s+(.+)$", raw_name)
         if m_wp_spaced:
             member_code = m_wp_spaced.group(2).strip()
             name = m_wp_spaced.group(3).strip()
         elif m_wp_concat:
             member_code = m_wp_concat.group(2).strip()
             name = m_wp_concat.group(3).strip()
+        elif m_branch_concat and f"B{m_branch_concat.group(1)}" == branch_id:
+            # 6-digit prefix ที่ขึ้นต้นด้วย branch number ปัจจุบัน → branch+code ติดกัน
+            member_code = m_branch_concat.group(2).strip()
+            name = m_branch_concat.group(3).strip()
         else:
             m_simple = re.match(r"^(\d+)\s+(.+)$", raw_name)
             member_code = m_simple.group(1).strip() if m_simple else None
