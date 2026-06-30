@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { api } from '../api/client'
 import { useAuth } from '../lib/auth'
+import { useActiveBranch } from '../lib/activeBranch'
 import { useSortable } from '../lib/sort'
 import { OrgDetailModal } from '../components/DetailDrawer'
 import {
@@ -31,7 +32,9 @@ type SortKey = 'id' | 'name' | 'org_type' | 'branch_id' | 'province' | 'status' 
 
 function OrganizationsListPage() {
   const { user } = useAuth()
+  const activeBranch = useActiveBranch()
   const isCentral = user?.role === 'central_admin'
+  const userBranchIds = user?.branch_ids && user.branch_ids.length > 0 ? user.branch_ids : (user?.branch_id ? [user.branch_id] : [])
   const [q, setQ] = useState('')
   const [detailOrgId, setDetailOrgId] = useState<string | null>(null)
   const { sort, toggleSort, sortRows } = useSortable<Record<string, unknown>, SortKey>({
@@ -52,9 +55,12 @@ function OrganizationsListPage() {
   if (error) return <ErrorMessage>{String(error)}</ErrorMessage>
 
   const allRows = (Array.isArray(data) ? data : []) as Array<Record<string, unknown>>
-  const rows = isCentral
-    ? allRows
-    : allRows.filter((r) => String(r.branch_id ?? '') === String(user?.branch_id ?? ''))
+  // Filter: active branch (จาก switcher) → focus 1 สาขา / multi-branch → ทุกสาขาที่ดูแล / central + ไม่เลือก → ทั้งหมด
+  const rows = activeBranch
+    ? allRows.filter((r) => String(r.branch_id ?? '') === activeBranch)
+    : isCentral
+      ? allRows
+      : allRows.filter((r) => userBranchIds.includes(String(r.branch_id ?? '')))
   const filtered = q
     ? rows.filter((r) =>
         `${r.id ?? ''} ${r.name ?? ''} ${r.province ?? ''} ${r.branch_id ?? ''}`.toLowerCase().includes(q.toLowerCase()),
@@ -66,7 +72,7 @@ function OrganizationsListPage() {
     <div className="grid gap-4">
       <PageHeading
         title="Organizations"
-        subtitle={`${rows.length.toLocaleString()} องค์กร${isCentral ? '' : ` ของ ${user?.branch_id}`}`}
+        subtitle={`${rows.length.toLocaleString()} องค์กร${activeBranch ? ` ของ ${activeBranch}` : ''}`}
         right={
           <div className="flex items-center gap-2">
             <Input placeholder="ค้นหา id / ชื่อ / จังหวัด" value={q} onChange={(e) => setQ(e.target.value)} className="!w-72" />

@@ -2,6 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useAuth } from '../lib/auth'
+import { useActiveBranch } from '../lib/activeBranch'
 import {
   Card,
   CardBody,
@@ -22,8 +23,15 @@ export const Route = createFileRoute('/')({
 
 function DashboardPage() {
   const { user } = useAuth()
-  if (user?.role === 'branch_admin' && user.branch_id) {
-    return <BranchDashboard branchId={user.branch_id} />
+  const activeBranch = useActiveBranch()
+  // branch_admin → ใช้ active branch (จาก switcher) สำหรับ multi-branch หรือ branch_id เดิมสำหรับ single-branch
+  if (user?.role === 'branch_admin') {
+    const focus = activeBranch || user.branch_id
+    if (focus) return <BranchDashboard key={focus} branchId={focus} />
+  }
+  // central admin: ถ้าเลือกสาขา → focus เป็น branch dashboard, ไม่เลือก → central
+  if (user?.role === 'central_admin' && activeBranch) {
+    return <BranchDashboard key={activeBranch} branchId={activeBranch} />
   }
   return <CentralDashboard />
 }

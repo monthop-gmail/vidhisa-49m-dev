@@ -39,11 +39,9 @@ function RootLayout() {
             <Link to="/" className={NAV_LINK_BASE} activeOptions={{ exact: true }} activeProps={{ className: `${NAV_LINK_BASE} ${NAV_LINK_ACTIVE}` }}>
               Dashboard
             </Link>
-            {isCentral && (
-              <Link to="/branches" className={NAV_LINK_BASE} activeProps={{ className: `${NAV_LINK_BASE} ${NAV_LINK_ACTIVE}` }}>
-                Branches
-              </Link>
-            )}
+            <Link to="/branches" className={NAV_LINK_BASE} activeProps={{ className: `${NAV_LINK_BASE} ${NAV_LINK_ACTIVE}` }}>
+              Branches
+            </Link>
             {isCentral && (
               <Link to="/enrollments" className={NAV_LINK_BASE} activeProps={{ className: `${NAV_LINK_BASE} ${NAV_LINK_ACTIVE}` }}>
                 Enrollments
