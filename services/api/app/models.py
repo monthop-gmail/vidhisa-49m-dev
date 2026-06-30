@@ -25,7 +25,8 @@ class User(Base):
     email = Column(String(200))
     phone = Column(String(50))
     role = Column(String(20), nullable=False, default="branch_admin")
-    branch_id = Column(String(10))
+    branch_id = Column(String(10))  # primary branch — backward compat
+    branch_ids = Column(JSONB, nullable=False, default=list)  # all branches this user manages
     status = Column(String(20), nullable=False, default="active")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

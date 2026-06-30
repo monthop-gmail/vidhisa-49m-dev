@@ -95,8 +95,48 @@ async def get_current_user_optional(request: Request, db: AsyncSession = Depends
     return result.scalar_one_or_none()
 
 
+def user_branch_ids(user: User | None) -> list[str]:
+    """Get list of branch_ids a user manages (multi-branch support)."""
+    if not user:
+        return []
+    ids = list(user.branch_ids or [])
+    if user.branch_id and user.branch_id not in ids:
+        ids.append(user.branch_id)
+    return ids
+
+
 def scoped_branch_id(user: User | None, requested: str | None) -> str | None:
-    """Force branch filter for non-central-admin users; return what to filter on."""
-    if user and user.role != "central_admin" and user.branch_id:
-        return user.branch_id
+    """Force branch filter for non-central-admin users; return what to filter on.
+
+    Backward-compat for callers that expect a single branch_id string.
+    For multi-branch admins, returns primary branch_id (or first in list).
+    Use scoped_branch_filter() for multi-branch-aware filtering.
+    """
+    if user and user.role != "central_admin":
+        ids = user_branch_ids(user)
+        if ids:
+            return user.branch_id or ids[0]
+    return requested
+
+
+def scoped_branch_filter(user: User | None, requested: str | None) -> list[str] | str | None:
+    """Branch filter — returns list (for IN), str (single), or None (no filter / central admin).
+
+    Caller pattern:
+        f = scoped_branch_filter(user, branch_id)
+        if isinstance(f, list): stmt = stmt.where(col.in_(f))
+        elif f: stmt = stmt.where(col == f)
+    """
+    if user and user.role != "central_admin":
+        ids = user_branch_ids(user)
+        if requested:
+            if requested not in ids:
+                raise HTTPException(status_code=403, detail={
+                    "error": "FORBIDDEN",
+                    "message": f"คุณไม่มีสิทธิ์ดูสาขา {requested}",
+                })
+            return requested
+        if len(ids) > 1:
+            return ids
+        return ids[0] if ids else None
     return requested

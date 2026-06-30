@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import get_current_user, get_current_user_optional, scoped_branch_id
+from app.auth import get_current_user, get_current_user_optional, scoped_branch_filter
 from app.branch_auth import check_branch_access
 from app.database import get_db
 from app.models import Branch, Organization, Record, User
@@ -52,7 +52,7 @@ async def list_organizations(
     user: User | None = Depends(get_current_user_optional),
 ):
     """List all organizations with their statistics."""
-    branch_filter = scoped_branch_id(user, None)
+    branch_filter = scoped_branch_filter(user, None)
     stmt = (
         select(
             Organization,
@@ -66,7 +66,9 @@ async def list_organizations(
         .group_by(Organization.id)
         .order_by(Organization.name)
     )
-    if branch_filter:
+    if isinstance(branch_filter, list):
+        stmt = stmt.where(Organization.branch_id.in_(branch_filter))
+    elif branch_filter:
         stmt = stmt.where(Organization.branch_id == branch_filter)
 
     result = await db.execute(stmt)

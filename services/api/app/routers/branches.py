@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import get_current_user, get_current_user_optional, scoped_branch_id
+from app.auth import get_current_user, get_current_user_optional, scoped_branch_filter
 from app.branch_auth import check_branch_access
 from app.database import get_db
 from app.models import Branch, BranchGroup, Record, User
@@ -36,7 +36,7 @@ async def list_branches(
     user: User | None = Depends(get_current_user_optional),
 ):
     """List branches with their statistics (branch_admin sees only their own)."""
-    branch_filter = scoped_branch_id(user, None)
+    branch_filter = scoped_branch_filter(user, None)
     stmt = (
         select(
             Branch,
@@ -50,7 +50,9 @@ async def list_branches(
         .group_by(Branch.id)
         .order_by(Branch.id)
     )
-    if branch_filter:
+    if isinstance(branch_filter, list):
+        stmt = stmt.where(Branch.id.in_(branch_filter))
+    elif branch_filter:
         stmt = stmt.where(Branch.id == branch_filter)
 
     result = await db.execute(stmt)

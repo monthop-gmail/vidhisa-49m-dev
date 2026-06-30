@@ -46,6 +46,7 @@ type AppUser = {
   phone: string | null
   role: string
   branch_id: string | null
+  branch_ids: string[]
   status: string
 }
 
@@ -156,7 +157,13 @@ function UsersPage() {
                       <Badge tone={u.role === 'central_admin' ? 'blue' : 'gray'}>{u.role}</Badge>
                     </Td>
                     <Td>
-                      {u.branch_id ? (
+                      {(u.branch_ids && u.branch_ids.length > 0) ? (
+                        <span className="flex flex-wrap gap-1">
+                          {u.branch_ids.map((b) => (
+                            <code key={b} className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">{b}</code>
+                          ))}
+                        </span>
+                      ) : u.branch_id ? (
                         <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">{u.branch_id}</code>
                       ) : (
                         <span className="text-xs text-slate-400">—</span>
@@ -194,6 +201,7 @@ type EditForm = {
   email: string
   phone: string
   branch_id: string
+  branch_ids: string  // comma-separated for simple input
   status: string
 }
 
@@ -205,6 +213,7 @@ function EditUserModal({ user, onClose }: { user: AppUser | null; onClose: () =>
     email: '',
     phone: '',
     branch_id: '',
+    branch_ids: '',
     status: 'active',
   })
   const [newPassword, setNewPassword] = useState('')
@@ -218,6 +227,7 @@ function EditUserModal({ user, onClose }: { user: AppUser | null; onClose: () =>
       email: user.email ?? '',
       phone: user.phone ?? '',
       branch_id: user.branch_id ?? '',
+      branch_ids: (user.branch_ids ?? []).join(', '),
       status: user.status,
     })
     setNewPassword('')
@@ -226,9 +236,14 @@ function EditUserModal({ user, onClose }: { user: AppUser | null; onClose: () =>
 
   const saveMut = useMutation({
     mutationFn: async (body: EditForm) => {
+      const branch_ids = body.branch_ids
+        .split(/[,\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+      const payload = { ...body, branch_ids }
       const { data, error } = await api.PATCH('/api/users/{user_id}', {
         params: { path: { user_id: user!.id } },
-        body,
+        body: payload,
       })
       if (error) throw error
       return data
@@ -284,11 +299,19 @@ function EditUserModal({ user, onClose }: { user: AppUser | null; onClose: () =>
           <Field label="เบอร์โทร">
             <Input value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="เช่น 0812345678" />
           </Field>
-          <Field label="Branch ID">
+          <Field label="Branch ID (สาขาหลัก)">
             <Input
               value={form.branch_id}
               onChange={(e) => set('branch_id', e.target.value)}
               placeholder={user.role === 'central_admin' ? '(ไม่ใช่)' : 'เช่น B012'}
+              disabled={user.role === 'central_admin'}
+            />
+          </Field>
+          <Field label="Branch IDs (สาขาทั้งหมดที่ดูแล — comma-separated)">
+            <Input
+              value={form.branch_ids}
+              onChange={(e) => set('branch_ids', e.target.value)}
+              placeholder={user.role === 'central_admin' ? '(ไม่ใช่)' : 'เช่น B012, B047, B101'}
               disabled={user.role === 'central_admin'}
             />
           </Field>

@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import get_current_user, get_current_user_optional, scoped_branch_id
+from app.auth import get_current_user, get_current_user_optional, scoped_branch_filter
 from app.branch_auth import check_branch_access
 from app.database import get_db
 from app.models import Branch, Participant, Record, User
@@ -32,7 +32,7 @@ async def list_participants(
     user: User | None = Depends(get_current_user_optional),
 ):
     """List participants with aggregated record stats, optional branch filter + pagination."""
-    branch_id = scoped_branch_id(user, branch_id)
+    branch_filter = scoped_branch_filter(user, branch_id)
     stmt = (
         select(
             Participant,
@@ -46,8 +46,10 @@ async def list_participants(
         .group_by(Participant.id)
         .order_by(Participant.first_name)
     )
-    if branch_id:
-        stmt = stmt.where(Participant.branch_id == branch_id)
+    if isinstance(branch_filter, list):
+        stmt = stmt.where(Participant.branch_id.in_(branch_filter))
+    elif branch_filter:
+        stmt = stmt.where(Participant.branch_id == branch_filter)
     stmt = stmt.limit(limit).offset(offset)
     result = await db.execute(stmt)
     return [

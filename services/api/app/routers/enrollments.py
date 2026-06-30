@@ -133,13 +133,56 @@ def _make_username(branch_num: str, admin_index: int) -> str:
     return f"B{num}-{admin_index}"
 
 
-@router.patch("/enrollments/{enrollment_id}/approve")
-async def approve_enrollment(
+@router.get("/enrollments/{enrollment_id}/preview-approve")
+async def preview_approve_enrollment(
     enrollment_id: int,
     user=Depends(require_central_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Approve enrollment → create users → send email."""
+    """Preview ก่อน approve — บอกว่า admin emails ใดมี user อยู่แล้ว ให้ admin ตัดสินใจ on_conflict"""
+    result = await db.execute(select(BranchEnrollment).where(BranchEnrollment.id == enrollment_id))
+    enrollment = result.scalar_one_or_none()
+    if not enrollment:
+        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบรายการ"})
+
+    branch_id = f"B{enrollment.branch_number}" if enrollment.branch_number else None
+    admins = [
+        ("admin1", enrollment.admin1_name, enrollment.admin1_email),
+        ("admin2", enrollment.admin2_name, enrollment.admin2_email),
+        ("admin3", enrollment.admin3_name, enrollment.admin3_email),
+    ]
+    out = []
+    for slot, name, email in admins:
+        if not name:
+            continue
+        existing = None
+        if email:
+            er = await db.execute(select(User).where(User.email == email))
+            existing_u = er.scalars().first()
+            if existing_u:
+                existing = {
+                    "id": existing_u.id, "username": existing_u.username,
+                    "full_name": existing_u.full_name,
+                    "branch_id": existing_u.branch_id,
+                    "branch_ids": list(existing_u.branch_ids or []),
+                }
+        out.append({"slot": slot, "name": name, "email": email, "existing_user": existing})
+    return {"enrollment_id": enrollment.id, "branch_id": branch_id, "admins": out}
+
+
+@router.patch("/enrollments/{enrollment_id}/approve")
+async def approve_enrollment(
+    enrollment_id: int,
+    on_conflict: str = "add_branch",
+    user=Depends(require_central_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Approve enrollment → create users (or add branch to existing) → send email.
+
+    on_conflict (เมื่อ admin email มี user อยู่แล้ว):
+      - 'add_branch' (default): เพิ่ม branch_id เข้า user.branch_ids ของ user เดิม
+      - 'create_new': สร้าง user ใหม่พร้อม username suffix (-2, -3, ...)
+    """
     result = await db.execute(select(BranchEnrollment).where(BranchEnrollment.id == enrollment_id))
     enrollment = result.scalar_one_or_none()
     if not enrollment:
@@ -189,8 +232,29 @@ async def approve_enrollment(
     taken_usernames_result = await db.execute(select(User.username))
     used_usernames = {r[0] for r in taken_usernames_result.all()}
 
+    users_added_branch = []  # for users that already exist and got branch added
     for name, email, phone, idx in admins:
         if not name:
+            continue
+
+        # Check if email already exists (multi-branch admin support)
+        existing_user = None
+        if email and on_conflict == "add_branch":
+            er = await db.execute(select(User).where(User.email == email))
+            existing_user = er.scalars().first()
+
+        if existing_user and branch_id:
+            # Add branch_id to existing user's branch_ids if not already there
+            current_ids = list(existing_user.branch_ids or [])
+            if existing_user.branch_id and existing_user.branch_id not in current_ids:
+                current_ids.append(existing_user.branch_id)
+            if branch_id not in current_ids:
+                current_ids.append(branch_id)
+                existing_user.branch_ids = current_ids
+            users_added_branch.append({
+                "username": existing_user.username, "name": existing_user.full_name,
+                "email": email, "branch_added": branch_id, "user_id": existing_user.id,
+            })
             continue
 
         # ใช้ email เป็น username, เบอร์โทรเป็น password
@@ -214,6 +278,7 @@ async def approve_enrollment(
             phone=phone,
             role="branch_admin",
             branch_id=branch_id,
+            branch_ids=[branch_id] if branch_id else [],
             status="active",
         )
         db.add(u)
@@ -232,10 +297,12 @@ async def approve_enrollment(
         "status": "approved",
         "branch_name": enrollment.branch_name,
         "users_created": len(users_created),
+        "users_added_branch": users_added_branch,  # existing users ที่ได้รับ branch เพิ่ม
         "emails_sent": len(emails_sent),
         "org_created": org_created,
         "users": [{"username": u["username"], "name": u["name"], "email": u["email"]} for u in users_created],
-        "message": f"อนุมัติสำเร็จ สร้าง {len(users_created)} users"
+        "message": f"อนุมัติสำเร็จ สร้าง {len(users_created)} users ใหม่"
+                   + (f", เพิ่ม branch ให้ {len(users_added_branch)} users เดิม" if users_added_branch else "")
                    + (f", สร้าง PLJ org" if org_created else "")
                    + f", ส่ง email {len(emails_sent)} ฉบับ",
         "_credentials": users_created,
@@ -309,7 +376,8 @@ async def list_users(user=Depends(require_central_admin), db: AsyncSession = Dep
         {
             "id": u.id, "username": u.username, "full_name": u.full_name,
             "email": u.email, "phone": u.phone, "role": u.role,
-            "branch_id": u.branch_id, "status": u.status,
+            "branch_id": u.branch_id, "branch_ids": list(u.branch_ids or []),
+            "status": u.status,
         }
         for u in users
     ]
@@ -343,6 +411,11 @@ async def update_user(
         u.phone = (data["phone"] or "").strip() or None
     if "branch_id" in data:
         u.branch_id = (data["branch_id"] or "").strip() or None
+    if "branch_ids" in data:
+        # รายการสาขาที่ user ดูแล (multi-branch admin)
+        ids = data["branch_ids"]
+        if isinstance(ids, list):
+            u.branch_ids = [str(b).strip() for b in ids if str(b).strip()]
     if "status" in data and data["status"] in ("active", "disabled"):
         u.status = data["status"]
 
