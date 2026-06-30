@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import DEADLINE, START_DATE, TARGET_MINUTES
 from app.database import get_db
-from app.models import DailyStat, Record
+from app.models import Record
 
 router = APIRouter()
 
@@ -27,16 +27,12 @@ async def get_projection(db: AsyncSession = Depends(get_db)):
     today = date.today()
     days_remaining = (DEADLINE - today).days
 
-    stmt = select(
-        func.count(),
-        func.coalesce(func.sum(DailyStat.total_minutes), 0),
-    ).select_from(DailyStat)
-    result = await db.execute(stmt)
-    row = result.one()
-    days_with_data = row[0] or 1
-    total_from_stats = row[1]
+    # daily_rate_current = นาที approved เฉลี่ยต่อ "วันที่มีข้อมูลจริง" (สะท้อน pace ตอนปฏิบัติ)
+    stmt_days = select(func.count(func.distinct(Record.date))).where(Record.status == "approved")
+    result_days = await db.execute(stmt_days)
+    days_with_data = result_days.scalar() or 0
 
-    daily_rate_current = total_from_stats // max(days_with_data, 1)
+    daily_rate_current = current // max(days_with_data, 1) if days_with_data > 0 else 0
     daily_rate_needed = remaining // max(days_remaining, 1) if days_remaining > 0 else 0
 
     estimated_date = None
