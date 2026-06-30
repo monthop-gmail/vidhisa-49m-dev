@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { api } from '../api/client'
 import { useAuth } from '../lib/auth'
+import { useActiveBranch } from '../lib/activeBranch'
 import { Modal } from '../components/Modal'
 import { useSortable } from '../lib/sort'
 import {
@@ -72,10 +73,14 @@ function GgsPage() {
     },
   })
 
+  const activeBranch = useActiveBranch()
   const allRows = data ?? []
+  // central admin: ทุกสาขา (หรือ active filter ถ้าเลือก)
+  // branch admin หลายสาขา: filter ตาม branch_ids (หรือ active แค่สาขาเดียว)
+  const userBranchIds = user?.branch_ids && user.branch_ids.length > 0 ? user.branch_ids : (user?.branch_id ? [user.branch_id] : [])
   const rowsForUser = isCentral
-    ? allRows
-    : allRows.filter((r) => r.branch_id === user?.branch_id)
+    ? (activeBranch ? allRows.filter((r) => r.branch_id === activeBranch) : allRows)
+    : (activeBranch ? allRows.filter((r) => r.branch_id === activeBranch) : allRows.filter((r) => userBranchIds.includes(r.branch_id as string)))
   const filtered = sortRows(
     q
       ? rowsForUser.filter((r) =>

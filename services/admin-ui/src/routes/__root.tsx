@@ -2,7 +2,8 @@ import { Link, Outlet, createRootRoute, redirect, useNavigate } from '@tanstack/
 import { TanStackRouterDevtools } from '@tanstack/router-devtools'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { clearSession, getToken, useAuth } from '../lib/auth'
-import { Badge, Button } from '../components/ui'
+import { useActiveBranch, setActiveBranch } from '../lib/activeBranch'
+import { Badge, Button, Select } from '../components/ui'
 
 export const Route = createRootRoute({
   beforeLoad: ({ location }) => {
@@ -71,6 +72,7 @@ function RootLayout() {
           </nav>
           {user && (
             <div className="ml-auto flex items-center gap-3 text-sm">
+              <BranchSwitcher />
               <RoleBadge role={user.role} branchId={user.branch_id} />
               <span className="text-slate-700 hidden sm:inline">{user.full_name}</span>
               <Button variant="secondary" size="sm" onClick={logout}>
@@ -92,4 +94,26 @@ function RootLayout() {
 function RoleBadge({ role, branchId }: { role: string; branchId: string | null }) {
   if (role === 'central_admin') return <Badge tone="blue">CENTRAL</Badge>
   return <Badge tone="amber">BRANCH · {branchId ?? '?'}</Badge>
+}
+
+function BranchSwitcher() {
+  const { user } = useAuth()
+  const active = useActiveBranch()
+  if (!user) return null
+  const ids = user.branch_ids && user.branch_ids.length > 0 ? user.branch_ids : (user.branch_id ? [user.branch_id] : [])
+  // ไม่แสดง switcher ถ้า user มีเพียง 1 สาขา หรือเป็น central admin (เลือก/ไม่เลือกก็ได้แล้วแต่)
+  if (user.role !== 'central_admin' && ids.length < 2) return null
+  return (
+    <Select
+      value={active}
+      onChange={(e) => setActiveBranch(e.target.value)}
+      className="!w-40 !py-1 !text-xs"
+      title="เลือกสาขาที่จะโฟกัส"
+    >
+      {user.role === 'central_admin' && <option value="">— ทุกสาขา —</option>}
+      {ids.map((b) => (
+        <option key={b} value={b}>{b}</option>
+      ))}
+    </Select>
+  )
 }

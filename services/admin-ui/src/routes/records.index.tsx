@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { useAuth } from '../lib/auth'
+import { useActiveBranch, isBranchLocked } from '../lib/activeBranch'
 import { usePagination, splitPage } from '../lib/pagination'
 import { useSortable } from '../lib/sort'
 import { Pagination } from '../components/Pagination'
@@ -39,9 +40,15 @@ const PAGE_SIZE = 50
 
 function RecordsPage() {
   const { user } = useAuth()
+  const activeBranch = useActiveBranch()
   const isCentral = user?.role === 'central_admin'
-  const lockedBranch = !isCentral && Boolean(user?.branch_id)
-  const [branchId, setBranchId] = useState(user?.branch_id ?? '')
+  const lockedBranch = !isCentral && isBranchLocked()
+  const [branchId, setBranchId] = useState(activeBranch)
+
+  // sync with navbar branch switcher
+  useEffect(() => {
+    if (!isCentral) setBranchId(activeBranch)
+  }, [activeBranch, isCentral])
   const [type, setType] = useState<RecordType>('')
   const [status, setStatus] = useState<RecordStatus>('')
   const [approvedBy, setApprovedBy] = useState(user?.full_name ?? 'Admin')

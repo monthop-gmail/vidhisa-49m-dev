@@ -6,6 +6,7 @@ export type AuthUser = {
   full_name: string
   role: string
   branch_id: string | null
+  branch_ids?: string[]
 }
 
 type AuthState = {

@@ -42,6 +42,7 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
         "user": {
             "id": user.id, "username": user.username, "full_name": user.full_name,
             "role": user.role, "branch_id": user.branch_id,
+            "branch_ids": list(user.branch_ids or []),
         },
     }
 
@@ -53,6 +54,7 @@ async def get_me(user: User = Depends(get_current_user)):
         "id": user.id, "username": user.username, "full_name": user.full_name,
         "email": user.email, "phone": user.phone,
         "role": user.role, "branch_id": user.branch_id,
+        "branch_ids": list(user.branch_ids or []),
     }
 
 

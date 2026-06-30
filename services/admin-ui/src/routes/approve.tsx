@@ -1,8 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { useAuth } from '../lib/auth'
+import { useActiveBranch, isBranchLocked } from '../lib/activeBranch'
 import {
   useApproveOrg,
   useApproveParticipant,
@@ -31,9 +32,13 @@ type Tab = 'records' | 'orgs' | 'participants'
 
 function ApprovePage() {
   const { user } = useAuth()
+  const activeBranch = useActiveBranch()
   const isCentral = user?.role === 'central_admin'
-  const lockedBranch = !isCentral && Boolean(user?.branch_id)
-  const [branchId, setBranchId] = useState(user?.branch_id ?? '')
+  const lockedBranch = !isCentral && isBranchLocked()
+  const [branchId, setBranchId] = useState(activeBranch)
+  useEffect(() => {
+    if (!isCentral) setBranchId(activeBranch)
+  }, [activeBranch, isCentral])
   const [approvedBy, setApprovedBy] = useState(user?.full_name ?? 'Admin')
   const [tab, setTab] = useState<Tab>('records')
 

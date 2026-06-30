@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { useAuth } from '../lib/auth'
+import { useActiveBranch, isBranchLocked } from '../lib/activeBranch'
 import { usePagination, splitPage } from '../lib/pagination'
 import { useSortable } from '../lib/sort'
 import { Pagination } from '../components/Pagination'
@@ -35,10 +36,14 @@ type SortKey = 'id' | 'fullName' | 'gender' | 'age' | 'branch_id' | 'province' |
 
 function ParticipantsListPage() {
   const { user } = useAuth()
+  const activeBranch = useActiveBranch()
   const isCentral = user?.role === 'central_admin'
-  const lockedBranch = !isCentral && Boolean(user?.branch_id)
+  const lockedBranch = !isCentral && isBranchLocked()
   const [q, setQ] = useState('')
-  const [branchId, setBranchId] = useState(user?.branch_id ?? '')
+  const [branchId, setBranchId] = useState(activeBranch)
+  useEffect(() => {
+    if (!isCentral) setBranchId(activeBranch)
+  }, [activeBranch, isCentral])
   const [detailId, setDetailId] = useState<number | null>(null)
 
   const filtersKey = JSON.stringify({ branchId })
