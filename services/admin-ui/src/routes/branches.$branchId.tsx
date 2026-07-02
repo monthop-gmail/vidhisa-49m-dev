@@ -5,7 +5,7 @@ import { api } from '../api/client'
 import { getAuth } from '../lib/auth'
 import { Button, Card, CardBody, ErrorMessage, Field, Input, LoadingState, PageHeading } from '../components/ui'
 
-function MemberLinkCard({ link }: { link: string }) {
+function MemberLinkCard({ link, loading, error }: { link: string; loading: boolean; error: string | null }) {
   const [copied, setCopied] = useState(false)
   async function copy() {
     try {
@@ -32,18 +32,24 @@ function MemberLinkCard({ link }: { link: string }) {
         <div className="flex gap-2">
           <input
             id="member-link-input"
-            value={link}
+            value={loading ? 'กำลังโหลด...' : (error ? '' : link)}
             readOnly
             onFocus={(e) => e.currentTarget.select()}
-            className="flex-1 px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-md font-mono"
+            className={`flex-1 px-3 py-2 text-sm bg-slate-50 border rounded-md font-mono ${error ? 'border-red-300' : 'border-slate-300'}`}
           />
-          <Button onClick={copy} variant={copied ? 'success' : 'primary'}>
+          <Button onClick={copy} variant={copied ? 'success' : 'primary'} disabled={loading || !!error || !link}>
             {copied ? '✓ Copied' : 'Copy'}
           </Button>
         </div>
-        <div className="text-xs text-slate-500">
-          ⓘ ผู้ที่มี link นี้เข้าค้นชื่อตัวเองได้ (เห็นยอดของผู้เข้าร่วมในสาขาเดียวกันได้)
-        </div>
+        {error ? (
+          <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1.5">
+            ⚠ โหลด link ไม่สำเร็จ: {error} — ลอง <button className="underline font-semibold" onClick={() => window.location.reload()}>refresh หน้า</button>
+          </div>
+        ) : (
+          <div className="text-xs text-slate-500">
+            ⓘ ผู้ที่มี link นี้เข้าค้นชื่อตัวเองได้ (เห็นยอดของผู้เข้าร่วมในสาขาเดียวกันได้)
+          </div>
+        )}
       </CardBody>
     </Card>
   )
@@ -88,16 +94,22 @@ function BranchEditPage() {
     },
   })
 
-  const { data: viewLink } = useQuery({
+  const { data: viewLink, error: viewLinkError, isLoading: viewLinkLoading } = useQuery({
     queryKey: ['branch-view-link', branchId],
     queryFn: async () => {
       const token = getAuth().token
+      if (!token) throw new Error('ไม่มี token — กรุณา login ใหม่')
       const res = await fetch(`/api/branches/${branchId}/view-link`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      if (!res.ok) throw new Error(String(res.status))
+      if (res.status === 401) {
+        // เห็นด้วยตาว่า token หมดอายุ
+        throw new Error('Session หมดอายุ — refresh หน้าหรือ login ใหม่')
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return (await res.json()) as { branch_id: string; view_secret: string; view_url_path: string }
     },
+    retry: 1,
   })
 
   const [form, setForm] = useState<Form>({
@@ -200,7 +212,7 @@ function BranchEditPage() {
     <div className="grid gap-4 max-w-3xl">
       <PageHeading title="Edit Branch" subtitle={<code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">{branchId}</code>} />
 
-      <MemberLinkCard link={memberLink} />
+      <MemberLinkCard link={memberLink} loading={viewLinkLoading} error={viewLinkError ? String(viewLinkError.message ?? viewLinkError) : null} />
 
       <Card>
         <CardBody>
