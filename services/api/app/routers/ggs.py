@@ -24,7 +24,8 @@ GGS_ORG_ENROLLMENT_URL = "https://docs.google.com/spreadsheets/d/1COYcLXAliYPqpV
 
 
 def extract_sheet_id(url: str) -> str:
-    match = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", url)
+    # รองรับทั้ง /spreadsheets/d/{id} และ /spreadsheets/u/{n}/d/{id} (Google account switcher prefix)
+    match = re.search(r"/spreadsheets/(?:u/\d+/)?d/([a-zA-Z0-9-_]+)", url)
     if not match:
         raise HTTPException(status_code=400, detail={"error": "INVALID_URL", "message": "URL ไม่ใช่ Google Sheet"})
     return match.group(1)
@@ -135,7 +136,7 @@ def _normalize_ggs_url(raw: str) -> str | None:
     s = (raw or "").strip()
     if not s:
         return None
-    m = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", s)
+    m = re.search(r"/spreadsheets/(?:u/\d+/)?d/([a-zA-Z0-9-_]+)", s)
     if not m:
         return s
     return f"https://docs.google.com/spreadsheets/d/{m.group(1)}/gviz/tq?tqx=out:json"
