@@ -23,6 +23,59 @@ GGS_URL_TYPES = ["ggs_url_org", "ggs_url_participant", "ggs_url_record_bulk", "g
 GGS_ORG_ENROLLMENT_URL = "https://docs.google.com/spreadsheets/d/1COYcLXAliYPqpVEPev22MJtiKHO6b7-drVGjhZxNpOY/gviz/tq?tqx=out:json&headers=1"
 
 
+# ─── Thai name normalization (สำหรับ GGS sync fuzzy match) ─────────────────────
+# เรียงจาก "ยาว → สั้น" — ต้องจับ "ผศ.ดร." ก่อน "ผศ." ก่อน "ดร."
+_THAI_TITLES: tuple[str, ...] = (
+    "ผศ.ดร.", "รศ.ดร.", "ศ.ดร.",
+    "นางสาว", "เด็กชาย", "เด็กหญิง",
+    "ทันตแพทย์",
+    "ร.ต.อ.", "พ.ต.ท.", "พ.ต.อ.",
+    "พล.ต.", "พล.ท.", "พล.อ.",
+    "น.ส.", "ด.ช.", "ด.ญ.",
+    "ทพญ.", "ทพ.",
+    "นพ.", "พญ.",
+    "พ.ต.", "ร.ต.",
+    "พระครู", "สามเณร", "แม่ชี",
+    "ผศ.", "รศ.", "ศ.",
+    "ดร.", "อ.",
+    "พระ",
+    "นาย", "นาง",
+)
+
+
+def extract_thai_title(name: str) -> tuple[str, str]:
+    """Return (title, rest). ถ้าไม่พบ title → ('', name).
+
+    ตัวอย่าง:
+      'นาย สมชาย ใจดี' → ('นาย', 'สมชาย ใจดี')
+      'นางสาวมณี'       → ('นางสาว', 'มณี')
+      'สมชาย ใจดี'      → ('', 'สมชาย ใจดี')
+    """
+    n = (name or "").strip()
+    for t in _THAI_TITLES:
+        if n.startswith(t + " "):
+            return t, n[len(t):].strip()
+        # ติดกันไม่มีเว้น: "นายสมชาย" (เฉพาะ title ที่ไม่มีจุด — กันชน "ดร." ที่ต้องเว้น)
+        if "." not in t and n.startswith(t) and len(n) > len(t):
+            nxt = n[len(t)]
+            # ตัวอักษรถัดไปต้องเป็น letter (ไทย/eng non-ascii) เพื่อกัน "นายก" match "นาย"
+            if nxt.isalpha() and not nxt.isascii():
+                return t, n[len(t):].strip()
+    return "", n
+
+
+def _normalize_thai_name_part(s: str) -> str:
+    """ทำ canonical form: strip punctuation, collapse whitespace, lowercase."""
+    s = re.sub(r"[.\-_,()\[\]]+", " ", s or "")
+    s = re.sub(r"\s+", " ", s).strip().lower()
+    return s
+
+
+def normalize_name_key(first: str, last: str) -> str:
+    """คีย์สำหรับเทียบชื่อ (fuzzy match) — เอา title, punctuation, whitespace, case ออก."""
+    return f"{_normalize_thai_name_part(first)}|{_normalize_thai_name_part(last)}"
+
+
 def extract_sheet_id(url: str) -> str:
     # รองรับทั้ง /spreadsheets/d/{id} และ /spreadsheets/u/{n}/d/{id} (Google account switcher prefix)
     match = re.search(r"/spreadsheets/(?:u/\d+/)?d/([a-zA-Z0-9-_]+)", url)
@@ -246,12 +299,19 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_appr
     participants_created = 0
     errors = []
 
-    # Load existing participants for this branch (cache)
+    # Load existing participants for this branch — build normalized name map
     p_result = await db.execute(select(Participant).where(Participant.branch_id == branch_id))
-    participant_map = {}  # "first last" → participant
+    participant_map: dict[str, Participant] = {}  # normalized key → participant
     for p in p_result.scalars().all():
-        key = f"{p.first_name} {p.last_name}"
+        key = normalize_name_key(p.first_name or "", p.last_name or "")
         participant_map[key] = p
+
+    # Cross-branch dup check — โหลด participants ของสาขาอื่นทั้งหมด (สร้าง normalized map)
+    other_result = await db.execute(select(Participant).where(Participant.branch_id != branch_id))
+    cross_branch_map: dict[str, Participant] = {}
+    for p in other_result.scalars().all():
+        key = normalize_name_key(p.first_name or "", p.last_name or "")
+        cross_branch_map[key] = p
 
     def _find(row: dict, *keywords: str) -> str:
         """Return first value where col name contains ALL keywords (tolerate label suffixes)."""
@@ -269,14 +329,14 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_appr
             errors.append(f"แถว {i}: ขาดชื่อหรือวันที่")
             continue
 
-        # Parse name: รองรับ 4 format
-        # 1. "WP047 001 วัชรัชชัย ดวงมณีกุลรัตน์"  (WP + branch + space + code + space + name)
-        # 2. "WP111006 พรพิมล รัตนสวรรยา"        (WP + branch+code ติดกัน 3+3 หลัก + space + name)
-        # 3. "117001 สุภา แสงฤทธิ์เดช"             (branch+code ติดกัน — เฉพาะถ้า branch ตรงสาขาปัจจุบัน)
-        # 4. "003 บรรณวิทย์ ฉิมธนู"                (code อย่างเดียว + space + name)
-        m_wp_spaced = re.match(r"^WP(\d+)\s+(\d+)\s+(.+)$", raw_name)
-        m_wp_concat = re.match(r"^WP(\d{3})(\d{3})\s+(.+)$", raw_name)
-        m_branch_concat = re.match(r"^(\d{3})(\d{3})\s+(.+)$", raw_name)
+        # Parse name: รองรับหลาย format (title อาจอยู่ก่อน/หลัง code)
+        # ทดลองก่อน — ตัด title ออกจากด้านหน้า (ถ้ามี) เพื่อให้ regex match code ได้
+        pre_title, name_after_title = extract_thai_title(raw_name)
+        parse_target = name_after_title if pre_title else raw_name
+
+        m_wp_spaced = re.match(r"^WP(\d+)\s+(\d+)\s+(.+)$", parse_target)
+        m_wp_concat = re.match(r"^WP(\d{3})(\d{3})\s+(.+)$", parse_target)
+        m_branch_concat = re.match(r"^(\d{3})(\d{3})\s+(.+)$", parse_target)
         if m_wp_spaced:
             member_code = m_wp_spaced.group(2).strip()
             name = m_wp_spaced.group(3).strip()
@@ -284,13 +344,16 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_appr
             member_code = m_wp_concat.group(2).strip()
             name = m_wp_concat.group(3).strip()
         elif m_branch_concat and f"B{m_branch_concat.group(1)}" == branch_id:
-            # 6-digit prefix ที่ขึ้นต้นด้วย branch number ปัจจุบัน → branch+code ติดกัน
             member_code = m_branch_concat.group(2).strip()
             name = m_branch_concat.group(3).strip()
         else:
-            m_simple = re.match(r"^(\d+)\s+(.+)$", raw_name)
+            m_simple = re.match(r"^(\d+)\s+(.+)$", parse_target)
             member_code = m_simple.group(1).strip() if m_simple else None
-            name = m_simple.group(2).strip() if m_simple else raw_name
+            name = m_simple.group(2).strip() if m_simple else parse_target
+
+        # ถ้าตัด title ตอนแรก + name ที่ได้ยังไม่มี title → เอา title กลับใส่ให้ extract_thai_title ตอนหลังจับได้
+        if pre_title and not any(name.startswith(t) for t in (pre_title + " ", pre_title)):
+            name = f"{pre_title} {name}"
 
         rec_date = parse_thai_date(raw_date)
         if not rec_date:
@@ -305,52 +368,64 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_appr
             errors.append(f"แถว {i}: ไม่มีรอบที่ปฏิบัติ")
             continue
 
-        # Auto-create participant ถ้ายังไม่มี
-        participant = participant_map.get(name)
+        # แยก title (คำนำหน้า) ออกจากชื่อ → เก็บใน Participant.prefix
+        title, name_no_title = extract_thai_title(name)
+        parts = name_no_title.split(" ", 1)
+        first_name = parts[0].strip() if parts and parts[0].strip() else name_no_title
+        last_name = parts[1].strip() if len(parts) > 1 else ""
+        lookup_key = normalize_name_key(first_name, last_name)
+
+        # หา participant เดิมในสาขา (normalized match)
+        participant = participant_map.get(lookup_key)
         if not participant:
-            # แยกชื่อ-นามสกุล
-            parts = name.split(" ", 1)
-            first_name = parts[0]
-            last_name = parts[1] if len(parts) > 1 else ""
-
-            # เช็คซ้ำข้ามสาขา (อาจเจอหลายแถวถ้าชื่อซ้ำหลายสาขา → ใช้ first)
-            dup_check = await db.execute(select(Participant).where(
-                Participant.first_name == first_name,
-                Participant.last_name == last_name,
-            ))
-            existing_p = dup_check.scalars().first()
-            if existing_p and existing_p.branch_id != branch_id:
-                errors.append(f"แถว {i}: '{name}' ลงทะเบียนในสาขา {existing_p.branch_id} แล้ว")
+            # เช็คซ้ำข้ามสาขา (normalized match)
+            cross = cross_branch_map.get(lookup_key)
+            if cross:
+                errors.append(f"แถว {i}: '{first_name} {last_name}' ลงทะเบียนในสาขา {cross.branch_id} แล้ว")
                 continue
-            elif existing_p:
-                participant = existing_p
-                if member_code and not participant.member_code:
-                    participant.member_code = member_code
-            else:
-                participant = Participant(
-                    branch_id=branch_id,
-                    member_code=member_code,
-                    first_name=first_name,
-                    last_name=last_name,
-                    enrolled_date=rec_date,
-                    privacy_accepted=True,
-                    status="approved",
-                )
-                db.add(participant)
-                await db.flush()  # get id
-                participants_created += 1
+            # สร้างใหม่
+            participant = Participant(
+                branch_id=branch_id,
+                member_code=member_code,
+                prefix=title or None,
+                first_name=first_name,
+                last_name=last_name,
+                enrolled_date=rec_date,
+                privacy_accepted=True,
+                status="approved",
+            )
+            db.add(participant)
+            await db.flush()  # get id
+            participants_created += 1
+            participant_map[lookup_key] = participant
+        else:
+            # backfill prefix/member_code หากยังว่าง
+            if title and not participant.prefix:
+                participant.prefix = title
+            if member_code and not participant.member_code:
+                participant.member_code = member_code
 
-            participant_map[name] = participant
+        # ใช้ชื่อสะอาด (ไม่มี title) เป็น record.name — สม่ำเสมอกันทั้งระบบ
+        clean_name = f"{first_name} {last_name}".strip()
 
-        # Upsert record by branch_id + name + date (ใช้ first() กันกรณีมี duplicate row เก่าค้าง)
+        # Upsert record — match by participant_id (แม่นสุด) → fallback by name (สำหรับ record เก่าที่ไม่มี participant_id)
         stmt = select(Record).where(
             Record.branch_id == branch_id,
-            Record.name == name,
             Record.date == rec_date,
             Record.type == "individual",
+            Record.participant_id == participant.id,
         ).order_by(Record.id)
-        result = await db.execute(stmt)
-        existing = result.scalars().first()
+        existing = (await db.execute(stmt)).scalars().first()
+
+        if not existing:
+            # legacy fallback: match by raw name (records เก่าที่ยังไม่มี participant_id)
+            stmt = select(Record).where(
+                Record.branch_id == branch_id,
+                Record.date == rec_date,
+                Record.type == "individual",
+                Record.name.in_([name, clean_name]),  # ทั้งชื่อดั้งเดิมและชื่อสะอาด
+            ).order_by(Record.id)
+            existing = (await db.execute(stmt)).scalars().first()
 
         new_status = "approved" if auto_approve else "pending"
         approved_by = "auto-sync" if auto_approve else None
@@ -374,7 +449,7 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_appr
             updated += 1
         else:
             db.add(Record(
-                type="individual", branch_id=branch_id, name=name,
+                type="individual", branch_id=branch_id, name=clean_name,
                 org_id=plj_org_id,
                 participant_id=participant.id,
                 minutes=minutes,
