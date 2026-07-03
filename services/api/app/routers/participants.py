@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import get_current_user, get_current_user_optional, scoped_branch_filter
+from app.auth import get_current_user, get_current_user_optional, require_central_admin, scoped_branch_filter
 from app.branch_auth import check_branch_access
 from app.database import get_db
 from app.models import Branch, Participant, Record, User
@@ -152,6 +152,55 @@ async def import_participants(
         "updated": 0,
         "errors": errors,
         "message": f"นำเข้าสำเร็จ: สร้างใหม่ {created}" + (f", ข้อผิดพลาด {len(errors)} แถว" if errors else ""),
+    }
+
+
+@router.post("/participants/reject-orphans")
+async def reject_orphan_participants(
+    branch_id: str | None = None,
+    dry_run: bool = True,
+    user=Depends(require_central_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reject participants ที่มี 0 approved records (เดา: ชื่อเก่า/ซ้ำที่ไม่มีบันทึกผูก).
+
+    dry_run=true (default) → คืน list เฉพาะ ไม่แก้ DB
+    dry_run=false → set status='rejected' ให้ทุก orphan
+    """
+    stmt = (
+        select(Participant)
+        .outerjoin(Record, (Record.participant_id == Participant.id) & (Record.status == "approved"))
+        .where(Participant.status == "approved")
+        .group_by(Participant.id)
+        .having(func.count(Record.id) == 0)
+        .order_by(Participant.branch_id, Participant.id)
+    )
+    if branch_id:
+        stmt = stmt.where(Participant.branch_id == branch_id)
+    result = await db.execute(stmt)
+    orphans = result.scalars().all()
+
+    rejected_ids = []
+    if not dry_run:
+        for p in orphans:
+            p.status = "rejected"
+            rejected_ids.append(p.id)
+        await db.commit()
+
+    return {
+        "dry_run": dry_run,
+        "count": len(orphans),
+        "rejected_ids": rejected_ids,
+        "sample": [
+            {"id": p.id, "branch_id": p.branch_id, "member_code": p.member_code,
+             "prefix": p.prefix, "first_name": p.first_name, "last_name": p.last_name}
+            for p in orphans[:30]
+        ],
+        "message": (
+            f"ตรวจสอบพบ {len(orphans)} orphan participants (ยังไม่แก้)"
+            if dry_run else
+            f"reject {len(orphans)} orphan participants แล้ว"
+        ),
     }
 
 
