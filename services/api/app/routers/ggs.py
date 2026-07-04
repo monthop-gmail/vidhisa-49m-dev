@@ -361,7 +361,8 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_appr
             member_code = m_branch_concat.group(2).strip()
             name = m_branch_concat.group(3).strip()
         else:
-            m_simple = re.match(r"^(\d+)\s+(.+)$", parse_target)
+            # รองรับ code + space หรือ code + dash (เช่น "128-นางสาว...")
+            m_simple = re.match(r"^(\d+)[\s\-]+(.+)$", parse_target)
             member_code = m_simple.group(1).strip() if m_simple else None
             name = m_simple.group(2).strip() if m_simple else parse_target
 

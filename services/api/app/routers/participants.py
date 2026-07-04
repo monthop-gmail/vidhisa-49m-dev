@@ -361,6 +361,123 @@ async def merge_duplicate_codes(
     }
 
 
+def _normalize_name(first: str | None, last: str | None) -> str:
+    import re as _re
+    def clean(s: str) -> str:
+        s = _re.sub(r"[.\-_,()\[\]]+", " ", s or "")
+        s = _re.sub(r"\s+", " ", s).strip().lower()
+        return s
+    return f"{clean(first or '')}|{clean(last or '')}"
+
+
+@router.post("/participants/merge-duplicate-names")
+async def merge_duplicate_names(
+    branch_id: str | None = None,
+    dry_run: bool = True,
+    user=Depends(require_central_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """รวม participants ที่ (branch, normalized_name) ซ้ำ + ฝั่งหนึ่ง code=None.
+
+    ใช้เมื่อ parser เก่าไม่แยก member_code ออกจากชื่อ (code=None)
+    Winner = ตัวที่มี member_code (id สูงสุด), Loser = ตัวที่ code=None
+    """
+    all_result = await db.execute(
+        select(Participant).where(Participant.status == "approved")
+        .order_by(Participant.branch_id, Participant.id)
+    )
+    if branch_id:
+        all_result = await db.execute(
+            select(Participant).where(
+                Participant.status == "approved",
+                Participant.branch_id == branch_id,
+            ).order_by(Participant.id)
+        )
+    all_ps = all_result.scalars().all()
+
+    from collections import defaultdict
+    groups: dict[tuple[str, str], list[Participant]] = defaultdict(list)
+    for p in all_ps:
+        key = (p.branch_id, _normalize_name(p.first_name, p.last_name))
+        groups[key].append(p)
+
+    merged_pairs = 0
+    records_deleted = 0
+    records_moved = 0
+    losers_rejected = 0
+    sample = []
+
+    for (bid, name_key), ps in groups.items():
+        if len(ps) < 2:
+            continue
+        coded = [p for p in ps if p.member_code]
+        uncoded = [p for p in ps if not p.member_code]
+        # ต้องมีอย่างน้อย 1 coded + 1 uncoded
+        if not coded or not uncoded:
+            continue
+        # Winner = coded ที่ id สูงสุด (สอดคล้อง Fix A ใน sync)
+        winner = max(coded, key=lambda p: p.id)
+        losers = uncoded  # เฉพาะ uncoded — coded ตัวอื่นข้าม (อาจเป็นคนละคนจริง)
+
+        for loser in losers:
+            w_recs = (await db.execute(
+                select(Record).where(Record.participant_id == winner.id)
+            )).scalars().all()
+            w_by_date: dict = {r.date: r for r in w_recs}
+
+            l_recs = (await db.execute(
+                select(Record).where(Record.participant_id == loser.id)
+            )).scalars().all()
+
+            for lrec in l_recs:
+                w = w_by_date.get(lrec.date)
+                if w is not None:
+                    w.morning_male = max(w.morning_male or 0, lrec.morning_male or 0)
+                    w.afternoon_male = max(w.afternoon_male or 0, lrec.afternoon_male or 0)
+                    w.evening_male = max(w.evening_male or 0, lrec.evening_male or 0)
+                    w.minutes = (w.morning_male + w.afternoon_male + w.evening_male) * 5
+                    if not dry_run:
+                        await db.delete(lrec)
+                    records_deleted += 1
+                else:
+                    if not dry_run:
+                        lrec.participant_id = winner.id
+                    records_moved += 1
+
+            if not dry_run:
+                loser.status = "rejected"
+            losers_rejected += 1
+
+        merged_pairs += 1
+        if len(sample) < 15:
+            sample.append({
+                "branch_id": bid,
+                "name": name_key,
+                "winner_id": winner.id,
+                "winner_code": winner.member_code,
+                "loser_ids": [l.id for l in losers],
+            })
+
+    if not dry_run:
+        await db.commit()
+
+    return {
+        "dry_run": dry_run,
+        "pairs": merged_pairs,
+        "records_deleted": records_deleted,
+        "records_moved": records_moved,
+        "losers_rejected": losers_rejected,
+        "sample": sample,
+        "message": (
+            f"ตรวจสอบพบ {merged_pairs} กลุ่มซ้ำ (name-based, ยังไม่แก้) — "
+            f"จะลบ {records_deleted} records ซ้ำ, ย้าย {records_moved} records"
+            if dry_run else
+            f"รวมสำเร็จ {merged_pairs} กลุ่ม — ลบ {records_deleted} records ซ้ำ, "
+            f"ย้าย {records_moved} records, reject loser {losers_rejected}"
+        ),
+    }
+
+
 @router.get("/participants/{participant_id}", response_model=ParticipantResponse)
 async def get_participant(participant_id: int, db: AsyncSession = Depends(get_db)):
     """Get a specific participant."""
