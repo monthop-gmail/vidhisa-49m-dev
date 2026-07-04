@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { getToken, useAuth } from '../lib/auth'
+import { useActiveBranch } from '../lib/activeBranch'
 import { Modal } from '../components/Modal'
 import {
   Badge,
@@ -10,7 +11,6 @@ import {
   EmptyState,
   ErrorMessage,
   Field,
-  Input,
   LoadingState,
   PageHeading,
   Select,
@@ -76,9 +76,13 @@ function fmt(iso: string | null) {
 
 function SyncLogsPage() {
   const { user } = useAuth()
-  const [branchFilter, setBranchFilter] = useState('')
+  const activeBranch = useActiveBranch()
   const [statusFilter, setStatusFilter] = useState('')
   const [detailId, setDetailId] = useState<number | null>(null)
+
+  // ถ้า central + active branch → filter, ว่าง → ทุกสาขา
+  // Branch admin → activeBranch = สาขาตัวเอง (locked)
+  const branchFilter = activeBranch
 
   const { data: logs, isLoading, error } = useQuery({
     queryKey: ['sync-logs', branchFilter, statusFilter],
@@ -94,20 +98,14 @@ function SyncLogsPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-4 space-y-4">
-      <PageHeading title="Sync Logs" subtitle="ประวัติการซิงค์ Google Sheet (auto-refresh 60 วิ)" />
+      <PageHeading
+        title="Sync Logs"
+        subtitle={`ประวัติการซิงค์ Google Sheet · ${branchFilter ? `focus ${branchFilter}` : 'ทุกสาขา'} · auto-refresh 60 วิ`}
+      />
 
       <Card>
         <CardBody>
           <div className="flex flex-wrap gap-3 items-end">
-            {user?.role === 'central_admin' && (
-              <Field label="สาขา (เว้นว่าง = ทุกสาขา)">
-                <Input
-                  value={branchFilter}
-                  onChange={(e) => setBranchFilter(e.target.value.toUpperCase().trim())}
-                  placeholder="เช่น B020"
-                />
-              </Field>
-            )}
             <Field label="สถานะ">
               <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
                 <option value="">ทั้งหมด</option>
@@ -116,6 +114,11 @@ function SyncLogsPage() {
                 <option value="error">error (fail ทั้งหมด)</option>
               </Select>
             </Field>
+            {user?.role === 'central_admin' && (
+              <div className="text-xs text-slate-500 self-end pb-1">
+                ⓘ เปลี่ยนสาขาที่ focus ได้ที่ switcher มุมขวาบน
+              </div>
+            )}
           </div>
         </CardBody>
       </Card>
