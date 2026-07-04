@@ -161,8 +161,9 @@ function BranchDashboard({ branchId }: { branchId: string }) {
       {
         queryKey: ['organizations', branchId, 'list'],
         queryFn: async () => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const { data, error } = await api.GET('/api/organizations', {
-            params: { query: { branch_id: branchId, limit: 500 } },
+            params: { query: { branch_id: branchId, limit: 500 } as any },
           })
           if (error) throw error
           return data
