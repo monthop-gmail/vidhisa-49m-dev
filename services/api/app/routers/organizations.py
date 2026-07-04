@@ -48,11 +48,13 @@ EXPORT_FIELDS = [
 
 @router.get("/organizations")
 async def list_organizations(
+    branch_id: str | None = None,
+    limit: int | None = None,
     db: AsyncSession = Depends(get_db),
     user: User | None = Depends(get_current_user_optional),
 ):
-    """List all organizations with their statistics."""
-    branch_filter = scoped_branch_filter(user, None)
+    """List organizations with stats. Optional branch_id filter + limit."""
+    branch_filter = scoped_branch_filter(user, branch_id)
     stmt = (
         select(
             Organization,
@@ -66,6 +68,8 @@ async def list_organizations(
         .group_by(Organization.id)
         .order_by(Organization.name)
     )
+    if limit:
+        stmt = stmt.limit(min(limit, 2000))
     if isinstance(branch_filter, list):
         stmt = stmt.where(Organization.branch_id.in_(branch_filter))
     elif branch_filter:

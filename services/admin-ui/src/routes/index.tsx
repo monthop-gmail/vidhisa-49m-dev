@@ -142,7 +142,7 @@ function BranchDashboard({ branchId }: { branchId: string }) {
         queryKey: ['records', branchId, 'all'],
         queryFn: async () => {
           const { data, error } = await api.GET('/api/records', {
-            params: { query: { limit: 5000 } },
+            params: { query: { branch_id: branchId, limit: 10000 } },
           })
           if (error) throw error
           return data
@@ -151,15 +151,19 @@ function BranchDashboard({ branchId }: { branchId: string }) {
       {
         queryKey: ['participants', branchId],
         queryFn: async () => {
-          const { data, error } = await api.GET('/api/participants')
+          const { data, error } = await api.GET('/api/participants', {
+            params: { query: { branch_id: branchId, limit: 5000 } },
+          })
           if (error) throw error
           return data
         },
       },
       {
-        queryKey: ['organizations', 'list'],
+        queryKey: ['organizations', branchId, 'list'],
         queryFn: async () => {
-          const { data, error } = await api.GET('/api/organizations')
+          const { data, error } = await api.GET('/api/organizations', {
+            params: { query: { branch_id: branchId, limit: 500 } },
+          })
           if (error) throw error
           return data
         },
@@ -195,7 +199,9 @@ function BranchDashboard({ branchId }: { branchId: string }) {
   const pending = (pendingQ.data ?? []) as Array<Record<string, unknown>>
   const leaderboard = (leaderboardQ.data ?? []) as Array<Record<string, unknown>>
 
-  const totalMinutes = records.reduce((s, r) => s + Number(r.minutes ?? 0), 0)
+  // ยอดรวมนาที: ใช้ค่าจาก /api/branches/{id} (filter org_id LIKE '%-00' ตาม business rule)
+  // ไม่ใช้ records.sum() เพราะจะรวมนาทีขององค์กรภายนอกด้วย → ไม่ตรงกับหน้าอื่น
+  const totalMinutes = Number(branch.total_minutes ?? 0)
   const approvedCount = records.filter((r) => r.status === 'approved').length
   const pendingCount = pending.length
   const myRank = leaderboard.find((b) => String(b.branch_id) === branchId)?.rank as number | undefined
