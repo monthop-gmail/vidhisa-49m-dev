@@ -1,8 +1,10 @@
 import { Link, Outlet, createRootRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/router-devtools'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import { useQuery } from '@tanstack/react-query'
 import { clearSession, getToken, useAuth } from '../lib/auth'
 import { useActiveBranch, setActiveBranch } from '../lib/activeBranch'
+import { api } from '../api/client'
 import { Badge, Button, Select } from '../components/ui'
 
 export const Route = createRootRoute({
@@ -100,10 +102,56 @@ function RoleBadge({ role, branchId }: { role: string; branchId: string | null }
 function BranchSwitcher() {
   const { user } = useAuth()
   const active = useActiveBranch()
+  const isCentral = user?.role === 'central_admin'
+
+  // Central: fetch all 325 branches for typeahead
+  const { data: allBranches } = useQuery({
+    queryKey: ['branches-switcher'],
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/branches')
+      if (error) throw error
+      return (Array.isArray(data) ? data : []) as Array<{ id: string; name: string; province?: string | null }>
+    },
+    enabled: Boolean(isCentral),
+    staleTime: 5 * 60 * 1000,
+  })
+
   if (!user) return null
   const ids = user.branch_ids && user.branch_ids.length > 0 ? user.branch_ids : (user.branch_id ? [user.branch_id] : [])
-  // ไม่แสดง switcher ถ้า user มีเพียง 1 สาขา หรือเป็น central admin (เลือก/ไม่เลือกก็ได้แล้วแต่)
-  if (user.role !== 'central_admin' && ids.length < 2) return null
+
+  // Central admin: typeahead input + datalist (325 branches)
+  if (isCentral) {
+    return (
+      <>
+        <input
+          list="__branch_switcher_list"
+          value={active}
+          onChange={(e) => {
+            const v = e.target.value.trim().toUpperCase()
+            // Accept only if empty (=ทุกสาขา) หรือ match branch ที่มีจริง
+            if (v === '' || allBranches?.some((b) => b.id === v)) {
+              setActiveBranch(v)
+            } else {
+              setActiveBranch(v)  // เก็บค่าที่พิมพ์ไว้ก่อน — user จะเลือกจาก dropdown
+            }
+          }}
+          placeholder="— ทุกสาขา —"
+          className="rounded-md border border-slate-300 px-2 py-1 text-xs w-44 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          title="พิมพ์ code หรือชื่อสาขาเพื่อโฟกัส (ว่าง = ทุกสาขา)"
+        />
+        <datalist id="__branch_switcher_list">
+          {(allBranches ?? []).map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}{b.province ? ` — ${b.province}` : ''}
+            </option>
+          ))}
+        </datalist>
+      </>
+    )
+  }
+
+  // Branch admin: dropdown ถ้ามีหลายสาขา
+  if (ids.length < 2) return null
   return (
     <Select
       value={active}
@@ -111,7 +159,6 @@ function BranchSwitcher() {
       className="!w-40 !py-1 !text-xs"
       title="เลือกสาขาที่จะโฟกัส"
     >
-      {user.role === 'central_admin' && <option value="">— ทุกสาขา —</option>}
       {ids.map((b) => (
         <option key={b} value={b}>{b}</option>
       ))}
