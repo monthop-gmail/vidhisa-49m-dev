@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsersRouteImport } from './routes/users'
+import { Route as SyncLogsRouteImport } from './routes/sync-logs'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as GgsRouteImport } from './routes/ggs'
 import { Route as EnrollmentsRouteImport } from './routes/enrollments'
@@ -29,6 +30,11 @@ import { Route as BranchesBranchIdRouteImport } from './routes/branches.$branchI
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SyncLogsRoute = SyncLogsRouteImport.update({
+  id: '/sync-logs',
+  path: '/sync-logs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/enrollments': typeof EnrollmentsRoute
   '/ggs': typeof GgsRoute
   '/login': typeof LoginRoute
+  '/sync-logs': typeof SyncLogsRoute
   '/users': typeof UsersRoute
   '/branches/$branchId': typeof BranchesBranchIdRoute
   '/organizations/$orgId': typeof OrganizationsOrgIdRoute
@@ -132,6 +139,7 @@ export interface FileRoutesByTo {
   '/enrollments': typeof EnrollmentsRoute
   '/ggs': typeof GgsRoute
   '/login': typeof LoginRoute
+  '/sync-logs': typeof SyncLogsRoute
   '/users': typeof UsersRoute
   '/branches/$branchId': typeof BranchesBranchIdRoute
   '/organizations/$orgId': typeof OrganizationsOrgIdRoute
@@ -151,6 +159,7 @@ export interface FileRoutesById {
   '/enrollments': typeof EnrollmentsRoute
   '/ggs': typeof GgsRoute
   '/login': typeof LoginRoute
+  '/sync-logs': typeof SyncLogsRoute
   '/users': typeof UsersRoute
   '/branches/$branchId': typeof BranchesBranchIdRoute
   '/organizations/$orgId': typeof OrganizationsOrgIdRoute
@@ -171,6 +180,7 @@ export interface FileRouteTypes {
     | '/enrollments'
     | '/ggs'
     | '/login'
+    | '/sync-logs'
     | '/users'
     | '/branches/$branchId'
     | '/organizations/$orgId'
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
     | '/enrollments'
     | '/ggs'
     | '/login'
+    | '/sync-logs'
     | '/users'
     | '/branches/$branchId'
     | '/organizations/$orgId'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
     | '/enrollments'
     | '/ggs'
     | '/login'
+    | '/sync-logs'
     | '/users'
     | '/branches/$branchId'
     | '/organizations/$orgId'
@@ -226,6 +238,7 @@ export interface RootRouteChildren {
   EnrollmentsRoute: typeof EnrollmentsRoute
   GgsRoute: typeof GgsRoute
   LoginRoute: typeof LoginRoute
+  SyncLogsRoute: typeof SyncLogsRoute
   UsersRoute: typeof UsersRoute
   BranchesBranchIdRoute: typeof BranchesBranchIdRoute
   OrganizationsOrgIdRoute: typeof OrganizationsOrgIdRoute
@@ -246,6 +259,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/users'
       preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sync-logs': {
+      id: '/sync-logs'
+      path: '/sync-logs'
+      fullPath: '/sync-logs'
+      preLoaderRoute: typeof SyncLogsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -362,6 +382,7 @@ const rootRouteChildren: RootRouteChildren = {
   EnrollmentsRoute: EnrollmentsRoute,
   GgsRoute: GgsRoute,
   LoginRoute: LoginRoute,
+  SyncLogsRoute: SyncLogsRoute,
   UsersRoute: UsersRoute,
   BranchesBranchIdRoute: BranchesBranchIdRoute,
   OrganizationsOrgIdRoute: OrganizationsOrgIdRoute,
