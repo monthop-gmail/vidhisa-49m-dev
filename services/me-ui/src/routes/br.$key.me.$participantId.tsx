@@ -203,15 +203,15 @@ function renderGender(g: string | null): string | null {
 function DailyBars({ data }: { data: Array<[string, number]> }) {
   const max = Math.max(1, ...data.map(([, v]) => v))
   return (
-    <div className="flex items-end gap-1 h-24">
+    <div className="flex gap-1 h-28">
       {data.map(([date, v]) => {
         const h = `${(v / max) * 100}%`
         return (
-          <div key={date} className="flex-1 flex flex-col items-center gap-1">
-            <div className="w-full flex items-end justify-center" style={{ height: '100%' }}>
-              <div className="w-full bg-blue-500 rounded-t" style={{ height: h }} title={`${date}: ${v} min`} />
+          <div key={date} className="flex-1 flex flex-col items-center gap-1 h-full">
+            <div className="flex-1 w-full flex flex-col justify-end min-h-0">
+              <div className="w-full bg-blue-500 rounded-t" style={{ height: h, minHeight: v > 0 ? 2 : 0 }} title={`${date}: ${v} min`} />
             </div>
-            <div className="text-[9px] text-slate-400 truncate w-full text-center">{date.slice(8)}</div>
+            <div className="text-[9px] text-slate-400 truncate w-full text-center leading-tight">{date.slice(8)}</div>
           </div>
         )
       })}
