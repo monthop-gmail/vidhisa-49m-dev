@@ -23,7 +23,6 @@ const NAV_LINK_ACTIVE = 'bg-blue-50 text-blue-700 hover:bg-blue-50 hover:text-bl
 function RootLayout() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const isCentral = user?.role === 'central_admin'
 
   function logout() {
     clearSession()

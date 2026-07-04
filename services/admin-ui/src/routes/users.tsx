@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import { useAuth } from '../lib/auth'
+import { getAuth, useAuth } from '../lib/auth'
 import { Modal } from '../components/Modal'
 import { useSortable } from '../lib/sort'
 import {
