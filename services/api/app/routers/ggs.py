@@ -299,7 +299,7 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_appr
     participants_created = 0
     errors = []
 
-    # Load existing participants for this branch — build normalized name map
+    # Load existing participants for this branch
     # ข้าม status=rejected (กัน zombie link: sync ผูก records เข้า rejected participant)
     # order_by id ASC → กรณี duplicate ตัวที่ id ใหม่สุดชนะ (deterministic)
     p_result = await db.execute(
@@ -307,10 +307,13 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_appr
         .where(Participant.branch_id == branch_id, Participant.status != "rejected")
         .order_by(Participant.id)
     )
-    participant_map: dict[str, Participant] = {}  # normalized key → participant
+    participant_map: dict[str, Participant] = {}  # normalized name → participant (fallback)
+    code_map: dict[str, Participant] = {}  # member_code → participant (primary match)
     for p in p_result.scalars().all():
-        key = normalize_name_key(p.first_name or "", p.last_name or "")
-        participant_map[key] = p
+        name_key = normalize_name_key(p.first_name or "", p.last_name or "")
+        participant_map[name_key] = p
+        if p.member_code:
+            code_map[p.member_code.strip()] = p
 
     # Cross-branch dup check — โหลด participants ของสาขาอื่นทั้งหมด (สร้าง normalized map)
     # ข้าม status=rejected เช่นเดียวกัน (ไม่ต้อง block ชื่อที่ถูก reject แล้ว)
@@ -386,10 +389,16 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_appr
         last_name = parts[1].strip() if len(parts) > 1 else ""
         lookup_key = normalize_name_key(first_name, last_name)
 
-        # หา participant เดิมในสาขา (normalized match)
-        participant = participant_map.get(lookup_key)
+        # หา participant เดิม — ลำดับความสำคัญ:
+        # 1) match by member_code (คงที่สุด — ชื่อใน sheet อาจแก้ไข typo แต่ code นิ่ง)
+        # 2) fallback: match by normalized name
+        participant = None
+        if member_code:
+            participant = code_map.get(member_code.strip())
         if not participant:
-            # เช็คซ้ำข้ามสาขา (normalized match)
+            participant = participant_map.get(lookup_key)
+        if not participant:
+            # เช็คซ้ำข้ามสาขา (normalized match — enforce "1 คน = 1 สาขา")
             cross = cross_branch_map.get(lookup_key)
             if cross:
                 errors.append(f"แถว {i}: '{first_name} {last_name}' ลงทะเบียนในสาขา {cross.branch_id} แล้ว")
@@ -409,12 +418,15 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_appr
             await db.flush()  # get id
             participants_created += 1
             participant_map[lookup_key] = participant
+            if member_code:
+                code_map[member_code.strip()] = participant
         else:
             # backfill prefix/member_code หากยังว่าง
             if title and not participant.prefix:
                 participant.prefix = title
             if member_code and not participant.member_code:
                 participant.member_code = member_code
+                code_map[member_code.strip()] = participant
 
         # ใช้ชื่อสะอาด (ไม่มี title) เป็น record.name — สม่ำเสมอกันทั้งระบบ
         clean_name = f"{first_name} {last_name}".strip()
