@@ -1,8 +1,8 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { api } from '../api/client'
-import { getAuth } from '../lib/auth'
+import { useAuth } from '../lib/auth'
 import { Modal } from '../components/Modal'
 import { useSortable } from '../lib/sort'
 import {
@@ -29,12 +29,6 @@ import {
 type SortKey = 'id' | 'branch_number' | 'branch_name' | 'status'
 
 export const Route = createFileRoute('/enrollments')({
-  beforeLoad: () => {
-    const { user } = getAuth()
-    if (user && user.role !== 'central_admin') {
-      throw redirect({ to: '/' })
-    }
-  },
   component: EnrollmentsPage,
 })
 
@@ -42,6 +36,8 @@ type Enrollment = Record<string, unknown>
 type StatusFilter = '' | 'pending' | 'approved' | 'rejected'
 
 function EnrollmentsPage() {
+  const { user } = useAuth()
+  const isCentral = user?.role === 'central_admin'
   const qc = useQueryClient()
   const [q, setQ] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('')
@@ -115,11 +111,17 @@ function EnrollmentsPage() {
     <div className="grid gap-4">
       <PageHeading
         title="Branch Enrollments"
-        subtitle={`${all.length} ทั้งหมด · pending ${pendingCount}`}
+        subtitle={
+          isCentral
+            ? `${all.length} ทั้งหมด · pending ${pendingCount}`
+            : `${all.length} รายการของสาขาที่คุณดูแล`
+        }
         right={
-          <Button onClick={() => syncMut.mutate()} disabled={syncMut.isPending}>
-            {syncMut.isPending ? 'Syncing…' : 'Sync from Google Sheet'}
-          </Button>
+          isCentral ? (
+            <Button onClick={() => syncMut.mutate()} disabled={syncMut.isPending}>
+              {syncMut.isPending ? 'Syncing…' : 'Sync from Google Sheet'}
+            </Button>
+          ) : null
         }
       />
 
@@ -161,7 +163,7 @@ function EnrollmentsPage() {
                   <SortableTh sortKey="branch_name" sort={sort} onSort={toggleSort}>ชื่อสาขา</SortableTh>
                   <Th>Admins</Th>
                   <SortableTh sortKey="status" sort={sort} onSort={toggleSort}>Status</SortableTh>
-                  <Th align="right">Actions</Th>
+                  {isCentral && <Th align="right">Actions</Th>}
                 </Tr>
               </Thead>
               <tbody>
@@ -186,47 +188,49 @@ function EnrollmentsPage() {
                       <Td>
                         <StatusBadge status={status} />
                       </Td>
-                      <Td align="right">
-                        <div className="flex gap-2 justify-end">
-                          <Button size="sm" variant="secondary" onClick={() => setEditingBranch(e)}>
-                            แก้เลข
-                          </Button>
-                          {status === 'pending' && (
-                            <>
+                      {isCentral && (
+                        <Td align="right">
+                          <div className="flex gap-2 justify-end">
+                            <Button size="sm" variant="secondary" onClick={() => setEditingBranch(e)}>
+                              แก้เลข
+                            </Button>
+                            {status === 'pending' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="success"
+                                  onClick={() => approveMut.mutate(id)}
+                                  disabled={isMutating}
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="danger"
+                                  onClick={() => {
+                                    if (confirm('ปฏิเสธสาขานี้?')) rejectMut.mutate(id)
+                                  }}
+                                  disabled={isMutating}
+                                >
+                                  Reject
+                                </Button>
+                              </>
+                            )}
+                            {status === 'rejected' && (
                               <Button
                                 size="sm"
                                 variant="success"
-                                onClick={() => approveMut.mutate(id)}
-                                disabled={isMutating}
-                              >
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="danger"
                                 onClick={() => {
-                                  if (confirm('ปฏิเสธสาขานี้?')) rejectMut.mutate(id)
+                                  if (confirm('สาขานี้ถูก reject ไปแล้ว — อนุมัติใหม่?')) approveMut.mutate(id)
                                 }}
                                 disabled={isMutating}
                               >
-                                Reject
+                                Approve (กลับมาอนุมัติ)
                               </Button>
-                            </>
-                          )}
-                          {status === 'rejected' && (
-                            <Button
-                              size="sm"
-                              variant="success"
-                              onClick={() => {
-                                if (confirm('สาขานี้ถูก reject ไปแล้ว — อนุมัติใหม่?')) approveMut.mutate(id)
-                              }}
-                              disabled={isMutating}
-                            >
-                              Approve (กลับมาอนุมัติ)
-                            </Button>
-                          )}
-                        </div>
-                      </Td>
+                            )}
+                          </div>
+                        </Td>
+                      )}
                     </Tr>
                   )
                 })}

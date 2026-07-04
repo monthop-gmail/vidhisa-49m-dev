@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import generate_password, hash_password, require_central_admin
+from app.auth import generate_password, get_current_user, hash_password, require_central_admin
 from app.database import get_db
 from app.email_service import send_credentials_email
 from app.models import Branch, BranchEnrollment, Organization, User
@@ -53,10 +53,21 @@ def _parse_gviz_json(raw: str) -> list[dict]:
 
 
 @router.get("/enrollments")
-async def list_enrollments(db: AsyncSession = Depends(get_db)):
-    """List all branch enrollment requests."""
+async def list_enrollments(
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List branch enrollment requests. Central: all. Branch admin: own branch only."""
     result = await db.execute(select(BranchEnrollment).order_by(BranchEnrollment.id))
     enrollments = result.scalars().all()
+    if user.role != "central_admin":
+        # ดูเฉพาะ enrollment ของสาขาตัวเอง (branch_id "B020" ↔ branch_number "020")
+        allowed = set(list(user.branch_ids or []) + ([user.branch_id] if user.branch_id else []))
+        allowed_numbers = {b.lstrip("B") for b in allowed if b}
+        enrollments = [
+            e for e in enrollments
+            if e.branch_number and e.branch_number.lstrip("B") in allowed_numbers
+        ]
     return [
         {
             "id": e.id, "branch_number": e.branch_number, "branch_name": e.branch_name,
@@ -368,10 +379,18 @@ async def update_enrollment_branch(
 
 
 @router.get("/users")
-async def list_users(user=Depends(require_central_admin), db: AsyncSession = Depends(get_db)):
-    """List all users (central admin only)."""
+async def list_users(
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List users. Central: all. Branch admin: co-admins ของสาขาที่ตัวเองดูแล."""
     result = await db.execute(select(User).order_by(User.id))
     users = result.scalars().all()
+    if user.role != "central_admin":
+        allowed = set(list(user.branch_ids or []) + ([user.branch_id] if user.branch_id else []))
+        def user_branches(u: User) -> set[str]:
+            return set(list(u.branch_ids or []) + ([u.branch_id] if u.branch_id else []))
+        users = [u for u in users if user_branches(u) & allowed]
     return [
         {
             "id": u.id, "username": u.username, "full_name": u.full_name,

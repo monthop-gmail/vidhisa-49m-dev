@@ -1,8 +1,8 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import { getAuth } from '../lib/auth'
+import { useAuth } from '../lib/auth'
 import { Modal } from '../components/Modal'
 import { useSortable } from '../lib/sort'
 import {
@@ -29,12 +29,6 @@ import {
 type UserSortKey = 'id' | 'username' | 'full_name' | 'email' | 'role' | 'branch_id' | 'status'
 
 export const Route = createFileRoute('/users')({
-  beforeLoad: () => {
-    const { user } = getAuth()
-    if (user && user.role !== 'central_admin') {
-      throw redirect({ to: '/' })
-    }
-  },
   component: UsersPage,
 })
 
@@ -54,6 +48,8 @@ type RoleFilter = '' | 'central_admin' | 'branch_admin'
 type StatusFilter = '' | 'active' | 'disabled'
 
 function UsersPage() {
+  const { user } = useAuth()
+  const isCentral = user?.role === 'central_admin'
   const [q, setQ] = useState('')
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('')
@@ -142,7 +138,7 @@ function UsersPage() {
                   <SortableTh sortKey="role" sort={sort} onSort={toggleSort}>Role</SortableTh>
                   <SortableTh sortKey="branch_id" sort={sort} onSort={toggleSort}>สาขา</SortableTh>
                   <SortableTh sortKey="status" sort={sort} onSort={toggleSort}>Status</SortableTh>
-                  <Th align="right">Actions</Th>
+                  {isCentral && <Th align="right">Actions</Th>}
                 </Tr>
               </Thead>
               <tbody>
@@ -172,11 +168,13 @@ function UsersPage() {
                     <Td>
                       <StatusBadge status={u.status} />
                     </Td>
-                    <Td align="right">
-                      <Button size="sm" variant="secondary" onClick={() => setEditing(u)}>
-                        Edit
-                      </Button>
-                    </Td>
+                    {isCentral && (
+                      <Td align="right">
+                        <Button size="sm" variant="secondary" onClick={() => setEditing(u)}>
+                          Edit
+                        </Button>
+                      </Td>
+                    )}
                   </Tr>
                 ))}
               </tbody>
