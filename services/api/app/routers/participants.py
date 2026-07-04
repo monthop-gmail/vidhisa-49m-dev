@@ -204,6 +204,54 @@ async def reject_orphan_participants(
     }
 
 
+@router.post("/participants/restore-with-records")
+async def restore_participants_with_records(
+    branch_id: str | None = None,
+    dry_run: bool = True,
+    user=Depends(require_central_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """คืนสถานะ approved ให้ participants ที่ status=rejected แต่ยังมี approved records ผูกอยู่.
+
+    (เกิดจาก sync ผูก records เข้า rejected participant — zombie link)
+    """
+    stmt = (
+        select(Participant)
+        .join(Record, (Record.participant_id == Participant.id) & (Record.status == "approved"))
+        .where(Participant.status == "rejected")
+        .group_by(Participant.id)
+        .having(func.count(Record.id) > 0)
+        .order_by(Participant.branch_id, Participant.id)
+    )
+    if branch_id:
+        stmt = stmt.where(Participant.branch_id == branch_id)
+    result = await db.execute(stmt)
+    victims = result.scalars().all()
+
+    restored_ids = []
+    if not dry_run:
+        for p in victims:
+            p.status = "approved"
+            restored_ids.append(p.id)
+        await db.commit()
+
+    return {
+        "dry_run": dry_run,
+        "count": len(victims),
+        "restored_ids": restored_ids,
+        "sample": [
+            {"id": p.id, "branch_id": p.branch_id, "member_code": p.member_code,
+             "prefix": p.prefix, "first_name": p.first_name, "last_name": p.last_name}
+            for p in victims[:30]
+        ],
+        "message": (
+            f"ตรวจสอบพบ {len(victims)} participants ที่ rejected แต่ยังมี records (ยังไม่แก้)"
+            if dry_run else
+            f"restore {len(victims)} participants กลับเป็น approved แล้ว"
+        ),
+    }
+
+
 @router.get("/participants/{participant_id}", response_model=ParticipantResponse)
 async def get_participant(participant_id: int, db: AsyncSession = Depends(get_db)):
     """Get a specific participant."""
