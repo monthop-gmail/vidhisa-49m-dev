@@ -195,8 +195,11 @@ function BranchDashboard({ branchId }: { branchId: string }) {
   const [branchQ, recordsQ, participantsQ, orgsQ, pendingQ, leaderboardQ] = queries
   const branch = (branchQ.data ?? {}) as Record<string, unknown>
   const records = (recordsQ.data ?? []) as Array<Record<string, unknown>>
-  const participants = (participantsQ.data ?? []) as Array<Record<string, unknown>>
+  const participantsAll = (participantsQ.data ?? []) as Array<Record<string, unknown>>
+  // นับเฉพาะ approved (ไม่รวม rejected/pending)
+  const participants = participantsAll.filter((p) => p.status === 'approved')
   const orgs = (orgsQ.data ?? []) as Array<Record<string, unknown>>
+  const orgsActive = orgs.filter((o) => Number(o.total_records ?? 0) > 0)
   const pending = (pendingQ.data ?? []) as Array<Record<string, unknown>>
   const leaderboard = (leaderboardQ.data ?? []) as Array<Record<string, unknown>>
 
@@ -268,18 +271,24 @@ function BranchDashboard({ branchId }: { branchId: string }) {
           label="Participants"
           value={fmt(participants.length)}
           sub={
-            <Link to="/participants" className="text-blue-600 hover:underline">
-              ดูทั้งหมด
-            </Link>
+            <span className="flex items-center gap-2">
+              <span className="text-slate-500">approved</span>
+              <Link to="/participants" className="text-blue-600 hover:underline">
+                ดูทั้งหมด
+              </Link>
+            </span>
           }
         />
         <Kpi
           label="Organizations"
           value={fmt(orgs.length)}
           sub={
-            <Link to="/organizations" className="text-blue-600 hover:underline">
-              ดูทั้งหมด
-            </Link>
+            <span className="flex items-center gap-2">
+              <span className="text-slate-500">{orgsActive.length} มี records</span>
+              <Link to="/organizations" className="text-blue-600 hover:underline">
+                ดูทั้งหมด
+              </Link>
+            </span>
           }
         />
       </div>
