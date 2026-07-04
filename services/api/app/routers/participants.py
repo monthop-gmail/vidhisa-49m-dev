@@ -252,6 +252,115 @@ async def restore_participants_with_records(
     }
 
 
+@router.post("/participants/merge-duplicate-codes")
+async def merge_duplicate_codes(
+    branch_id: str | None = None,
+    dry_run: bool = True,
+    user=Depends(require_central_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """รวม participants ที่ซ้ำ (branch_id + member_code เดียวกัน ทั้งคู่ status=approved).
+
+    Winner = id สูงสุด (ตรงกับ deterministic ของ code_map ใน sync)
+    Loser records:
+      - วันซ้ำกับ winner → OR-merge sessions, ลบ loser record (กัน double-count)
+      - วันไม่ซ้ำ → move participant_id ไป winner
+    Loser participant → set status=rejected
+    """
+    # หา (branch_id, member_code) ที่ approved > 1
+    dup_stmt = (
+        select(Participant.branch_id, Participant.member_code, func.count().label("cnt"))
+        .where(Participant.status == "approved", Participant.member_code.isnot(None))
+        .group_by(Participant.branch_id, Participant.member_code)
+        .having(func.count() > 1)
+    )
+    if branch_id:
+        dup_stmt = dup_stmt.where(Participant.branch_id == branch_id)
+    dup_rows = (await db.execute(dup_stmt)).all()
+
+    merged_pairs = 0
+    records_deleted = 0
+    records_moved = 0
+    losers_rejected = 0
+    sample = []
+
+    for row in dup_rows:
+        bid, code = row.branch_id, row.member_code
+        ps_result = await db.execute(
+            select(Participant)
+            .where(
+                Participant.branch_id == bid,
+                Participant.member_code == code,
+                Participant.status == "approved",
+            )
+            .order_by(Participant.id)
+        )
+        ps = ps_result.scalars().all()
+        if len(ps) < 2:
+            continue
+        winner = ps[-1]
+        losers = ps[:-1]
+
+        for loser in losers:
+            # โหลด records ทั้งคู่ (index by date)
+            w_recs = (await db.execute(
+                select(Record).where(Record.participant_id == winner.id)
+            )).scalars().all()
+            w_by_date: dict = {r.date: r for r in w_recs}
+
+            l_recs = (await db.execute(
+                select(Record).where(Record.participant_id == loser.id)
+            )).scalars().all()
+
+            for lrec in l_recs:
+                w = w_by_date.get(lrec.date)
+                if w is not None:
+                    # OR-merge sessions + คำนวณ minutes ใหม่ + ลบ loser record
+                    w.morning_male = max(w.morning_male or 0, lrec.morning_male or 0)
+                    w.afternoon_male = max(w.afternoon_male or 0, lrec.afternoon_male or 0)
+                    w.evening_male = max(w.evening_male or 0, lrec.evening_male or 0)
+                    w.minutes = (w.morning_male + w.afternoon_male + w.evening_male) * 5
+                    if not dry_run:
+                        await db.delete(lrec)
+                    records_deleted += 1
+                else:
+                    if not dry_run:
+                        lrec.participant_id = winner.id
+                    records_moved += 1
+
+            if not dry_run:
+                loser.status = "rejected"
+            losers_rejected += 1
+
+        merged_pairs += 1
+        if len(sample) < 15:
+            sample.append({
+                "branch_id": bid,
+                "member_code": code,
+                "winner_id": winner.id,
+                "loser_ids": [l.id for l in losers],
+            })
+
+    if not dry_run:
+        await db.commit()
+
+    return {
+        "dry_run": dry_run,
+        "pairs": merged_pairs,
+        "records_deleted": records_deleted,
+        "records_moved": records_moved,
+        "losers_rejected": losers_rejected,
+        "sample": sample,
+        "message": (
+            f"ตรวจสอบพบ {merged_pairs} กลุ่มซ้ำ (ยังไม่แก้) — "
+            f"จะลบ {records_deleted} records ซ้ำ, ย้าย {records_moved} records"
+            if dry_run else
+            f"รวมสำเร็จ {merged_pairs} กลุ่ม — ลบ {records_deleted} records ซ้ำ, "
+            f"ย้าย {records_moved} records, reject loser {losers_rejected}"
+        ),
+    }
+
+
 @router.get("/participants/{participant_id}", response_model=ParticipantResponse)
 async def get_participant(participant_id: int, db: AsyncSession = Depends(get_db)):
     """Get a specific participant."""
