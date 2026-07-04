@@ -49,8 +49,41 @@ async def _auto_sync_loop() -> None:
         await asyncio.sleep(AUTO_SYNC_INTERVAL_SECONDS)
 
 
+async def _ensure_sync_logs_table() -> None:
+    """Idempotent: สร้าง sync_logs table ถ้ายังไม่มี (สำหรับ DB ที่ init ไว้ก่อนหน้า)."""
+    from sqlalchemy import text
+    from app.database import async_session
+    ddl = """
+    CREATE TABLE IF NOT EXISTS sync_logs (
+        id                    BIGSERIAL PRIMARY KEY,
+        branch_id             VARCHAR(10),
+        sync_type             VARCHAR(20) NOT NULL,
+        started_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        finished_at           TIMESTAMPTZ,
+        status                VARCHAR(10) NOT NULL DEFAULT 'ok',
+        created               INTEGER DEFAULT 0,
+        updated               INTEGER DEFAULT 0,
+        participants_created  INTEGER DEFAULT 0,
+        error_count           INTEGER DEFAULT 0,
+        errors                JSONB,
+        message               TEXT,
+        triggered_by          VARCHAR(20) DEFAULT 'auto'
+    );
+    CREATE INDEX IF NOT EXISTS idx_sync_logs_branch_finished ON sync_logs(branch_id, finished_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_sync_logs_finished ON sync_logs(finished_at DESC);
+    """
+    async with async_session() as db:
+        for stmt in [s.strip() for s in ddl.split(";") if s.strip()]:
+            await db.execute(text(stmt))
+        await db.commit()
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    try:
+        await _ensure_sync_logs_table()
+    except Exception as exc:
+        log.exception("sync_logs bootstrap failed: %s", exc)
     task = asyncio.create_task(_auto_sync_loop()) if AUTO_SYNC_ENABLED else None
     try:
         yield

@@ -229,6 +229,26 @@ class ProvinceStat(Base):
         return f"<ProvinceStat(code='{self.province_code}', province='{self.province}', minutes={self.total_minutes})>"
 
 
+class SyncLog(Base):
+    """Audit trail for GGS sync runs — visible to central + branch admins."""
+
+    __tablename__ = "sync_logs"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    branch_id = Column(String(10))  # NULL = sync-all batch
+    sync_type = Column(String(20), nullable=False)  # record_ind | sync_all | ...
+    started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    finished_at = Column(DateTime(timezone=True))
+    status = Column(String(10), nullable=False, default="ok")  # ok | error | partial
+    created = Column(Integer, default=0)
+    updated = Column(Integer, default=0)
+    participants_created = Column(Integer, default=0)
+    error_count = Column(Integer, default=0)
+    errors = Column(JSONB)
+    message = Column(Text)
+    triggered_by = Column(String(20), default="auto")  # auto | manual | admin
+
+
 class BranchViewLog(Base):
     """Audit log for /api/branch-view/* requests (rate limit + brute force monitoring)."""
 

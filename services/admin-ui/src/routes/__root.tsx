@@ -67,6 +67,9 @@ function RootLayout() {
             <Link to="/ggs" className={NAV_LINK_BASE} activeProps={{ className: `${NAV_LINK_BASE} ${NAV_LINK_ACTIVE}` }}>
               Google Sheets
             </Link>
+            <Link to="/sync-logs" className={NAV_LINK_BASE} activeProps={{ className: `${NAV_LINK_BASE} ${NAV_LINK_ACTIVE}` }}>
+              Sync Logs
+            </Link>
           </nav>
           {user && (
             <div className="ml-auto flex items-center gap-3 text-sm">

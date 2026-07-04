@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import get_current_user, require_central_admin
 from app.branch_auth import check_branch_access
 from app.database import get_db
-from app.models import Branch, Organization, Participant, Record, User
+from app.models import Branch, Organization, Participant, Record, SyncLog, User
 
 router = APIRouter()
 
@@ -273,7 +273,9 @@ async def sync_branch_ggs(
     auto_approve = bool(data.get("auto_approve", False))
 
     if "record_ind" in sync_types and branch.ggs_url_record_ind:
-        results["record_ind"] = await _sync_record_ind(branch.ggs_url_record_ind, branch_id, db, auto_approve)
+        results["record_ind"] = await _sync_record_ind(
+            branch.ggs_url_record_ind, branch_id, db, auto_approve, triggered_by="manual",
+        )
 
     if "record_bulk" in sync_types and branch.ggs_url_record_bulk:
         results["record_bulk"] = await _sync_record_bulk(branch.ggs_url_record_bulk, branch_id, db)
@@ -292,12 +294,30 @@ async def sync_branch_ggs(
 
 # === Sync: Individual Records (format จาก อ.เต้) ===
 
-async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_approve: bool = False) -> dict:
+async def _sync_record_ind(
+    url: str,
+    branch_id: str,
+    db: AsyncSession,
+    auto_approve: bool = False,
+    triggered_by: str = "auto",
+) -> dict:
     """Sync individual records from GGS — format: ชื่อผู้ปฏิบัติ, วันที่, รอบ."""
+    log = SyncLog(
+        branch_id=branch_id,
+        sync_type="record_ind",
+        triggered_by=triggered_by,
+    )
+    db.add(log)
     try:
         sheet_id = extract_sheet_id(url)
         rows = await fetch_gviz_rows(build_json_url(sheet_id))
     except Exception as e:
+        log.finished_at = datetime.now()
+        log.status = "error"
+        log.error_count = 1
+        log.errors = [str(e)]
+        log.message = str(e)
+        await db.commit()
         return {"status": "error", "message": str(e)}
 
     created = 0
@@ -491,6 +511,14 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_appr
             ))
             created += 1
 
+    log.finished_at = datetime.now()
+    log.status = "partial" if errors else "ok"
+    log.created = created
+    log.updated = updated
+    log.participants_created = participants_created
+    log.error_count = len(errors)
+    log.errors = errors[:100] if errors else None
+    log.message = f"created={created} updated={updated} participants_created={participants_created} errors={len(errors)}"
     await db.commit()
     return {
         "created": created, "updated": updated,
@@ -522,11 +550,17 @@ async def _sync_participant(url: str, branch_id: str, db: AsyncSession) -> dict:
 
 # === Auto-sync all branches ===
 
-async def sync_all_record_ind(db: AsyncSession, auto_approve: bool = True) -> dict:
+async def sync_all_record_ind(
+    db: AsyncSession, auto_approve: bool = True, triggered_by: str = "auto"
+) -> dict:
     """Sync record_ind for all branches that have a URL set.
 
     Used by both the scheduled background task and the manual /ggs/sync-all endpoint.
     """
+    batch_log = SyncLog(branch_id=None, sync_type="sync_all", triggered_by=triggered_by)
+    db.add(batch_log)
+    await db.flush()
+
     result = await db.execute(
         select(Branch).where(Branch.ggs_url_record_ind.isnot(None))
     )
@@ -535,7 +569,9 @@ async def sync_all_record_ind(db: AsyncSession, auto_approve: bool = True) -> di
     summary = {"branches": len(branches), "created": 0, "updated": 0, "participants_created": 0, "errors": []}
     details = []
     for branch in branches:
-        res = await _sync_record_ind(branch.ggs_url_record_ind, branch.id, db, auto_approve=auto_approve)
+        res = await _sync_record_ind(
+            branch.ggs_url_record_ind, branch.id, db, auto_approve=auto_approve, triggered_by=triggered_by,
+        )
         details.append({"branch_id": branch.id, **res})
         summary["created"] += res.get("created", 0)
         summary["updated"] += res.get("updated", 0)
@@ -543,7 +579,91 @@ async def sync_all_record_ind(db: AsyncSession, auto_approve: bool = True) -> di
         if res.get("errors"):
             summary["errors"].append({"branch_id": branch.id, "errors": res["errors"]})
     summary["details"] = details
+
+    batch_log.finished_at = datetime.now()
+    batch_log.status = "partial" if summary["errors"] else "ok"
+    batch_log.created = summary["created"]
+    batch_log.updated = summary["updated"]
+    batch_log.participants_created = summary["participants_created"]
+    batch_log.error_count = sum(len(e.get("errors", [])) for e in summary["errors"])
+    batch_log.message = (
+        f"branches={len(branches)} created={summary['created']} "
+        f"updated={summary['updated']} errors={batch_log.error_count}"
+    )
+    await db.commit()
+
     return summary
+
+
+@router.get("/ggs/sync-logs")
+async def list_sync_logs(
+    branch_id: str | None = None,
+    status: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List sync logs — central admin เห็นทั้งระบบ, branch admin เห็นเฉพาะสาขาตน (+ batch)."""
+    stmt = select(SyncLog).order_by(SyncLog.started_at.desc())
+    if user.role != "central_admin":
+        # branch admin — ดูได้เฉพาะสาขาตัวเอง (+ NULL = batch sync-all)
+        stmt = stmt.where((SyncLog.branch_id == user.branch_id) | (SyncLog.branch_id.is_(None)))
+    if branch_id:
+        if user.role != "central_admin" and branch_id != user.branch_id:
+            raise HTTPException(status_code=403, detail={"error": "FORBIDDEN"})
+        stmt = stmt.where(SyncLog.branch_id == branch_id)
+    if status:
+        stmt = stmt.where(SyncLog.status == status)
+    stmt = stmt.limit(min(limit, 200)).offset(offset)
+    logs = (await db.execute(stmt)).scalars().all()
+    return [
+        {
+            "id": log.id,
+            "branch_id": log.branch_id,
+            "sync_type": log.sync_type,
+            "started_at": log.started_at.isoformat() if log.started_at else None,
+            "finished_at": log.finished_at.isoformat() if log.finished_at else None,
+            "status": log.status,
+            "created": log.created,
+            "updated": log.updated,
+            "participants_created": log.participants_created,
+            "error_count": log.error_count,
+            "message": log.message,
+            "triggered_by": log.triggered_by,
+        }
+        for log in logs
+    ]
+
+
+@router.get("/ggs/sync-logs/{log_id}")
+async def get_sync_log(
+    log_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Detail log พร้อม errors[] เต็ม."""
+    log = (await db.execute(select(SyncLog).where(SyncLog.id == log_id))).scalar_one_or_none()
+    if not log:
+        raise HTTPException(status_code=404, detail={"error": "NOT_FOUND"})
+    if user.role != "central_admin":
+        if log.branch_id and log.branch_id != user.branch_id:
+            raise HTTPException(status_code=403, detail={"error": "FORBIDDEN"})
+    return {
+        "id": log.id,
+        "branch_id": log.branch_id,
+        "sync_type": log.sync_type,
+        "started_at": log.started_at.isoformat() if log.started_at else None,
+        "finished_at": log.finished_at.isoformat() if log.finished_at else None,
+        "status": log.status,
+        "created": log.created,
+        "updated": log.updated,
+        "participants_created": log.participants_created,
+        "error_count": log.error_count,
+        "errors": log.errors or [],
+        "message": log.message,
+        "triggered_by": log.triggered_by,
+    }
 
 
 @router.post("/ggs/sync-all")
@@ -555,7 +675,7 @@ async def sync_all_ggs(
     """Admin กลาง: sync record_ind ทุกสาขาที่มี URL (auto_approve default: True)."""
     data = data or {}
     auto_approve = bool(data.get("auto_approve", True))
-    return await sync_all_record_ind(db, auto_approve=auto_approve)
+    return await sync_all_record_ind(db, auto_approve=auto_approve, triggered_by="manual")
 
 
 @router.delete("/ggs/branch/{branch_id}/records")
