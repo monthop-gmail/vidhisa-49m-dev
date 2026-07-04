@@ -300,14 +300,25 @@ async def _sync_record_ind(url: str, branch_id: str, db: AsyncSession, auto_appr
     errors = []
 
     # Load existing participants for this branch — build normalized name map
-    p_result = await db.execute(select(Participant).where(Participant.branch_id == branch_id))
+    # ข้าม status=rejected (กัน zombie link: sync ผูก records เข้า rejected participant)
+    # order_by id ASC → กรณี duplicate ตัวที่ id ใหม่สุดชนะ (deterministic)
+    p_result = await db.execute(
+        select(Participant)
+        .where(Participant.branch_id == branch_id, Participant.status != "rejected")
+        .order_by(Participant.id)
+    )
     participant_map: dict[str, Participant] = {}  # normalized key → participant
     for p in p_result.scalars().all():
         key = normalize_name_key(p.first_name or "", p.last_name or "")
         participant_map[key] = p
 
     # Cross-branch dup check — โหลด participants ของสาขาอื่นทั้งหมด (สร้าง normalized map)
-    other_result = await db.execute(select(Participant).where(Participant.branch_id != branch_id))
+    # ข้าม status=rejected เช่นเดียวกัน (ไม่ต้อง block ชื่อที่ถูก reject แล้ว)
+    other_result = await db.execute(
+        select(Participant)
+        .where(Participant.branch_id != branch_id, Participant.status != "rejected")
+        .order_by(Participant.id)
+    )
     cross_branch_map: dict[str, Participant] = {}
     for p in other_result.scalars().all():
         key = normalize_name_key(p.first_name or "", p.last_name or "")
