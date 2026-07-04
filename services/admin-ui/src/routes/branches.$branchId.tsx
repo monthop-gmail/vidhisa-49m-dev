@@ -56,9 +56,14 @@ function MemberLinkCard({ link, loading, error }: { link: string; loading: boole
 }
 
 export const Route = createFileRoute('/branches/$branchId')({
-  beforeLoad: () => {
+  beforeLoad: ({ params }) => {
     const { user } = getAuth()
-    if (user && user.role !== 'central_admin') {
+    if (!user) return
+    if (user.role === 'central_admin') return
+    // branch_admin — ต้องเป็นสาขาที่ตัวเองดูแล
+    const allowed = new Set<string>(user.branch_ids ?? [])
+    if (user.branch_id) allowed.add(user.branch_id)
+    if (!allowed.has(params.branchId)) {
       throw redirect({ to: '/' })
     }
   },
@@ -224,17 +229,41 @@ function BranchEditPage() {
             className="grid gap-3"
           >
             <Field label="ชื่อสาขา *">
-              <Input value={form.name} onChange={(e) => set('name', e.target.value)} required />
+              <Input
+                value={form.name}
+                onChange={(e) => set('name', e.target.value)}
+                required
+                disabled={currentUser?.role !== 'central_admin'}
+              />
             </Field>
             <Field label="กลุ่ม (group_id)">
-              <Input value={form.group_id} onChange={(e) => set('group_id', e.target.value)} placeholder="เช่น G24" />
+              <Input
+                value={form.group_id}
+                onChange={(e) => set('group_id', e.target.value)}
+                placeholder="เช่น G24"
+                disabled={currentUser?.role !== 'central_admin'}
+              />
             </Field>
             <Field label="จังหวัด">
-              <Input value={form.province} onChange={(e) => set('province', e.target.value)} />
+              <Input
+                value={form.province}
+                onChange={(e) => set('province', e.target.value)}
+                disabled={currentUser?.role !== 'central_admin'}
+              />
             </Field>
             <Field label="Province code">
-              <Input value={form.province_code} onChange={(e) => set('province_code', e.target.value)} placeholder="เช่น TH-54" />
+              <Input
+                value={form.province_code}
+                onChange={(e) => set('province_code', e.target.value)}
+                placeholder="เช่น TH-54"
+                disabled={currentUser?.role !== 'central_admin'}
+              />
             </Field>
+            {currentUser?.role !== 'central_admin' && (
+              <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded px-2 py-1">
+                ⓘ ชื่อสาขา, group, จังหวัด — แก้ได้เฉพาะ admin กลาง
+              </div>
+            )}
             <Field label="Latitude">
               <Input
                 type="number"

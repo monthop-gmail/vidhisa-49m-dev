@@ -279,8 +279,14 @@ async def create_branch(data: dict, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/branches/{branch_id}")
-async def update_branch(branch_id: str, data: dict, db: AsyncSession = Depends(get_db)):
-    """Update an existing branch."""
+async def update_branch(
+    branch_id: str,
+    data: dict,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update an existing branch. Central: any branch. Branch admin: own branch only."""
+    check_branch_access(user, branch_id)
     result = await db.execute(select(Branch).where(Branch.id == branch_id))
     branch = result.scalar_one_or_none()
     if not branch:
@@ -289,13 +295,18 @@ async def update_branch(branch_id: str, data: dict, db: AsyncSession = Depends(g
             detail={"error": "NOT_FOUND", "message": "ไม่พบสาขา"},
         )
 
-    branch.name = data.get("name", branch.name)
-    branch.group_id = data.get("group_id", branch.group_id)
-    branch.province = data.get("province", branch.province)
-    branch.province_code = data.get("province_code", branch.province_code)
+    # branch_admin แก้ได้บาง field เท่านั้น (group_id เป็น structural — central-only)
+    is_central = user.role == "central_admin"
+    if is_central:
+        branch.name = data.get("name", branch.name)
+        branch.group_id = data.get("group_id", branch.group_id)
+        branch.province = data.get("province", branch.province)
+        branch.province_code = data.get("province_code", branch.province_code)
     branch.latitude = data.get("latitude", branch.latitude)
     branch.longitude = data.get("longitude", branch.longitude)
     branch.admin_name = data.get("admin_name", branch.admin_name)
     branch.contact = data.get("contact", branch.contact)
+    if "record_form_url" in data:
+        branch.record_form_url = data.get("record_form_url") or None
     await db.commit()
     return {"id": branch.id, "name": branch.name, "message": "อัพเดทสาขาสำเร็จ"}
