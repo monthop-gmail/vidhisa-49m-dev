@@ -284,7 +284,9 @@ async def sync_branch_ggs(
         results["org"] = await _sync_org(branch.ggs_url_org, branch_id, db)
 
     if "participant" in sync_types and branch.ggs_url_participant:
-        results["participant"] = await _sync_participant(branch.ggs_url_participant, branch_id, db)
+        results["participant"] = await _sync_participant(
+            branch.ggs_url_participant, branch_id, db, triggered_by="manual",
+        )
 
     if not results:
         return {"branch_id": branch_id, "message": "ไม่มี GGS URL ที่ตั้งไว้ — กรุณาบันทึก URL ก่อน"}
@@ -541,11 +543,177 @@ async def _sync_org(url: str, branch_id: str, db: AsyncSession) -> dict:
     return {"status": "skip", "message": "รอ format จาก อ.เต้"}
 
 
-# === Sync: Participants (placeholder — format TBD) ===
+# === Sync: Participants (link 2) — profile data จาก Google Form ===
 
-async def _sync_participant(url: str, branch_id: str, db: AsyncSession) -> dict:
-    """Sync participants — format TBD."""
-    return {"status": "skip", "message": "รอ format จาก อ.เต้"}
+def _norm_gender(v: str | None) -> str | None:
+    if not v:
+        return None
+    s = str(v).strip()
+    if s in ("ชาย", "male", "M", "m"):
+        return "male"
+    if s in ("หญิง", "female", "F", "f"):
+        return "female"
+    if s in ("ไม่ระบุ", "unspecified", "-"):
+        return "unspecified"
+    return None
+
+
+def _clean_str(v) -> str | None:
+    if v is None:
+        return None
+    s = str(v).strip()
+    if not s or s in ("-", "—", "NULL"):
+        return None
+    return s
+
+
+async def _sync_participant(
+    url: str,
+    branch_id: str,
+    db: AsyncSession,
+    triggered_by: str = "auto",
+) -> dict:
+    """Sync participant profiles from GGS (link 2) — update gender/age/address/phone/line_id.
+
+    Sheet columns (Thai):
+      - คำนำหน้าชื่อ, ชื่อ, นามสกุล → match key (normalized name)
+      - เพศ, อายุ, เบอร์ติดต่อ, Line ID, ตำบล/อำเภอ/จังหวัด → profile fields
+      - ยืนยันการสมัคร... → consent gate (skip row if empty)
+
+    Match: (branch_id, normalized_name) → update ถ้ามี, สร้างใหม่ status=approved ถ้าไม่มี
+    """
+    log = SyncLog(branch_id=branch_id, sync_type="participant", triggered_by=triggered_by)
+    db.add(log)
+    try:
+        sheet_id = extract_sheet_id(url)
+        rows = await fetch_gviz_rows(build_json_url(sheet_id))
+    except Exception as e:
+        log.finished_at = datetime.now()
+        log.status = "error"
+        log.error_count = 1
+        log.errors = [str(e)]
+        log.message = str(e)
+        await db.commit()
+        return {"status": "error", "message": str(e)}
+
+    # โหลด participants ในสาขานี้ (ยกเว้น rejected — deterministic winner = id สูงสุด)
+    p_result = await db.execute(
+        select(Participant)
+        .where(Participant.branch_id == branch_id, Participant.status != "rejected")
+        .order_by(Participant.id)
+    )
+    participant_map: dict[str, Participant] = {}
+    for p in p_result.scalars().all():
+        key = normalize_name_key(p.first_name or "", p.last_name or "")
+        participant_map[key] = p
+
+    def _find(row: dict, *keywords: str) -> str:
+        """Return first value where col name contains ALL keywords."""
+        for k, v in row.items():
+            if all(kw in k for kw in keywords):
+                return v
+        return ""
+
+    def _exact(row: dict, name: str) -> str:
+        """Return value where column name matches exactly (ignore surrounding whitespace)."""
+        for k, v in row.items():
+            if k.strip() == name:
+                return v
+        return ""
+
+    created = 0
+    updated = 0
+    errors: list[str] = []
+
+    for i, row in enumerate(rows, start=2):
+        # "ชื่อ" / "นามสกุล" ต้อง exact match (ไม่งั้น "คำนำหน้าชื่อ" จะโดนจับด้วย)
+        first = _clean_str(_exact(row, "ชื่อ")) or ""
+        last = _clean_str(_exact(row, "นามสกุล")) or ""
+
+        if not first and not last:
+            continue  # skip empty row
+
+        prefix = _clean_str(_find(row, "คำนำหน้า"))
+        gender = _norm_gender(_find(row, "เพศ"))
+        age_raw = _find(row, "อายุ")
+        age = None
+        if age_raw not in (None, ""):
+            try:
+                age = int(float(str(age_raw)))
+            except (ValueError, TypeError):
+                pass
+        phone = _clean_str(_find(row, "เบอร์"))
+        line_id = _clean_str(_find(row, "Line"))
+        sub_district = _clean_str(_find(row, "ตำบล"))
+        district = _clean_str(_find(row, "อำเภอ"))
+        province = _clean_str(_find(row, "จังหวัด"))
+        consent = _clean_str(_find(row, "ยืนยัน"))
+
+        if not consent:
+            errors.append(f"แถว {i}: ไม่มี consent — ข้าม")
+            continue
+
+        key = normalize_name_key(first, last)
+        p = participant_map.get(key)
+
+        if p:
+            # UPDATE ถ้าค่าใหม่ไม่ว่าง (ไม่เขียนทับค่าเดิมด้วย None)
+            if prefix and not p.prefix:
+                p.prefix = prefix
+            if gender and not p.gender:
+                p.gender = gender
+            if age is not None and not p.age:
+                p.age = age
+            if phone and not p.phone:
+                p.phone = phone
+            if line_id and not p.line_id:
+                p.line_id = line_id
+            if sub_district and not p.sub_district:
+                p.sub_district = sub_district
+            if district and not p.district:
+                p.district = district
+            if province and not p.province:
+                p.province = province
+            if not p.privacy_accepted:
+                p.privacy_accepted = True
+            updated += 1
+        else:
+            # CREATE — คนที่สมัครแต่ยังไม่เคยปฏิบัติ
+            p = Participant(
+                branch_id=branch_id,
+                prefix=prefix,
+                first_name=first,
+                last_name=last,
+                gender=gender,
+                age=age,
+                phone=phone,
+                line_id=line_id,
+                sub_district=sub_district,
+                district=district,
+                province=province,
+                privacy_accepted=True,
+                status="approved",
+            )
+            db.add(p)
+            await db.flush()
+            participant_map[key] = p
+            created += 1
+
+    log.finished_at = datetime.now()
+    log.status = "partial" if errors else "ok"
+    log.created = created
+    log.updated = updated
+    log.participants_created = created
+    log.error_count = len(errors)
+    log.errors = errors[:100] if errors else None
+    log.message = f"created={created} updated={updated} errors={len(errors)}"
+    await db.commit()
+    return {
+        "created": created,
+        "updated": updated,
+        "participants_created": created,
+        "errors": errors[:10],
+    }
 
 
 # === Auto-sync all branches ===
@@ -560,6 +728,16 @@ async def sync_all_record_ind(
     batch_log = SyncLog(branch_id=None, sync_type="sync_all", triggered_by=triggered_by)
     db.add(batch_log)
     await db.flush()
+
+    # Sync participants ก่อน (profile data) — เพื่อให้ record_ind มี profile ที่ update แล้ว
+    p_branches = (await db.execute(
+        select(Branch).where(Branch.ggs_url_participant.isnot(None))
+    )).scalars().all()
+    for branch in p_branches:
+        try:
+            await _sync_participant(branch.ggs_url_participant, branch.id, db, triggered_by=triggered_by)
+        except Exception:
+            pass  # log บันทึกในตัว sync แล้ว
 
     result = await db.execute(
         select(Branch).where(Branch.ggs_url_record_ind.isnot(None))
@@ -579,6 +757,7 @@ async def sync_all_record_ind(
         if res.get("errors"):
             summary["errors"].append({"branch_id": branch.id, "errors": res["errors"]})
     summary["details"] = details
+    summary["participant_branches_synced"] = len(p_branches)
 
     batch_log.finished_at = datetime.now()
     batch_log.status = "partial" if summary["errors"] else "ok"
