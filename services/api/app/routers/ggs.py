@@ -201,13 +201,76 @@ def _normalize_ggs_url(raw: str) -> str | None:
     return f"https://docs.google.com/spreadsheets/d/{m.group(1)}/gviz/tq?tqx=out:json"
 
 
+@router.get("/ggs/duplicate-urls")
+async def scan_duplicate_urls(
+    user: User = Depends(require_central_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Scan สาขาทั้งหมด — คืน list ของ sheet id ที่ผูกกับ >1 สาขา (ไม่นับ ggs_url_org)."""
+    from collections import defaultdict
+    result = await db.execute(select(Branch).order_by(Branch.id))
+    branches = result.scalars().all()
+    dup_map: dict[str, list[dict]] = defaultdict(list)
+    check_fields = [f for f in GGS_URL_TYPES if f != "ggs_url_org"]
+    for b in branches:
+        for f in check_fields:
+            url = getattr(b, f)
+            if not url:
+                continue
+            try:
+                sid = extract_sheet_id(url)
+            except HTTPException:
+                continue
+            dup_map[sid].append({"branch_id": b.id, "branch_name": b.name, "field": f})
+    dups = [
+        {"sheet_id": sid, "usages": usages}
+        for sid, usages in dup_map.items()
+        if len(usages) > 1
+    ]
+    return {"count": len(dups), "duplicates": dups}
+
+
+async def _check_url_conflict(
+    db: AsyncSession, branch_id: str, field: str, url: str | None,
+) -> None:
+    """Raise 409 ถ้า URL sheet เดียวกันถูกใช้กับสาขาอื่นแล้ว.
+
+    ข้าม ggs_url_org (ทุกสาขาใช้ sheet ลงทะเบียนกลางเดียวกัน by design)
+    """
+    if not url or field == "ggs_url_org":
+        return
+    try:
+        sid = extract_sheet_id(url)
+    except HTTPException:
+        return  # invalid URL — set-url จะ error เอง
+    # หา branch อื่นที่ใช้ sheet เดียวกัน (ใน field ใดก็ได้ที่ไม่ใช่ ggs_url_org)
+    check_fields = [f for f in GGS_URL_TYPES if f != "ggs_url_org"]
+    for f in check_fields:
+        col = getattr(Branch, f)
+        stmt = select(Branch.id, Branch.name).where(
+            Branch.id != branch_id,
+            col.like(f"%{sid}%"),
+        ).limit(1)
+        other = (await db.execute(stmt)).first()
+        if other:
+            raise HTTPException(status_code=409, detail={
+                "error": "URL_CONFLICT",
+                "message": (
+                    f"URL นี้ถูกใช้กับสาขา {other.id} ({other.name}) แล้ว "
+                    f"(field: {f}) — sheet id ซ้ำ อาจ copy วางผิดสาขา"
+                ),
+                "conflict_branch_id": other.id,
+                "conflict_field": f,
+            })
+
+
 @router.patch("/ggs/set-url")
 async def set_ggs_url(
     data: dict,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Set Google Sheet URLs for a branch."""
+    """Set Google Sheet URLs for a branch. Rejects if URL is already used by another branch."""
     branch_id = data.get("branch_id", "").strip() or user.branch_id
     if not branch_id:
         raise HTTPException(status_code=400, detail={"error": "MISSING", "message": "กรุณาระบุ branch_id"})
@@ -221,7 +284,9 @@ async def set_ggs_url(
     updated = []
     for field in GGS_URL_TYPES:
         if field in data:
-            setattr(branch, field, _normalize_ggs_url(data[field]))
+            new_url = _normalize_ggs_url(data[field])
+            await _check_url_conflict(db, branch_id, field, new_url)
+            setattr(branch, field, new_url)
             updated.append(field)
 
     # Backward compat: "url" sets all or specific type
@@ -229,11 +294,15 @@ async def set_ggs_url(
         url_type = data["url_type"]
         field = f"ggs_url_{url_type}" if not url_type.startswith("ggs_url_") else url_type
         if hasattr(branch, field):
-            setattr(branch, field, _normalize_ggs_url(data["url"]))
+            new_url = _normalize_ggs_url(data["url"])
+            await _check_url_conflict(db, branch_id, field, new_url)
+            setattr(branch, field, new_url)
             updated.append(field)
     elif "url" in data and not updated:
         # Default: set record_ind (most common)
-        branch.ggs_url_record_ind = _normalize_ggs_url(data["url"])
+        new_url = _normalize_ggs_url(data["url"])
+        await _check_url_conflict(db, branch_id, "ggs_url_record_ind", new_url)
+        branch.ggs_url_record_ind = new_url
         updated.append("ggs_url_record_ind")
 
     await db.commit()
