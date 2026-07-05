@@ -355,10 +355,19 @@ async def _sync_record_ind(
         key = normalize_name_key(p.first_name or "", p.last_name or "")
         cross_branch_map[key] = p
 
+    def _norm_col(s: str) -> str:
+        """Normalize Thai lookalike typos in column names.
+
+        ฎ (0E0E) ↔ ฏ (0E0F) — พิมพ์ผิดบ่อย (เช่น 'ปฎิบัติ' vs 'ปฏิบัติ')
+        """
+        return (s or "").replace("ฎ", "ฏ")
+
     def _find(row: dict, *keywords: str) -> str:
-        """Return first value where col name contains ALL keywords (tolerate label suffixes)."""
+        """Return first value where col name contains ALL keywords (tolerate label suffixes + Thai typos)."""
+        nkws = [_norm_col(kw) for kw in keywords]
         for k, v in row.items():
-            if all(kw in k for kw in keywords):
+            nk = _norm_col(k)
+            if all(kw in nk for kw in nkws):
                 return v
         return ""
 
@@ -607,17 +616,24 @@ async def _sync_participant(
         key = normalize_name_key(p.first_name or "", p.last_name or "")
         participant_map[key] = p
 
+    def _norm_col(s: str) -> str:
+        """Normalize Thai lookalike typos (ฎ ↔ ฏ)."""
+        return (s or "").replace("ฎ", "ฏ")
+
     def _find(row: dict, *keywords: str) -> str:
-        """Return first value where col name contains ALL keywords."""
+        """Return first value where col name contains ALL keywords (tolerate Thai typos)."""
+        nkws = [_norm_col(kw) for kw in keywords]
         for k, v in row.items():
-            if all(kw in k for kw in keywords):
+            nk = _norm_col(k)
+            if all(kw in nk for kw in nkws):
                 return v
         return ""
 
     def _exact(row: dict, name: str) -> str:
-        """Return value where column name matches exactly (ignore surrounding whitespace)."""
+        """Return value where column name matches exactly (ignore surrounding whitespace + Thai typos)."""
+        target = _norm_col(name)
         for k, v in row.items():
-            if k.strip() == name:
+            if _norm_col(k.strip()) == target:
                 return v
         return ""
 
