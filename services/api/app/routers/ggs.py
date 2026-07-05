@@ -391,28 +391,75 @@ async def _sync_record_ind(
         await db.commit()
         return {"status": "error", "message": str(e)}
 
-    # Pre-flight: ตรวจว่ามี column ที่จำเป็นครบไหม
-    # (กันกรณี sheet พิมพ์ header ผิด เช่น ปฎ vs ปฏ, หรือ column แปลก ๆ)
-    def _has_col(row: dict, *keywords: str) -> bool:
-        nkws = [(kw or "").replace("ฎ", "ฏ") for kw in keywords]
-        return any(all(kw in (k or "").replace("ฎ", "ฏ") for kw in nkws) for k in row.keys())
+    # === Column aliases — รองรับ header หลากหลาย ===
+    # แต่ละ field มี list ของ combination (tuple of keywords) — combination แรกที่ match ชนะ
+    # ลำดับสำคัญ: specific → generic (specific first เพื่อไม่ให้ fallback match false positive)
+    def _norm_col(s: str) -> str:
+        """Normalize column name: ฎ↔ฏ + ลบวรรณยุกต์ (่ ้ ๊ ๋) + lower."""
+        s = (s or "").replace("ฎ", "ฏ")
+        for tm in "่้๊๋":
+            s = s.replace(tm, "")
+        return s.lower()
+
+    field_aliases: dict[str, list[tuple[str, ...]]] = {
+        "name": [
+            ("ชื่อ", "ผู้ปฏิบัติ"),      # specific
+            ("ชื่อ-นามสกุล",),
+            ("ชื่อ", "นามสกุล"),
+            ("ผู้ปฏิบัติ",),             # loose fallback
+            ("ชื่อสมาชิก",),
+            ("ชื่อ", "สมาชิก"),
+        ],
+        "date": [
+            ("วันที่", "ปฏิบัติ"),
+            ("วันปฏิบัติ",),
+            ("date",),
+            ("วันที่",),                # loose — เผื่อ typo ตัวหลัง
+        ],
+        "session": [
+            ("รอบการปฏิบัติ",),
+            ("รอบ", "ปฏิบัติ"),
+            ("รอบ",),
+            ("session",),
+        ],
+    }
+
+    def _find_field(row: dict, field: str) -> str:
+        """หา column ตาม alias list — คืนค่าแรกที่ match."""
+        for combo in field_aliases[field]:
+            nkws = [_norm_col(kw) for kw in combo]
+            for k, v in row.items():
+                nk = _norm_col(k)
+                if all(kw in nk for kw in nkws):
+                    return v
+        return ""
+
+    def _has_field(row: dict, field: str) -> bool:
+        for combo in field_aliases[field]:
+            nkws = [_norm_col(kw) for kw in combo]
+            if any(all(kw in _norm_col(k) for kw in nkws) for k in row.keys()):
+                return True
+        return False
 
     if rows:
         sample = rows[0]
         cols_found = list(sample.keys())
         missing: list[str] = []
-        if not (_has_col(sample, "ชื่อ", "ผู้ปฏิบัติ") or _has_col(sample, "ชื่อ-นามสกุล")):
-            missing.append("ชื่อผู้ปฏิบัติ (คาดหวัง column ที่มีคำว่า 'ชื่อ' + 'ผู้ปฏิบัติ')")
-        if not _has_col(sample, "วันที่", "ปฏิบัติ"):
-            missing.append("วันที่ปฏิบัติ (คาดหวัง column ที่มีคำว่า 'วันที่' + 'ปฏิบัติ')")
-        if not _has_col(sample, "รอบ"):
-            missing.append("รอบการปฏิบัติ (คาดหวัง column ที่มีคำว่า 'รอบ')")
+        if not _has_field(sample, "name"):
+            hints = " หรือ ".join(" + ".join(f"'{k}'" for k in c) for c in field_aliases["name"][:3])
+            missing.append(f"ชื่อผู้ปฏิบัติ (คาดหวัง column ที่มี: {hints})")
+        if not _has_field(sample, "date"):
+            hints = " หรือ ".join(" + ".join(f"'{k}'" for k in c) for c in field_aliases["date"][:3])
+            missing.append(f"วันที่ปฏิบัติ (คาดหวัง column ที่มี: {hints})")
+        if not _has_field(sample, "session"):
+            hints = " หรือ ".join(" + ".join(f"'{k}'" for k in c) for c in field_aliases["session"][:3])
+            missing.append(f"รอบการปฏิบัติ (คาดหวัง column ที่มี: {hints})")
         if missing:
             msg = (
                 "❌ Header ของ sheet ไม่ถูกต้อง — sync ไม่ได้\n"
                 "ขาดคอลัมน์: " + ", ".join(missing) + "\n"
                 f"Column ที่พบใน sheet: {cols_found}\n"
-                "💡 คำแนะนำ: ตรวจสอบว่าใช้ 'ปฏ' (ปฏัก) ไม่ใช่ 'ปฎ' (กบข้าว) และคอลัมน์ครบตามที่คาดหวัง"
+                "💡 คำแนะนำ: ตรวจสอบชื่อคอลัมน์ให้ตรงกับที่คาดหวัง (แนะนำแก้ที่ Google Form)"
             )
             log.finished_at = datetime.now()
             log.status = "error"
@@ -455,26 +502,10 @@ async def _sync_record_ind(
         key = normalize_name_key(p.first_name or "", p.last_name or "")
         cross_branch_map[key] = p
 
-    def _norm_col(s: str) -> str:
-        """Normalize Thai lookalike typos in column names.
-
-        ฎ (0E0E) ↔ ฏ (0E0F) — พิมพ์ผิดบ่อย (เช่น 'ปฎิบัติ' vs 'ปฏิบัติ')
-        """
-        return (s or "").replace("ฎ", "ฏ")
-
-    def _find(row: dict, *keywords: str) -> str:
-        """Return first value where col name contains ALL keywords (tolerate label suffixes + Thai typos)."""
-        nkws = [_norm_col(kw) for kw in keywords]
-        for k, v in row.items():
-            nk = _norm_col(k)
-            if all(kw in nk for kw in nkws):
-                return v
-        return ""
-
     for i, row in enumerate(rows, start=2):
-        raw_name = (_find(row, "ชื่อ", "ผู้ปฏิบัติ") or _find(row, "ชื่อ-นามสกุล") or "").strip()
-        raw_date = (_find(row, "วันที่", "ปฏิบัติ") or "").strip()
-        raw_session = (_find(row, "รอบ") or "").strip()
+        raw_name = (_find_field(row, "name") or "").strip()
+        raw_date = (_find_field(row, "date") or "").strip()
+        raw_session = (_find_field(row, "session") or "").strip()
 
         if not raw_name or not raw_date:
             errors.append(f"แถว {i}: ขาดชื่อหรือวันที่")
