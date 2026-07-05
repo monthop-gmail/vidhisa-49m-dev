@@ -391,6 +391,37 @@ async def _sync_record_ind(
         await db.commit()
         return {"status": "error", "message": str(e)}
 
+    # Pre-flight: ตรวจว่ามี column ที่จำเป็นครบไหม
+    # (กันกรณี sheet พิมพ์ header ผิด เช่น ปฎ vs ปฏ, หรือ column แปลก ๆ)
+    def _has_col(row: dict, *keywords: str) -> bool:
+        nkws = [(kw or "").replace("ฎ", "ฏ") for kw in keywords]
+        return any(all(kw in (k or "").replace("ฎ", "ฏ") for kw in nkws) for k in row.keys())
+
+    if rows:
+        sample = rows[0]
+        cols_found = list(sample.keys())
+        missing: list[str] = []
+        if not (_has_col(sample, "ชื่อ", "ผู้ปฏิบัติ") or _has_col(sample, "ชื่อ-นามสกุล")):
+            missing.append("ชื่อผู้ปฏิบัติ (คาดหวัง column ที่มีคำว่า 'ชื่อ' + 'ผู้ปฏิบัติ')")
+        if not _has_col(sample, "วันที่", "ปฏิบัติ"):
+            missing.append("วันที่ปฏิบัติ (คาดหวัง column ที่มีคำว่า 'วันที่' + 'ปฏิบัติ')")
+        if not _has_col(sample, "รอบ"):
+            missing.append("รอบการปฏิบัติ (คาดหวัง column ที่มีคำว่า 'รอบ')")
+        if missing:
+            msg = (
+                "❌ Header ของ sheet ไม่ถูกต้อง — sync ไม่ได้\n"
+                "ขาดคอลัมน์: " + ", ".join(missing) + "\n"
+                f"Column ที่พบใน sheet: {cols_found}\n"
+                "💡 คำแนะนำ: ตรวจสอบว่าใช้ 'ปฏ' (ปฏัก) ไม่ใช่ 'ปฎ' (กบข้าว) และคอลัมน์ครบตามที่คาดหวัง"
+            )
+            log.finished_at = datetime.now()
+            log.status = "error"
+            log.error_count = 1
+            log.errors = [msg]
+            log.message = msg[:500]
+            await db.commit()
+            return {"status": "error", "message": msg, "columns_found": cols_found, "columns_missing": missing}
+
     created = 0
     updated = 0
     participants_created = 0
