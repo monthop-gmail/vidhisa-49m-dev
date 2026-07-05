@@ -100,7 +100,12 @@ function SyncLogsPage() {
     <div className="max-w-6xl mx-auto p-4 space-y-4">
       <PageHeading
         title="Sync Logs"
-        subtitle={`ประวัติการซิงค์ Google Sheet · ${branchFilter ? `focus ${branchFilter}` : 'ทุกสาขา'} · auto-refresh 60 วิ`}
+        subtitle={
+          <span>
+            ประวัติการซิงค์ Google Sheet · {branchFilter ? `focus ${branchFilter}` : 'ทุกสาขา'} · auto-refresh 60 วิ
+            <span className="ml-2 text-blue-600">← คลิกแถวเพื่อดูรายละเอียด</span>
+          </span>
+        }
       />
 
       <Card>
@@ -140,16 +145,17 @@ function SyncLogsPage() {
                   <Th align="right">updated</Th>
                   <Th align="right">errors</Th>
                   <Th>trigger</Th>
+                  <Th align="right"></Th>
                 </Tr>
               </Thead>
               <tbody>
                 {logs.map((log) => (
-                  <Tr key={log.id} className="cursor-pointer" >
-                    <Td>
-                      <button className="text-left w-full" onClick={() => setDetailId(log.id)}>
-                        {fmt(log.started_at)}
-                      </button>
-                    </Td>
+                  <Tr
+                    key={log.id}
+                    className="cursor-pointer hover:bg-blue-50 transition"
+                    onClick={() => setDetailId(log.id)}
+                  >
+                    <Td>{fmt(log.started_at)}</Td>
                     <Td>{log.branch_id ?? <span className="text-slate-500">— (batch)</span>}</Td>
                     <Td>{log.sync_type}</Td>
                     <Td>{statusBadge(log.status)}</Td>
@@ -163,6 +169,9 @@ function SyncLogsPage() {
                       )}
                     </Td>
                     <Td>{log.triggered_by}</Td>
+                    <Td align="right">
+                      <span className="text-blue-600 text-sm">ดูรายละเอียด →</span>
+                    </Td>
                   </Tr>
                 ))}
               </tbody>

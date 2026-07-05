@@ -121,8 +121,20 @@ export function Thead({ children }: { children: ReactNode }) {
   return <thead className="bg-slate-50">{children}</thead>
 }
 
-export function Tr({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <tr className={`hover:bg-slate-50 ${className}`}>{children}</tr>
+export function Tr({
+  children,
+  className = '',
+  onClick,
+}: {
+  children: ReactNode
+  className?: string
+  onClick?: () => void
+}) {
+  return (
+    <tr className={`hover:bg-slate-50 ${className}`} onClick={onClick}>
+      {children}
+    </tr>
+  )
 }
 
 export function Th({
