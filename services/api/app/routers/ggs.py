@@ -634,22 +634,29 @@ async def _sync_record_ind(
     return {
         "created": created, "updated": updated,
         "participants_created": participants_created,
+        "error_count": len(errors),
         "errors": errors[:10],
     }
 
 
-# === Sync: Bulk Records (placeholder — format TBD) ===
+# === Sync: Bulk Records (ยังไม่รองรับ) ===
 
 async def _sync_record_bulk(url: str, branch_id: str, db: AsyncSession) -> dict:
-    """Sync bulk records — format TBD."""
-    return {"status": "skip", "message": "รอ format จาก อ.เต้"}
+    """Sync bulk records — ยังไม่รองรับ format นี้."""
+    return {
+        "status": "skip",
+        "message": "ยังไม่รองรับ bulk record — สาขากรุณาใช้ record_ind (link 4) ไปก่อน",
+    }
 
 
-# === Sync: Organizations (placeholder — format TBD) ===
+# === Sync: Organizations (ใช้ sheet ลงทะเบียนกลาง — sync ต่อรายสาขายังไม่รองรับ) ===
 
 async def _sync_org(url: str, branch_id: str, db: AsyncSession) -> dict:
-    """Sync organizations — format TBD."""
-    return {"status": "skip", "message": "รอ format จาก อ.เต้"}
+    """Sync organizations — ใช้ sheet ลงทะเบียนกลาง (org enrollment)."""
+    return {
+        "status": "skip",
+        "message": "องค์กรใช้ sheet ลงทะเบียนกลาง — ไม่ต้อง sync ที่ระดับสาขา",
+    }
 
 
 # === Sync: Participants (link 2) — profile data จาก Google Form ===

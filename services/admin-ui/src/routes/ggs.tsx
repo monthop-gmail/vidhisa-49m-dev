@@ -337,13 +337,63 @@ function EditUrlsModal({ source, onClose }: { source: Source | null; onClose: ()
 // ─── Sync result modal ────────────────────────────────────────────
 
 function SyncResultModal({ result, onClose }: { result: unknown; onClose: () => void }) {
+  // สรุปตัวเลขจาก result ให้อ่านง่าย (นับ error_count รวมทุกประเภท sync)
+  const summary = extractSyncSummary(result)
   return (
     <Modal open={result !== null} onClose={onClose} title="Sync Result">
+      {summary && (
+        <div className="mb-3 flex flex-wrap gap-2 text-xs">
+          <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full">
+            created {summary.created.toLocaleString()}
+          </span>
+          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+            updated {summary.updated.toLocaleString()}
+          </span>
+          {summary.participants_created > 0 && (
+            <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
+              participants +{summary.participants_created.toLocaleString()}
+            </span>
+          )}
+          {summary.error_count > 0 && (
+            <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-medium">
+              ⚠ {summary.error_count.toLocaleString()} errors
+              {summary.error_count > (summary.errors_shown ?? 10) && (
+                <span className="ml-1 text-amber-700 opacity-80">
+                  (แสดง {summary.errors_shown ?? 10} ตัวอย่าง — ดูทั้งหมดที่ /sync-logs)
+                </span>
+              )}
+            </span>
+          )}
+        </div>
+      )}
       <pre className="bg-slate-50 border border-slate-200 rounded-md p-3 text-xs whitespace-pre-wrap max-h-96 overflow-y-auto">
         {result ? JSON.stringify(result, null, 2) : ''}
       </pre>
     </Modal>
   )
+}
+
+type SyncSummary = {
+  created: number
+  updated: number
+  participants_created: number
+  error_count: number
+  errors_shown?: number
+}
+
+function extractSyncSummary(result: unknown): SyncSummary | null {
+  if (!result || typeof result !== 'object') return null
+  const r = result as Record<string, unknown>
+  // sync-branch response: { branch_id, record_ind: {...}, org: {...}, ... }
+  const sub = r.record_ind ?? r.participant ?? r  // นับ record_ind ก่อน, ไม่มีก็ participant, ไม่มีก็ top-level (sync-all)
+  const s = sub as Record<string, unknown>
+  return {
+    created: Number(s.created ?? 0),
+    updated: Number(s.updated ?? 0),
+    participants_created: Number(s.participants_created ?? 0),
+    error_count: Number(s.error_count ?? (Array.isArray(s.errors) ? s.errors.length : 0)),
+    errors_shown: Array.isArray(s.errors) ? s.errors.length : undefined,
+  }
 }
 
 function countConfigured(rows: Source[]): number {
