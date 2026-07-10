@@ -151,8 +151,8 @@ function ParticipantsListPage() {
                   <SortableTh sortKey="branch_id" sort={sort} onSort={toggleSort}>สาขา</SortableTh>
                   <SortableTh sortKey="province" sort={sort} onSort={toggleSort}>จังหวัด</SortableTh>
                   <SortableTh sortKey="phone" sort={sort} onSort={toggleSort}>เบอร์โทร</SortableTh>
-                  <SortableTh sortKey="total_minutes" sort={sort} onSort={toggleSort} align="right">นาที</SortableTh>
                   <SortableTh sortKey="status" sort={sort} onSort={toggleSort}>Status</SortableTh>
+                  <SortableTh sortKey="total_minutes" sort={sort} onSort={toggleSort} align="right">นาที</SortableTh>
                   <Th></Th>
                 </Tr>
               </Thead>
@@ -185,10 +185,10 @@ function ParticipantsListPage() {
                     </Td>
                     <Td className="text-slate-600">{String(r.province ?? '')}</Td>
                     <Td className="text-slate-600">{String(r.phone ?? '')}</Td>
+                    <Td>{r.status ? <StatusBadge status={String(r.status)} /> : null}</Td>
                     <Td align="right" className="font-medium tabular-nums">
                       {Number(r.total_minutes ?? 0).toLocaleString()}
                     </Td>
-                    <Td>{r.status ? <StatusBadge status={String(r.status)} /> : null}</Td>
                     <Td>
                       <Link
                         to="/participants/$participantId"
