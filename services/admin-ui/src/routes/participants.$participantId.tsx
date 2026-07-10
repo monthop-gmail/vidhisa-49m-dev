@@ -87,15 +87,90 @@ function ParticipantEditPage() {
     },
   })
 
+  const approveMut = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await api.PATCH('/api/participants/{participant_id}/approve', {
+        params: { path: { participant_id: idNum } },
+      })
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['participant', idNum] })
+      qc.invalidateQueries({ queryKey: ['participants'] })
+    },
+  })
+
+  const rejectMut = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await api.PATCH('/api/participants/{participant_id}/reject', {
+        params: { path: { participant_id: idNum } },
+      })
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['participant', idNum] })
+      qc.invalidateQueries({ queryKey: ['participants'] })
+    },
+  })
+
   if (isLoading) return <LoadingState />
   if (error) return <ErrorMessage>{String(error)}</ErrorMessage>
 
   const set = <K extends keyof ParticipantCreate>(k: K, v: ParticipantCreate[K]) =>
     setForm((f) => ({ ...f, [k]: v }))
 
+  const currentStatus = String((data as Record<string, unknown> | undefined)?.status ?? 'pending')
+  const statusTone =
+    currentStatus === 'approved'
+      ? 'bg-green-100 text-green-800 border-green-300'
+      : currentStatus === 'rejected'
+        ? 'bg-red-100 text-red-800 border-red-300'
+        : 'bg-amber-100 text-amber-800 border-amber-300'
+
   return (
     <div className="grid gap-4 max-w-3xl">
       <PageHeading title="Edit Participant" subtitle={`#${participantId}`} />
+
+      <Card>
+        <CardBody className="flex flex-wrap items-center gap-3">
+          <div className="text-sm text-slate-500">สถานะปัจจุบัน:</div>
+          <span className={`inline-flex items-center px-2 py-1 rounded-md border text-sm font-medium ${statusTone}`}>
+            {currentStatus}
+          </span>
+          <div className="ml-auto flex gap-2">
+            {currentStatus !== 'approved' && (
+              <Button
+                variant="success"
+                onClick={() => {
+                  if (confirm(`อนุมัติผู้เข้าร่วม #${idNum}?`)) approveMut.mutate()
+                }}
+                disabled={approveMut.isPending}
+              >
+                {approveMut.isPending ? 'กำลัง approve…' : '✓ Approve'}
+              </Button>
+            )}
+            {currentStatus !== 'rejected' && (
+              <Button
+                variant="danger"
+                onClick={() => {
+                  if (confirm(`ปฏิเสธผู้เข้าร่วม #${idNum}?\n(records ยังอยู่ แต่ผู้เข้าร่วมจะไม่แสดงในรายการ approved)`))
+                    rejectMut.mutate()
+                }}
+                disabled={rejectMut.isPending}
+              >
+                {rejectMut.isPending ? 'กำลัง reject…' : '✗ Reject'}
+              </Button>
+            )}
+          </div>
+          {(approveMut.error || rejectMut.error) && (
+            <div className="w-full">
+              <ErrorMessage>{String(approveMut.error ?? rejectMut.error)}</ErrorMessage>
+            </div>
+          )}
+        </CardBody>
+      </Card>
 
       <Card>
         <CardBody>
