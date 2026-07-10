@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQueries, useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { api } from '../api/client'
 import { useAuth } from '../lib/auth'
 import { useActiveBranch } from '../lib/activeBranch'
+import { ParticipantDetailModal } from '../components/DetailDrawer'
 import {
   Card,
   CardBody,
@@ -126,6 +128,7 @@ function CentralDashboard() {
 // ─── Branch admin: scoped to their branch ────────────────────────
 
 function BranchDashboard({ branchId }: { branchId: string }) {
+  const [detailId, setDetailId] = useState<number | null>(null)
   const queries = useQueries({
     queries: [
       {
@@ -320,13 +323,12 @@ function BranchDashboard({ branchId }: { branchId: string }) {
                   <Tr key={p.id}>
                     <Td className="w-12 font-semibold text-slate-700">{i + 1}</Td>
                     <Td>
-                      <Link
-                        to="/participants/$participantId"
-                        params={{ participantId: String(p.id) }}
-                        className="text-blue-600 hover:underline"
+                      <button
+                        onClick={() => setDetailId(p.id)}
+                        className="text-blue-600 hover:underline text-left"
                       >
                         {p.name}
-                      </Link>
+                      </button>
                     </Td>
                     <Td align="right">{p.count}</Td>
                     <Td align="right">{fmt(p.minutes)}</Td>
@@ -337,6 +339,8 @@ function BranchDashboard({ branchId }: { branchId: string }) {
           )}
         </CardBody>
       </Card>
+
+      <ParticipantDetailModal participantId={detailId} onClose={() => setDetailId(null)} />
     </div>
   )
 }
