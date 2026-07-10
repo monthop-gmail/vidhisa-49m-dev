@@ -317,6 +317,7 @@ class ParticipantCreate(BaseModel):
     """Schema for creating a participant."""
 
     branch_id: str
+    member_code: str | None = None
     prefix: str | None = None
     first_name: str
     last_name: str

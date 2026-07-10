@@ -55,6 +55,7 @@ function ParticipantEditPage() {
     const d = data as Record<string, unknown>
     setForm({
       branch_id: String(d.branch_id ?? ''),
+      member_code: (d.member_code as string | null) ?? null,
       prefix: (d.prefix as string | null) ?? null,
       first_name: String(d.first_name ?? ''),
       last_name: String(d.last_name ?? ''),
@@ -67,7 +68,7 @@ function ParticipantEditPage() {
       line_id: (d.line_id as string | null) ?? null,
       enrolled_date: (d.enrolled_date as string | null) ?? null,
       privacy_accepted: Boolean(d.privacy_accepted ?? false),
-    })
+    } as ParticipantCreate)
   }, [data])
 
   const saveMut = useMutation({
@@ -107,6 +108,13 @@ function ParticipantEditPage() {
           >
             <Field label="Branch ID *">
               <Input value={form.branch_id ?? ''} onChange={(e) => set('branch_id', e.target.value)} required />
+            </Field>
+            <Field label="Member code (รหัสสมาชิกในสาขา)">
+              <Input
+                value={(form as ParticipantCreate & { member_code?: string | null }).member_code ?? ''}
+                onChange={(e) => set('member_code' as keyof ParticipantCreate, (e.target.value || null) as never)}
+                placeholder="เช่น 001, WP123"
+              />
             </Field>
             <Field label="คำนำหน้า">
               <Input value={form.prefix ?? ''} onChange={(e) => set('prefix', e.target.value || null)} />

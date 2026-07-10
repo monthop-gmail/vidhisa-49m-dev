@@ -26,12 +26,13 @@ EXPORT_FIELDS = [
 @router.get("/participants", response_model=list[ParticipantResponse])
 async def list_participants(
     branch_id: str | None = None,
+    status: str | None = None,
     limit: int = 50,
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
     user: User | None = Depends(get_current_user_optional),
 ):
-    """List participants with aggregated record stats, optional branch filter + pagination."""
+    """List participants with aggregated record stats, optional branch/status filter + pagination."""
     branch_filter = scoped_branch_filter(user, branch_id)
     stmt = (
         select(
@@ -50,6 +51,8 @@ async def list_participants(
         stmt = stmt.where(Participant.branch_id.in_(branch_filter))
     elif branch_filter:
         stmt = stmt.where(Participant.branch_id == branch_filter)
+    if status:
+        stmt = stmt.where(Participant.status == status)
     stmt = stmt.limit(limit).offset(offset)
     result = await db.execute(stmt)
     return [
@@ -539,7 +542,24 @@ async def update_participant(participant_id: int, data: ParticipantCreate, db: A
     if not p:
         raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบผู้เข้าร่วม"})
 
+    # ถ้าเปลี่ยน member_code — เช็คว่าไม่ซ้ำในสาขาเดียวกัน (approved เท่านั้น)
+    new_code = (data.member_code or "").strip() or None
+    if new_code and new_code != (p.member_code or ""):
+        dup = (await db.execute(
+            select(Participant).where(
+                Participant.branch_id == data.branch_id,
+                Participant.member_code == new_code,
+                Participant.status == "approved",
+                Participant.id != participant_id,
+            )
+        )).scalar_one_or_none()
+        if dup:
+            raise HTTPException(status_code=409, detail={
+                "error": "MEMBER_CODE_CONFLICT",
+                "message": f"member_code '{new_code}' ถูกใช้แล้วในสาขา {data.branch_id} (id={dup.id} {dup.first_name} {dup.last_name})",
+            })
     p.branch_id = data.branch_id
+    p.member_code = new_code
     p.prefix = data.prefix
     p.first_name = data.first_name
     p.last_name = data.last_name
