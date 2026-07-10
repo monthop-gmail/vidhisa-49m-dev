@@ -33,7 +33,7 @@ export const Route = createFileRoute('/participants/')({
 
 const PAGE_SIZE = 50
 
-type SortKey = 'id' | 'member_code' | 'fullName' | 'gender' | 'age' | 'branch_id' | 'province' | 'phone' | 'status'
+type SortKey = 'id' | 'member_code' | 'fullName' | 'gender' | 'age' | 'branch_id' | 'province' | 'phone' | 'status' | 'total_minutes'
 type StatusFilter = '' | 'pending' | 'approved' | 'rejected'
 
 function ParticipantsListPage() {
@@ -55,6 +55,7 @@ function ParticipantsListPage() {
     getValue: (r, k) => {
       if (k === 'fullName') return `${r.first_name ?? ''} ${r.last_name ?? ''}`
       if (k === 'member_code') return r.member_code ?? ''
+      if (k === 'total_minutes') return Number(r.total_minutes ?? 0)
       return r[k]
     },
   })
@@ -150,6 +151,7 @@ function ParticipantsListPage() {
                   <SortableTh sortKey="branch_id" sort={sort} onSort={toggleSort}>สาขา</SortableTh>
                   <SortableTh sortKey="province" sort={sort} onSort={toggleSort}>จังหวัด</SortableTh>
                   <SortableTh sortKey="phone" sort={sort} onSort={toggleSort}>เบอร์โทร</SortableTh>
+                  <SortableTh sortKey="total_minutes" sort={sort} onSort={toggleSort} align="right">นาที</SortableTh>
                   <SortableTh sortKey="status" sort={sort} onSort={toggleSort}>Status</SortableTh>
                   <Th></Th>
                 </Tr>
@@ -183,6 +185,9 @@ function ParticipantsListPage() {
                     </Td>
                     <Td className="text-slate-600">{String(r.province ?? '')}</Td>
                     <Td className="text-slate-600">{String(r.phone ?? '')}</Td>
+                    <Td align="right" className="font-medium tabular-nums">
+                      {Number(r.total_minutes ?? 0).toLocaleString()}
+                    </Td>
                     <Td>{r.status ? <StatusBadge status={String(r.status)} /> : null}</Td>
                     <Td>
                       <Link
