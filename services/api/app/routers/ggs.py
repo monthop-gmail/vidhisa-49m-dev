@@ -392,6 +392,30 @@ async def _sync_record_ind(
         await db.commit()
         return {"status": "error", "message": str(e)}
 
+    # === Ensure PLJ org exists (self-heal) ===
+    # ถ้า branch ไม่เคยผ่าน enrollment approval, PLJ org (Bxxx-00) จะไม่มี → record insert จะ FK violation
+    # → auto-create ให้ sync ทำงานได้เอง
+    plj_org_id = f"{branch_id}-00"
+    existing_plj = (await db.execute(
+        select(Organization).where(Organization.id == plj_org_id)
+    )).scalar_one_or_none()
+    if not existing_plj:
+        branch_obj = (await db.execute(
+            select(Branch).where(Branch.id == branch_id)
+        )).scalar_one_or_none()
+        if branch_obj:
+            db.add(Organization(
+                id=plj_org_id,
+                name=f"สถาบันพลังจิตตานุภาพ {branch_obj.name}",
+                org_type="สถาบันพลังจิตตานุภาพ",
+                branch_id=branch_id,
+                sub_district=branch_obj.sub_district,
+                district=branch_obj.district,
+                province=branch_obj.province,
+                status="approved",
+            ))
+            await db.flush()
+
     # === Column aliases — รองรับ header หลากหลาย ===
     # แต่ละ field มี list ของ combination (tuple of keywords) — combination แรกที่ match ชนะ
     # ลำดับสำคัญ: specific → generic (specific first เพื่อไม่ให้ fallback match false positive)
