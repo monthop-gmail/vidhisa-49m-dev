@@ -31,7 +31,7 @@ from app.routers import (
 )
 
 log = logging.getLogger("vidhisa.autosync")
-AUTO_SYNC_INTERVAL_SECONDS = int(os.getenv("AUTO_SYNC_INTERVAL_SECONDS", str(6 * 3600)))
+AUTO_SYNC_INTERVAL_SECONDS = int(os.getenv("AUTO_SYNC_INTERVAL_SECONDS", str(3 * 3600)))
 AUTO_SYNC_ENABLED = os.getenv("AUTO_SYNC_ENABLED", "true").lower() in ("1", "true", "yes")
 
 
