@@ -483,12 +483,29 @@ async def merge_duplicate_names(
 
 @router.get("/participants/{participant_id}", response_model=ParticipantResponse)
 async def get_participant(participant_id: int, db: AsyncSession = Depends(get_db)):
-    """Get a specific participant."""
-    result = await db.execute(select(Participant).where(Participant.id == participant_id))
-    p = result.scalar_one_or_none()
-    if not p:
+    """Get a specific participant with aggregate stats (total_minutes, total_records)."""
+    stmt = (
+        select(
+            Participant,
+            func.coalesce(func.sum(Record.minutes), 0).label("total_minutes"),
+            func.count(Record.id).label("total_records"),
+        )
+        .outerjoin(
+            Record,
+            (Record.participant_id == Participant.id) & (Record.status == "approved"),
+        )
+        .where(Participant.id == participant_id)
+        .group_by(Participant.id)
+    )
+    result = await db.execute(stmt)
+    row = result.one_or_none()
+    if not row:
         raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": "ไม่พบผู้เข้าร่วม"})
-    return p
+    return ParticipantResponse.model_validate({
+        **{c.name: getattr(row.Participant, c.name) for c in Participant.__table__.columns},
+        "total_minutes": row.total_minutes,
+        "total_records": row.total_records,
+    })
 
 
 @router.post("/participants", status_code=201)

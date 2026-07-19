@@ -129,13 +129,16 @@ export function ParticipantDetailModal({ participantId, onClose }: { participant
   const { data: records } = useQuery({
     queryKey: ['participant-records', participantId, p?.branch_id],
     queryFn: async () => {
+      // ใช้ backend filter ตรง (participant_id) แทน fetch สาขาทั้งหมดแล้ว filter client-side
+      // (สาขาใหญ่มี records > 2000 → filter client-side จะขาด)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await api.GET('/api/records', {
-        params: { query: { branch_id: String(p?.branch_id ?? ''), limit: 2000 } },
+        params: { query: { participant_id: participantId, limit: 5000 } as any },
       })
       if (error) throw error
-      return ((data ?? []) as Array<Record<string, unknown>>).filter((r) => r.participant_id === participantId)
+      return (data ?? []) as Array<Record<string, unknown>>
     },
-    enabled: open && Boolean(p?.branch_id),
+    enabled: open && Boolean(participantId),
   })
 
   const recList = records ?? []

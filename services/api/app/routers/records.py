@@ -47,6 +47,7 @@ async def list_records(
     branch_id: str | None = None,
     record_type: str | None = None,
     status: str | None = None,
+    participant_id: int | None = None,
     limit: int = 50,
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
@@ -67,6 +68,8 @@ async def list_records(
         stmt = stmt.where(Record.type == record_type)
     if status:
         stmt = stmt.where(Record.status == status)
+    if participant_id is not None:
+        stmt = stmt.where(Record.participant_id == participant_id)
     stmt = stmt.limit(limit).offset(offset)
     result = await db.execute(stmt)
     return [
