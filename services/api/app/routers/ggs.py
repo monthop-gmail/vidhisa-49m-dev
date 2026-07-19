@@ -1,14 +1,15 @@
 """Google Sheet (GGS) integration — pull data from shared Google Sheets."""
 
+import asyncio
 import csv
 import io
 import json
 import re
-from datetime import date as date_type, datetime
+from datetime import date as date_type, datetime, timedelta
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user, require_central_admin
@@ -872,60 +873,107 @@ async def _sync_participant(
 
 # === Auto-sync all branches ===
 
+# In-process mutex — กัน sync_all ทำงานซ้อนใน process เดียวกัน
+_SYNC_ALL_LOCK = asyncio.Lock()
+
+# Timeout: batch ที่ค้างเกิน 30 นาทีถือว่า stale (ไม่นับเป็น running)
+_SYNC_ALL_STALE_MINUTES = 30
+
+
 async def sync_all_record_ind(
     db: AsyncSession, auto_approve: bool = True, triggered_by: str = "auto"
 ) -> dict:
     """Sync record_ind for all branches that have a URL set.
 
-    Used by both the scheduled background task and the manual /ggs/sync-all endpoint.
+    Concurrency guards (สอง layer):
+    1) In-process asyncio.Lock — กันเรียกซ้อนใน process เดียว (fast fail, no DB roundtrip)
+    2) DB check — ดู batch_log ก่อนหน้าที่ยัง finished_at IS NULL และ started_at ยังไม่เกิน 30 นาที
+       → กัน cross-process (เผื่ออนาคตมีหลาย worker)
     """
-    batch_log = SyncLog(branch_id=None, sync_type="sync_all", triggered_by=triggered_by)
-    db.add(batch_log)
-    await db.flush()
+    # Layer 1: in-process
+    if _SYNC_ALL_LOCK.locked():
+        return {
+            "status": "skip",
+            "message": "sync_all กำลังทำงานอยู่ (in-process) — ข้าม",
+            "branches": 0, "created": 0, "updated": 0, "participants_created": 0, "errors": [],
+        }
 
-    # Sync participants ก่อน (profile data) — เพื่อให้ record_ind มี profile ที่ update แล้ว
-    p_branches = (await db.execute(
-        select(Branch).where(Branch.ggs_url_participant.isnot(None))
-    )).scalars().all()
-    for branch in p_branches:
-        try:
-            await _sync_participant(branch.ggs_url_participant, branch.id, db, triggered_by=triggered_by)
-        except Exception:
-            pass  # log บันทึกในตัว sync แล้ว
+    async with _SYNC_ALL_LOCK:
+        # Layer 2: DB check — หา batch ที่ยังไม่จบและยังไม่เกินเวลา stale
+        stale_cutoff = datetime.now() - timedelta(minutes=_SYNC_ALL_STALE_MINUTES)
+        running = (await db.execute(
+            select(SyncLog).where(
+                SyncLog.sync_type == "sync_all",
+                SyncLog.finished_at.is_(None),
+                SyncLog.started_at > stale_cutoff,
+            ).limit(1)
+        )).scalar_one_or_none()
+        if running:
+            return {
+                "status": "skip",
+                "message": f"sync_all กำลังทำงานอยู่ (batch_log id={running.id}, เริ่ม {running.started_at}) — ข้าม",
+                "branches": 0, "created": 0, "updated": 0, "participants_created": 0, "errors": [],
+            }
 
-    result = await db.execute(
-        select(Branch).where(Branch.ggs_url_record_ind.isnot(None))
-    )
-    branches = result.scalars().all()
+        # สร้าง batch_log ใหม่ + commit ทันที (ให้ layer 2 layer อื่นเห็น)
+        batch_log = SyncLog(branch_id=None, sync_type="sync_all", triggered_by=triggered_by)
+        db.add(batch_log)
+        await db.commit()
+        batch_id = batch_log.id
 
-    summary = {"branches": len(branches), "created": 0, "updated": 0, "participants_created": 0, "errors": []}
-    details = []
-    for branch in branches:
-        res = await _sync_record_ind(
-            branch.ggs_url_record_ind, branch.id, db, auto_approve=auto_approve, triggered_by=triggered_by,
+        # Sync participants ก่อน (profile data) — เพื่อให้ record_ind มี profile ที่ update แล้ว
+        p_branches = (await db.execute(
+            select(Branch).where(Branch.ggs_url_participant.isnot(None))
+        )).scalars().all()
+        for branch in p_branches:
+            try:
+                await _sync_participant(branch.ggs_url_participant, branch.id, db, triggered_by=triggered_by)
+            except Exception:
+                pass  # log บันทึกในตัว sync แล้ว
+
+        result = await db.execute(
+            select(Branch).where(Branch.ggs_url_record_ind.isnot(None))
         )
-        details.append({"branch_id": branch.id, **res})
-        summary["created"] += res.get("created", 0)
-        summary["updated"] += res.get("updated", 0)
-        summary["participants_created"] += res.get("participants_created", 0)
-        if res.get("errors"):
-            summary["errors"].append({"branch_id": branch.id, "errors": res["errors"]})
-    summary["details"] = details
-    summary["participant_branches_synced"] = len(p_branches)
+        branches = result.scalars().all()
 
-    batch_log.finished_at = datetime.now()
-    batch_log.status = "partial" if summary["errors"] else "ok"
-    batch_log.created = summary["created"]
-    batch_log.updated = summary["updated"]
-    batch_log.participants_created = summary["participants_created"]
-    batch_log.error_count = sum(len(e.get("errors", [])) for e in summary["errors"])
-    batch_log.message = (
-        f"branches={len(branches)} created={summary['created']} "
-        f"updated={summary['updated']} errors={batch_log.error_count}"
-    )
-    await db.commit()
+        summary = {"branches": len(branches), "created": 0, "updated": 0, "participants_created": 0, "errors": []}
+        details = []
+        try:
+            for branch in branches:
+                res = await _sync_record_ind(
+                    branch.ggs_url_record_ind, branch.id, db, auto_approve=auto_approve, triggered_by=triggered_by,
+                )
+                details.append({"branch_id": branch.id, **res})
+                summary["created"] += res.get("created", 0)
+                summary["updated"] += res.get("updated", 0)
+                summary["participants_created"] += res.get("participants_created", 0)
+                if res.get("errors"):
+                    summary["errors"].append({"branch_id": branch.id, "errors": res["errors"]})
+            summary["details"] = details
+            summary["participant_branches_synced"] = len(p_branches)
+            final_status = "partial" if summary["errors"] else "ok"
+        except Exception as exc:
+            final_status = "error"
+            summary["errors"].append({"branch_id": None, "errors": [f"batch aborted: {exc}"]})
 
-    return summary
+        # ปิด batch_log ด้วย UPDATE ตรง ๆ (กัน SQLAlchemy state confusion หลัง child commits)
+        await db.execute(
+            update(SyncLog).where(SyncLog.id == batch_id).values(
+                finished_at=datetime.now(),
+                status=final_status,
+                created=summary["created"],
+                updated=summary["updated"],
+                participants_created=summary["participants_created"],
+                error_count=sum(len(e.get("errors", [])) for e in summary["errors"]),
+                message=(
+                    f"branches={len(branches)} created={summary['created']} "
+                    f"updated={summary['updated']} errors={sum(len(e.get('errors', [])) for e in summary['errors'])}"
+                ),
+            )
+        )
+        await db.commit()
+
+        return summary
 
 
 @router.get("/ggs/sync-logs")
