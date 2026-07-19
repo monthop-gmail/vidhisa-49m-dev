@@ -1,5 +1,6 @@
 let map, geoLayer;
 let provinceData = {};
+let provinceTotal = 0;
 let groupData = [];
 let markerLayer = null;
 let currentView = 'province';
@@ -25,6 +26,7 @@ async function loadProvinceData() {
         const geo = await geoRes.json();
 
         stats.forEach(s => { provinceData[s.code] = s; });
+        provinceTotal = stats.reduce((sum, s) => sum + (s.minutes || 0), 0);
 
         geoLayer = L.geoJSON(geo, {
             style: feature => getProvinceStyle(feature),
@@ -33,8 +35,10 @@ async function loadProvinceData() {
                     const code = getProvinceCode(feature);
                     const data = provinceData[code];
                     const name = feature.properties.NAME_1 || feature.properties.name || code;
-                    const minutes = data ? FMT_MAP.format(data.minutes) : '0';
-                    layer.bindTooltip(`${name}<br>${minutes} นาที`).openTooltip();
+                    const rawMin = data ? data.minutes : 0;
+                    const minutes = FMT_MAP.format(rawMin);
+                    const pctStr = provinceTotal > 0 ? ` (${(rawMin/provinceTotal*100).toFixed(2)}%)` : '';
+                    layer.bindTooltip(`${name}<br>${minutes} นาที${pctStr}`).openTooltip();
                     layer.setStyle({ weight: 3, fillOpacity: 0.8 });
                 });
                 layer.on('mouseout', function () {
@@ -92,16 +96,15 @@ function getProvinceStyle(feature) {
 }
 
 function getColor(minutes) {
-    // Scale ปรับใหม่ให้เข้ากับข้อมูลจริง (2026-07): median ~120k, Top ~2M
-    // เดิม max 10k → 89% ของจังหวัดตกอยู่ในสีเข้มสุด แยกไม่ออก
-    if (minutes > 1000000) return '#08306b';  // >1M นาที (Top ~5 จังหวัด)
-    if (minutes > 500000)  return '#08519c';
-    if (minutes > 200000)  return '#2171b5';
-    if (minutes > 50000)   return '#4292c6';
-    if (minutes > 10000)   return '#6baed6';
-    if (minutes > 1000)    return '#9ecae1';
-    if (minutes > 0)       return '#c6dbef';
-    return '#f0f0f0';
+    // Scale ตาม % share ของยอดรวมทั้งประเทศ (ตามที่ อ.เต้ เสนอ)
+    // Bins: 0-5 / 5-10 / 10-15 / 15-20 / 20%+
+    if (!provinceTotal || minutes === 0) return '#f0f0f0';
+    const pct = (minutes / provinceTotal) * 100;
+    if (pct >= 20) return '#08306b';   // ≥20% — เข้มสุด
+    if (pct >= 15) return '#08519c';   // 15-20%
+    if (pct >= 10) return '#2171b5';   // 10-15%
+    if (pct >= 5)  return '#4292c6';   // 5-10%
+    return '#9ecae1';                   // 0-5% — อ่อน
 }
 
 async function loadMarkers() {
