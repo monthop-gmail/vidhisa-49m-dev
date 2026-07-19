@@ -21,15 +21,17 @@ export function OrgDetailModal({ orgId, onClose }: { orgId: string | null; onClo
   })
 
   const { data: records } = useQuery({
-    queryKey: ['organization-records', orgId, org?.branch_id],
+    queryKey: ['organization-records', orgId],
     queryFn: async () => {
+      // ใช้ backend filter (org_id) แทน fetch สาขาทั้งหมด → กัน records ขาดกรณีสาขาใหญ่
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await api.GET('/api/records', {
-        params: { query: { branch_id: String(org?.branch_id ?? ''), limit: 500 } },
+        params: { query: { org_id: orgId, limit: 5000 } as any },
       })
       if (error) throw error
-      return ((data ?? []) as Array<Record<string, unknown>>).filter((r) => r.org_id === orgId)
+      return (data ?? []) as Array<Record<string, unknown>>
     },
-    enabled: open && Boolean(org?.branch_id),
+    enabled: open && Boolean(orgId),
   })
 
   const recList = records ?? []

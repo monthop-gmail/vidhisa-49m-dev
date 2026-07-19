@@ -19,8 +19,9 @@ async function showOrgDetail(orgId) {
     modal.style.display = 'block';
     try {
         const org = await (await fetch(`/api/organizations/${encodeURIComponent(orgId)}`)).json();
-        const recs = await (await fetch(`/api/records?branch_id=${org.branch_id}&limit=500`)).json();
-        const myRecs = recs.filter(r => r.org_id === orgId).sort((a,b) => (b.date||'').localeCompare(a.date||''));
+        // ใช้ backend filter (org_id) แทน fetch สาขาทั้งหมด → กัน records ขาดกรณีสาขาใหญ่
+        const recs = await (await fetch(`/api/records?org_id=${encodeURIComponent(orgId)}&limit=5000`)).json();
+        const myRecs = recs.sort((a,b) => (b.date||'').localeCompare(a.date||''));
         const recRows = myRecs.slice(0, 30).map(r =>
             `<tr><td>${r.date}</td><td>${r.type}</td><td>${FMT.format(r.minutes)}</td><td>${r.status}</td></tr>`
         ).join('');
@@ -56,8 +57,9 @@ async function showParticipantDetail(pid) {
     modal.style.display = 'block';
     try {
         const p = await (await fetch(`/api/participants/${pid}`)).json();
-        const recs = await (await fetch(`/api/records?branch_id=${p.branch_id}&limit=2000`)).json();
-        const myRecs = recs.filter(r => r.participant_id === pid).sort((a,b) => (b.date||'').localeCompare(a.date||''));
+        // ใช้ backend filter (participant_id) แทน fetch สาขาทั้งหมด → กัน records ขาดกรณีสาขาใหญ่
+        const recs = await (await fetch(`/api/records?participant_id=${pid}&limit=5000`)).json();
+        const myRecs = recs.sort((a,b) => (b.date||'').localeCompare(a.date||''));
         const approved = myRecs.filter(r => r.status === 'approved');
         const totalMin = approved.reduce((s,r) => s + (r.minutes || 0), 0);
         const recRows = myRecs.map(r =>
