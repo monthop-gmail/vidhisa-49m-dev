@@ -92,12 +92,15 @@ function getProvinceStyle(feature) {
 }
 
 function getColor(minutes) {
-    if (minutes > 10000) return '#08306b';
-    if (minutes > 5000) return '#2171b5';
-    if (minutes > 2000) return '#4292c6';
-    if (minutes > 1000) return '#6baed6';
-    if (minutes > 500) return '#9ecae1';
-    if (minutes > 0) return '#c6dbef';
+    // Scale ปรับใหม่ให้เข้ากับข้อมูลจริง (2026-07): median ~120k, Top ~2M
+    // เดิม max 10k → 89% ของจังหวัดตกอยู่ในสีเข้มสุด แยกไม่ออก
+    if (minutes > 1000000) return '#08306b';  // >1M นาที (Top ~5 จังหวัด)
+    if (minutes > 500000)  return '#08519c';
+    if (minutes > 200000)  return '#2171b5';
+    if (minutes > 50000)   return '#4292c6';
+    if (minutes > 10000)   return '#6baed6';
+    if (minutes > 1000)    return '#9ecae1';
+    if (minutes > 0)       return '#c6dbef';
     return '#f0f0f0';
 }
 
